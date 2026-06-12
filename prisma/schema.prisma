@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  ADMIN
+  LEADER
+  TREASURER
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+  VISITOR
+}
+
+enum DonationType {
+  TITHE
+  OFFERING
+  CAMPAIGN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      UserRole @default(LEADER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Member {
+  id          String       @id @default(cuid())
+  name        String
+  email       String?      @unique
+  phone       String?
+  birthDate   DateTime?
+  address     String?
+  status      MemberStatus @default(ACTIVE)
+  joinedAt    DateTime     @default(now())
+  donations   Donation[]
+  ministries  Ministry[]   @relation("MemberMinistries")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Ministry {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  leaderName  String?
+  members     Member[] @relation("MemberMinistries")
+  events      Event[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  location    String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  ministryId  String?
+  ministry    Ministry? @relation(fields: [ministryId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Donation {
+  id          String       @id @default(cuid())
+  amount      Decimal      @db.Decimal(12, 2)
+  type        DonationType @default(TITHE)
+  donatedAt   DateTime     @default(now())
+  notes       String?
+  memberId    String?
+  member      Member?      @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}

@@ -1,0 +1,111 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { navigationItems } from "@/lib/navigation";
+
+const iconMap: Record<(typeof navigationItems)[number]["icon"], string> = {
+  Inicio: "⌂",
+  Pessoas: "◎",
+  Servir: "✦",
+  Agenda: "□",
+  Dizimos: "$"
+};
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-[#f7faf8] text-ink-900">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-hope-100 bg-white px-5 py-6 shadow-soft lg:block">
+        <Brand />
+        <Navigation pathname={pathname} />
+      </aside>
+
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-hope-100 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <Brand compact />
+        <button
+          type="button"
+          aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
+          onClick={() => setIsOpen((value) => !value)}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-hope-100 text-xl font-semibold text-ink-900"
+        >
+          {isOpen ? "×" : "☰"}
+        </button>
+      </header>
+
+      {isOpen ? (
+        <div className="fixed inset-x-0 top-[69px] z-20 border-b border-hope-100 bg-white px-4 py-4 shadow-soft lg:hidden">
+          <Navigation pathname={pathname} onNavigate={() => setIsOpen(false)} />
+        </div>
+      ) : null}
+
+      <main className="lg:pl-72">
+        <div className="mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function Brand({ compact = false }: { compact?: boolean }) {
+  return (
+    <Link href="/dashboard" className="flex items-center gap-3">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-hope-600 text-lg font-bold text-white">
+        IBE
+      </span>
+      {!compact ? (
+        <span>
+          <span className="block text-sm font-bold uppercase tracking-wide text-hope-700">
+            Igreja Batista
+          </span>
+          <span className="block text-lg font-semibold text-ink-900">Esperanca</span>
+        </span>
+      ) : (
+        <span className="text-base font-semibold text-ink-900">IBE Esperanca</span>
+      )}
+    </Link>
+  );
+}
+
+function Navigation({
+  pathname,
+  onNavigate
+}: {
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <nav className="mt-8 grid gap-2">
+      {navigationItems.map((item) => {
+        const active = pathname === item.href;
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-semibold transition ${
+              active
+                ? "bg-hope-600 text-white shadow-sm"
+                : "text-ink-700 hover:bg-hope-50 hover:text-hope-700"
+            }`}
+          >
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-md text-sm ${
+                active ? "bg-white/15" : "bg-hope-50 text-hope-700"
+              }`}
+              aria-hidden="true"
+            >
+              {iconMap[item.icon]}
+            </span>
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
