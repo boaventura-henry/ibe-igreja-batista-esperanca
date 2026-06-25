@@ -30,3 +30,6 @@ repo-gitdata
 
 # prisma
 prisma/dev.db
+
+.vercel
+.env*
