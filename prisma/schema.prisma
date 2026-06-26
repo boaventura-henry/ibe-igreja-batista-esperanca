@@ -18,6 +18,8 @@ enum MemberStatus {
   ACTIVE
   INACTIVE
   VISITOR
+  TRANSFERRED
+  DECEASED
 }
 
 enum DonationType {
@@ -26,29 +28,117 @@ enum DonationType {
   CAMPAIGN
 }
 
+enum MemberSex {
+  FEMALE
+  MALE
+  OTHER
+  NOT_INFORMED
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
   role         UserRole @default(LEADER)
+  memberId     String?  @unique
+  accessRoleId String?
+  isActive     Boolean  @default(true)
+  mustChangePassword Boolean @default(false)
+  lastLoginAt  DateTime?
+  failedLoginAttempts Int @default(0)
+  lockedUntil  DateTime?
+  member       Member?  @relation("MemberUser", fields: [memberId], references: [id], onDelete: SetNull)
+  accessRole   AccessRole? @relation("UserAccessRole", fields: [accessRoleId], references: [id], onDelete: SetNull)
+  createdMembers Member[] @relation("MemberCreatedBy")
+  updatedMembers Member[] @relation("MemberUpdatedBy")
+  createdAccessRoles AccessRole[] @relation("AccessRoleCreatedBy")
+  updatedAccessRoles AccessRole[] @relation("AccessRoleUpdatedBy")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([accessRoleId])
+}
+
+model AccessRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions Permission[] @relation("AccessRolePermissions")
+  isSystem    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+  createdBy   User?    @relation("AccessRoleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?    @relation("AccessRoleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  users       User[]    @relation("UserAccessRole")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+  @@index([deletedAt])
+}
+
+model Permission {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  label       String
+  description String?
+  module      String
+  isSystem    Boolean      @default(true)
+  isActive    Boolean      @default(true)
+  accessRoles AccessRole[] @relation("AccessRolePermissions")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([code])
+  @@index([module])
+  @@index([isActive])
 }
 
 model Member {
-  id          String       @id @default(cuid())
-  name        String
-  email       String?      @unique
-  phone       String?
-  birthDate   DateTime?
-  address     String?
-  status      MemberStatus @default(ACTIVE)
-  joinedAt    DateTime     @default(now())
-  donations   Donation[]
-  ministries  Ministry[]   @relation("MemberMinistries")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  name          String
+  cpf           String?      @unique
+  rg            String?
+  birthDate     DateTime?
+  sex           MemberSex    @default(NOT_INFORMED)
+  maritalStatus String?
+  phone         String?
+  mobilePhone   String?
+  whatsapp      String?
+  email         String?      @unique
+  zipCode       String?
+  street        String?
+  number        String?
+  complement    String?
+  district      String?
+  city          String?
+  state         String?
+  baptismDate   DateTime?
+  joinedAt      DateTime?
+  status        MemberStatus @default(ACTIVE)
+  notes         String?
+  photoUrl      String?
+  deletedAt     DateTime?
+  createdById   String?
+  updatedById   String?
+  user          User?        @relation("MemberUser")
+  createdBy     User?        @relation("MemberCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?        @relation("MemberUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  donations     Donation[]
+  ministries    Ministry[]   @relation("MemberMinistries")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([name])
+  @@index([cpf])
+  @@index([city])
+  @@index([status])
+  @@index([deletedAt])
 }
 
 model Ministry {

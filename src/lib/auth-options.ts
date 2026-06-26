@@ -27,6 +27,11 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.memberId = user.memberId;
+        token.accessRoleId = user.accessRoleId;
+        token.mustChangePassword = user.mustChangePassword;
+        token.permissions = user.permissions;
+        token.permissionCodes = user.permissionCodes;
       }
 
       return token;
@@ -35,6 +40,11 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        session.user.memberId = token.memberId;
+        session.user.accessRoleId = token.accessRoleId;
+        session.user.mustChangePassword = token.mustChangePassword ?? false;
+        session.user.permissions = token.permissions ?? [];
+        session.user.permissionCodes = token.permissionCodes ?? [];
       }
 
       return session;
