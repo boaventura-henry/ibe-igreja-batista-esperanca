@@ -1,22 +1,17 @@
-import { prisma } from "@/lib/prisma";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { toAppError } from "@/lib/errors";
+import { healthService } from "@/services";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    const health = await healthService.checkDatabase();
 
-    return Response.json({
-      status: "ok",
-      database: "connected"
-    });
-  } catch {
-    return Response.json(
-      {
-        status: "error",
-        database: "unavailable"
-      },
-      { status: 500 }
-    );
+    return apiSuccess(health);
+  } catch (error) {
+    const appError = toAppError(error);
+
+    return apiError("Database unavailable", appError.statusCode, "DATABASE_UNAVAILABLE");
   }
 }

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useMobileMenu } from "@/hooks";
 import { navigationItems } from "@/lib/navigation";
+import { isRouteActive } from "@/utils";
 
 const iconMap: Record<(typeof navigationItems)[number]["icon"], string> = {
   Inicio: "⌂",
@@ -15,7 +16,7 @@ const iconMap: Record<(typeof navigationItems)[number]["icon"], string> = {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  const mobileMenu = useMobileMenu();
 
   return (
     <div className="min-h-screen bg-[#f7faf8] text-ink-900">
@@ -28,17 +29,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Brand compact />
         <button
           type="button"
-          aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
-          onClick={() => setIsOpen((value) => !value)}
+          aria-label={mobileMenu.isOpen ? "Fechar menu" : "Abrir menu"}
+          onClick={mobileMenu.toggle}
           className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-hope-100 text-xl font-semibold text-ink-900"
         >
-          {isOpen ? "×" : "☰"}
+          {mobileMenu.isOpen ? "×" : "☰"}
         </button>
       </header>
 
-      {isOpen ? (
+      {mobileMenu.isOpen ? (
         <div className="fixed inset-x-0 top-[69px] z-20 border-b border-hope-100 bg-white px-4 py-4 shadow-soft lg:hidden">
-          <Navigation pathname={pathname} onNavigate={() => setIsOpen(false)} />
+          <Navigation pathname={pathname} onNavigate={mobileMenu.close} />
         </div>
       ) : null}
 
@@ -81,7 +82,7 @@ function Navigation({
   return (
     <nav className="mt-8 grid gap-2">
       {navigationItems.map((item) => {
-        const active = pathname === item.href;
+        const active = isRouteActive(pathname, item.href);
 
         return (
           <Link
