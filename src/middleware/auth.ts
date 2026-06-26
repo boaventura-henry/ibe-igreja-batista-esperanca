@@ -1,8 +1,13 @@
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-export function getAuthSession(request: NextRequest) {
-  void request;
+export function getAuthSecret() {
+  return process.env.NEXTAUTH_SECRET;
+}
 
-  // Prepared for Auth.js integration. Returns null until authentication is added.
-  return null;
+export async function getAuthSession(request: NextRequest) {
+  return getToken({
+    req: request,
+    secret: getAuthSecret()
+  });
 }

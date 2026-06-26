@@ -1,6 +1,15 @@
-import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { LoginForm } from "@/components/LoginForm";
+import { authOptions } from "@/lib/auth-options";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const session = await getServerSession(authOptions);
+
+  if (session) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="grid min-h-screen bg-hope-50 lg:grid-cols-[1fr_560px]">
       <section className="flex min-h-[46vh] items-end bg-[linear-gradient(135deg,rgba(35,127,82,0.92),rgba(16,32,26,0.88)),url('https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center px-6 py-10 text-white lg:min-h-screen lg:px-12">
@@ -26,34 +35,11 @@ export default function LoginPage() {
             </span>
             <h2 className="mt-5 text-2xl font-bold text-ink-900">Entrar no sistema</h2>
             <p className="mt-2 text-sm text-ink-500">
-              Tela inicial preparada para receber autenticacao segura no proximo passo.
+              Entre com seu email e senha para acessar a area administrativa.
             </p>
           </div>
 
-          <form className="grid gap-4">
-            <label className="grid gap-2 text-sm font-semibold text-ink-700">
-              Email
-              <input
-                type="email"
-                placeholder="admin@ibe.org.br"
-                className="rounded-md border-hope-100 focus:border-hope-600 focus:ring-hope-600"
-              />
-            </label>
-            <label className="grid gap-2 text-sm font-semibold text-ink-700">
-              Senha
-              <input
-                type="password"
-                placeholder="••••••••"
-                className="rounded-md border-hope-100 focus:border-hope-600 focus:ring-hope-600"
-              />
-            </label>
-            <Link
-              href="/dashboard"
-              className="mt-2 inline-flex h-11 items-center justify-center rounded-md bg-hope-600 px-4 text-sm font-bold text-white transition hover:bg-hope-700"
-            >
-              Acessar dashboard
-            </Link>
-          </form>
+          <LoginForm />
         </div>
       </section>
     </main>

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useMobileMenu } from "@/hooks";
 import { navigationItems } from "@/lib/navigation";
 import { isRouteActive } from "@/utils";
+import { LogoutButton } from "./LogoutButton";
 
 const iconMap: Record<(typeof navigationItems)[number]["icon"], string> = {
   Inicio: "⌂",
@@ -23,6 +24,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-hope-100 bg-white px-5 py-6 shadow-soft lg:block">
         <Brand />
         <Navigation pathname={pathname} />
+        <div className="absolute inset-x-5 bottom-6">
+          <LogoutButton className="flex w-full items-center justify-center rounded-md border border-hope-100 px-3 py-3 text-sm font-bold text-ink-700 transition hover:bg-hope-50 hover:text-hope-700" />
+        </div>
       </aside>
 
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-hope-100 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
@@ -40,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {mobileMenu.isOpen ? (
         <div className="fixed inset-x-0 top-[69px] z-20 border-b border-hope-100 bg-white px-4 py-4 shadow-soft lg:hidden">
           <Navigation pathname={pathname} onNavigate={mobileMenu.close} />
+          <LogoutButton className="mt-2 flex w-full items-center justify-center rounded-md border border-hope-100 px-3 py-3 text-sm font-bold text-ink-700 transition hover:bg-hope-50 hover:text-hope-700" />
         </div>
       ) : null}
 

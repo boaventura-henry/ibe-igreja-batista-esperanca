@@ -1,0 +1,37 @@
+import { userRepository } from "@/repositories";
+import type { AuthSessionUser } from "@/types";
+import { verifyPassword } from "@/utils";
+import { loginSchema, type LoginInput } from "@/validators";
+
+export const authService = {
+  async validateCredentials(input: unknown): Promise<AuthSessionUser | null> {
+    const parsed = loginSchema.safeParse(input);
+
+    if (!parsed.success) {
+      return null;
+    }
+
+    return this.login(parsed.data);
+  },
+
+  async login(input: LoginInput): Promise<AuthSessionUser | null> {
+    const user = await userRepository.findByEmailWithPassword(input.email);
+
+    if (!user) {
+      return null;
+    }
+
+    const isValidPassword = await verifyPassword(input.password, user.passwordHash);
+
+    if (!isValidPassword) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
+  }
+};
