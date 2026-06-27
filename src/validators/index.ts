@@ -13,3 +13,16 @@ export type {
   MemberListQueryInput,
   MemberUpdateInput
 } from "./member.validator";
+export {
+  strongPasswordSchema,
+  userCreateSchema,
+  userListQuerySchema,
+  userResetPasswordSchema,
+  userUpdateSchema
+} from "./user.validator";
+export type {
+  UserCreateInput,
+  UserListQueryInput,
+  UserResetPasswordInput,
+  UserUpdateInput
+} from "./user.validator";

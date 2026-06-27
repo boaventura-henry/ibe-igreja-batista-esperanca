@@ -2,47 +2,43 @@ import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
-import { requireCurrentUser, requirePermission } from "@/lib/session";
-import { memberService } from "@/services";
-import { memberUpdateSchema } from "@/validators";
+import { requirePermission } from "@/lib/session";
+import { userService } from "@/services";
+import { userUpdateSchema } from "@/validators";
 
 export const dynamic = "force-dynamic";
-
-function validationMessage(error: ZodError) {
-  return error.issues[0]?.message ?? "Dados invalidos.";
-}
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+function validationMessage(error: ZodError) {
+  return error.issues[0]?.message ?? "Dados invalidos.";
+}
+
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    await requireCurrentUser();
-
+    await requirePermission("user.view");
     const { id } = await context.params;
-    const member = await memberService.getById(id);
 
-    return apiSuccess(member);
+    return apiSuccess(await userService.getById(id));
   } catch (error) {
     if (error instanceof AppError) {
       return apiError(error.message, error.statusCode, error.code);
     }
 
     const appError = toAppError(error);
-
     return apiError(appError.message, appError.statusCode, appError.code);
   }
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    const user = await requireCurrentUser();
+    const currentUser = await requirePermission("user.update");
     const { id } = await context.params;
-    const payload = memberUpdateSchema.parse(await request.json());
-    const member = await memberService.update(id, payload, user.id);
+    const payload = userUpdateSchema.parse(await request.json());
 
-    return apiSuccess(member);
+    return apiSuccess(await userService.update(id, payload, currentUser.id));
   } catch (error) {
     if (error instanceof ZodError) {
       return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
@@ -53,25 +49,22 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const appError = toAppError(error);
-
     return apiError(appError.message, appError.statusCode, appError.code);
   }
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
-    const user = await requirePermission("member.delete");
+    const currentUser = await requirePermission("user.delete");
     const { id } = await context.params;
-    const result = await memberService.remove(id, user.id);
 
-    return apiSuccess(result);
+    return apiSuccess(await userService.remove(id, currentUser.id));
   } catch (error) {
     if (error instanceof AppError) {
       return apiError(error.message, error.statusCode, error.code);
     }
 
     const appError = toAppError(error);
-
     return apiError(appError.message, appError.statusCode, appError.code);
   }
 }

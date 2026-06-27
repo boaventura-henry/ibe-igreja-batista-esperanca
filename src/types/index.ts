@@ -13,3 +13,4 @@ export type {
   MemberStatusOption,
   MemberSummary
 } from "./member.types";
+export type { UserFormValues, UserListResult, UserStatusFilter, UserSummary } from "./user.types";

@@ -1,7 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
-const protectedRoutes = ["/dashboard", "/membros", "/perfis-acesso", "/ministerios", "/eventos", "/contribuicoes"];
+const protectedRoutes = ["/dashboard", "/membros", "/perfis-acesso", "/usuarios", "/ministerios", "/eventos", "/contribuicoes"];
 
 function isProtectedRoute(pathname: string) {
   return protectedRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
@@ -16,7 +16,11 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    if (pathname.startsWith("/perfis-acesso") && request.nextauth.token?.role !== "ADMIN") {
+    if (pathname.startsWith("/perfis-acesso") && !request.nextauth.token?.permissionCodes?.includes("accessRole.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (pathname.startsWith("/usuarios") && !request.nextauth.token?.permissionCodes?.includes("user.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
@@ -48,6 +52,7 @@ export const config = {
     "/dashboard/:path*",
     "/membros/:path*",
     "/perfis-acesso/:path*",
+    "/usuarios/:path*",
     "/ministerios/:path*",
     "/eventos/:path*",
     "/contribuicoes/:path*"

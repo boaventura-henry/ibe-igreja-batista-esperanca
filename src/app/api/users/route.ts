@@ -3,8 +3,8 @@ import { ZodError } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
 import { requirePermission } from "@/lib/session";
-import { accessRoleService } from "@/services";
-import { accessRoleCreateSchema } from "@/validators";
+import { userService } from "@/services";
+import { userCreateSchema, userListQuerySchema } from "@/validators";
 
 export const dynamic = "force-dynamic";
 
@@ -12,25 +12,12 @@ function validationMessage(error: ZodError) {
   return error.issues[0]?.message ?? "Dados invalidos.";
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    await requirePermission("accessRole.view");
+    await requirePermission("user.view");
+    const filters = userListQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams.entries()));
 
-    return apiSuccess(await accessRoleService.list());
-  } catch (error) {
-    const appError = toAppError(error);
-
-    return apiError(appError.message, appError.statusCode, appError.code);
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const user = await requirePermission("accessRole.create");
-    const payload = accessRoleCreateSchema.parse(await request.json());
-    const accessRole = await accessRoleService.create(payload, user.id);
-
-    return apiSuccess(accessRole, { status: 201 });
+    return apiSuccess(await userService.list(filters));
   } catch (error) {
     if (error instanceof ZodError) {
       return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
@@ -41,7 +28,26 @@ export async function POST(request: NextRequest) {
     }
 
     const appError = toAppError(error);
+    return apiError(appError.message, appError.statusCode, appError.code);
+  }
+}
 
+export async function POST(request: NextRequest) {
+  try {
+    await requirePermission("user.create");
+    const payload = userCreateSchema.parse(await request.json());
+
+    return apiSuccess(await userService.create(payload), { status: 201 });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
+    }
+
+    if (error instanceof AppError) {
+      return apiError(error.message, error.statusCode, error.code);
+    }
+
+    const appError = toAppError(error);
     return apiError(appError.message, appError.statusCode, appError.code);
   }
 }

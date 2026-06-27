@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
-import { requireCurrentUser, requireRole } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import { accessRoleService } from "@/services";
 import { accessRoleUpdateSchema } from "@/validators";
 
@@ -18,11 +18,7 @@ function validationMessage(error: ZodError) {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    const user = await requireCurrentUser();
-
-    if (user.role !== "ADMIN") {
-      return apiError("Voce nao tem permissao para esta acao.", 403, "FORBIDDEN");
-    }
+    await requirePermission("accessRole.view");
 
     const { id } = await context.params;
 
@@ -40,7 +36,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    const user = await requireRole(["ADMIN"]);
+    const user = await requirePermission("accessRole.update");
     const { id } = await context.params;
     const payload = accessRoleUpdateSchema.parse(await request.json());
 
@@ -62,7 +58,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const user = await requireRole(["ADMIN"]);
+    const user = await requirePermission("accessRole.delete");
     const { id } = await context.params;
     const confirmSystemChange = request.nextUrl.searchParams.get("confirmSystemChange") === "true";
 

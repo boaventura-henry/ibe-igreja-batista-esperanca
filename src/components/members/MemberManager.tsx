@@ -330,7 +330,7 @@ export function MemberManager() {
   }
 
   const pagination = data?.pagination;
-  const canRemoveMember = session?.user.role === "ADMIN";
+  const canRemoveMember = session?.user.permissionCodes?.includes("member.delete") ?? false;
 
   return (
     <div className="space-y-5">

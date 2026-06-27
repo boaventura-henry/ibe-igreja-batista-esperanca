@@ -76,10 +76,6 @@ export function hasPermission(
     return false;
   }
 
-  if (subject.role === "ADMIN") {
-    return true;
-  }
-
   if ("permissions" in subject) {
     if (subject.permissionCodes) {
       return subject.permissionCodes.includes(permission);
