@@ -5,6 +5,7 @@ export type UserStatusFilter = "ACTIVE" | "INACTIVE" | "LOCKED" | "MUST_CHANGE_P
 export type UserSummary = {
   id: string;
   name: string;
+  username: string;
   email: string;
   role: UserRole;
   member: { id: string; name: string; email: string | null; cpf: string | null } | null;
@@ -34,6 +35,7 @@ export type UserListResult = {
 
 export type UserFormValues = {
   name: string;
+  username: string;
   email: string;
   password?: string;
   role: UserRole;

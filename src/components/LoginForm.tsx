@@ -14,14 +14,14 @@ export function LoginForm() {
 
     startTransition(async () => {
       const result = await signIn("credentials", {
-        email: formData.get("email"),
+        username: formData.get("username"),
         password: formData.get("password"),
         redirect: false,
         callbackUrl: "/dashboard"
       });
 
       if (!result || result.error) {
-        setError("Email ou senha invalidos.");
+        setError("Usuario ou senha invalidos.");
         return;
       }
 
@@ -33,13 +33,15 @@ export function LoginForm() {
   return (
     <form action={handleSubmit} className="grid gap-4">
       <label className="grid gap-2 text-sm font-semibold text-ink-700">
-        Email
+        Usuario
         <input
-          name="email"
-          type="email"
-          placeholder="admin@ibe.org.br"
-          autoComplete="email"
+          name="username"
+          type="text"
+          placeholder="CSJOAOSANTOS"
+          autoComplete="username"
           required
+          minLength={4}
+          maxLength={30}
           className="rounded-md border-hope-100 focus:border-hope-600 focus:ring-hope-600"
         />
       </label>

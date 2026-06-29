@@ -13,4 +13,11 @@ export type {
   MemberStatusOption,
   MemberSummary
 } from "./member.types";
+export type {
+  MinistryFormValues,
+  MinistryListResult,
+  MinistryPerson,
+  MinistryStatusFilter,
+  MinistrySummary
+} from "./ministry.types";
 export type { UserFormValues, UserListResult, UserStatusFilter, UserSummary } from "./user.types";

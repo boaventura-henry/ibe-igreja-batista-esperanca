@@ -3,8 +3,8 @@ import { ZodError } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
 import { requirePermission } from "@/lib/session";
-import { memberService } from "@/services";
-import { memberCreateSchema, memberListQuerySchema } from "@/validators";
+import { ministryService } from "@/services";
+import { ministryCreateSchema, ministryListQuerySchema } from "@/validators";
 
 export const dynamic = "force-dynamic";
 
@@ -14,17 +14,19 @@ function validationMessage(error: ZodError) {
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission("member.view");
-
-    const filters = memberListQuerySchema.parse(
+    await requirePermission("ministry.view");
+    const filters = ministryListQuerySchema.parse(
       Object.fromEntries(request.nextUrl.searchParams.entries())
     );
-    const members = await memberService.list(filters);
 
-    return apiSuccess(members);
+    return apiSuccess(await ministryService.list(filters));
   } catch (error) {
     if (error instanceof ZodError) {
       return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
+    }
+
+    if (error instanceof AppError) {
+      return apiError(error.message, error.statusCode, error.code);
     }
 
     const appError = toAppError(error);
@@ -35,11 +37,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requirePermission("member.create");
-    const payload = memberCreateSchema.parse(await request.json());
-    const member = await memberService.create(payload, user.id);
+    const user = await requirePermission("ministry.create");
+    const payload = ministryCreateSchema.parse(await request.json());
 
-    return apiSuccess(member, { status: 201 });
+    return apiSuccess(await ministryService.create(payload, user.id), { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) {
       return apiError(validationMessage(error), 400, "VALIDATION_ERROR");

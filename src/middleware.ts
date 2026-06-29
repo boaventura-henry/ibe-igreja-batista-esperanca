@@ -24,6 +24,10 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
+    if (pathname.startsWith("/ministerios") && !request.nextauth.token?.permissionCodes?.includes("ministry.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
     return NextResponse.next();
   },
   {

@@ -10,6 +10,7 @@ type ApiResponse<T> =
 
 const emptyForm: UserFormValues = {
   name: "",
+  username: "",
   email: "",
   password: "",
   role: "LEADER",
@@ -35,6 +36,7 @@ const roleOptions = [
 
 const sortOptions = [
   { value: "name", label: "Nome" },
+  { value: "username", label: "Usuario" },
   { value: "email", label: "E-mail" },
   { value: "lastLoginAt", label: "Ultimo login" },
   { value: "failedLoginAttempts", label: "Falhas" },
@@ -162,6 +164,7 @@ export function UserManager() {
       setAssignableMembers(payload.data.assignableMembers);
       setForm({
         name: user.name,
+        username: user.username,
         email: user.email,
         role: user.role,
         memberId: user.member?.id ?? "",
@@ -345,6 +348,7 @@ export function UserManager() {
                   <tr key={user.id} className="align-top">
                     <td className="px-4 py-4">
                       <p className="font-semibold text-ink-900">{user.name}</p>
+                      <p className="text-xs font-semibold text-hope-700">{user.username}</p>
                       <p className="text-xs text-ink-500">{user.email}</p>
                     </td>
                     <td className="px-4 py-4 text-ink-700">{user.member?.name ?? "-"}</td>
@@ -433,6 +437,9 @@ export function UserManager() {
               <div className="grid gap-4 p-5 md:grid-cols-2">
                 <Field label="Nome">
                   <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className={inputClass} />
+                </Field>
+                <Field label="Usuario">
+                  <input required value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value.toUpperCase() }))} className={inputClass} />
                 </Field>
                 <Field label="E-mail">
                   <input required type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className={inputClass} />

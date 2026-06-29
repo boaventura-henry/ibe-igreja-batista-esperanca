@@ -1,5 +1,6 @@
 import { UserRole } from "@prisma/client";
 import { z } from "zod";
+import { usernameSchema } from "./auth.validator";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") {
@@ -21,6 +22,7 @@ export const strongPasswordSchema = z
 
 export const userCreateSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do usuario."),
+  username: usernameSchema,
   email: z.email("Informe um e-mail valido.").trim().toLowerCase(),
   password: strongPasswordSchema,
   role: z.enum(UserRole).default(UserRole.LEADER),
@@ -43,7 +45,7 @@ export const userListQuerySchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE", "LOCKED", "MUST_CHANGE_PASSWORD"]).optional(),
   accessRoleId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   sortBy: z
-    .enum(["name", "email", "createdAt", "updatedAt", "lastLoginAt", "failedLoginAttempts"])
+    .enum(["name", "username", "email", "createdAt", "updatedAt", "lastLoginAt", "failedLoginAttempts"])
     .default("name"),
   sortOrder: z.enum(["asc", "desc"]).default("asc"),
   page: z.coerce.number().int().min(1).default(1),

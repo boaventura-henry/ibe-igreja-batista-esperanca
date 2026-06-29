@@ -43,6 +43,10 @@ Crie um arquivo `.env` na raiz do projeto usando `.env.example` como base:
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
 DIRECT_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
+ADMIN_USERNAME="ADMIN"
+ADMIN_NAME="Administrador"
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="UseUmaSenhaForteAqui"
 ```
 
 Nao coloque credenciais reais no repositorio. O arquivo `.env` esta no `.gitignore`.
@@ -81,6 +85,23 @@ npm run build
 5. Publique o projeto.
 
 O script `build` executa `prisma generate` antes de `next build`, garantindo que o Prisma Client exista durante o build da Vercel.
+
+## Usuario administrador inicial
+
+O seed cria ou atualiza o administrador inicial usando variaveis de ambiente:
+
+- `ADMIN_USERNAME`: usuario de login, sempre normalizado em maiusculo.
+- `ADMIN_NAME`: nome exibido no sistema.
+- `ADMIN_EMAIL`: e-mail cadastral.
+- `ADMIN_PASSWORD`: senha forte usada para gerar o hash.
+
+Execute:
+
+```bash
+npm run prisma:seed
+```
+
+O login do sistema usa `username + senha`. O e-mail permanece apenas como informacao cadastral.
 
 ## Estrutura inicial
 

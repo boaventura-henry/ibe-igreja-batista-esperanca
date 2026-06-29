@@ -287,12 +287,16 @@ export const memberRepository = {
 
   listMinistries() {
     return prisma.ministry.findMany({
+      where: {
+        deletedAt: null,
+        isActive: true
+      },
       select: {
         id: true,
         name: true
       },
       orderBy: {
-        name: "asc"
+        displayOrder: "asc"
       }
     });
   }

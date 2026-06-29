@@ -14,6 +14,16 @@ export type {
   MemberUpdateInput
 } from "./member.validator";
 export {
+  ministryCreateSchema,
+  ministryListQuerySchema,
+  ministryUpdateSchema
+} from "./ministry.validator";
+export type {
+  MinistryCreateInput,
+  MinistryListQueryInput,
+  MinistryUpdateInput
+} from "./ministry.validator";
+export {
   strongPasswordSchema,
   userCreateSchema,
   userListQuerySchema,

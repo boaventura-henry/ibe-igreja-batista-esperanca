@@ -20,6 +20,7 @@ function serializeUser(user: SafeUser): UserSummary {
   return {
     id: user.id,
     name: user.name,
+    username: user.username,
     email: user.email,
     role: user.role,
     member: user.member,
@@ -43,6 +44,18 @@ async function ensureUniqueEmail(email: string | undefined, currentUserId?: stri
 
   if (existing && existing.id !== currentUserId) {
     throw new AppError("Email ja cadastrado.", 409, "USER_EMAIL_EXISTS");
+  }
+}
+
+async function ensureUniqueUsername(username: string | undefined, currentUserId?: string) {
+  if (!username) {
+    return;
+  }
+
+  const existing = await userRepository.findByUsername(username);
+
+  if (existing && existing.id !== currentUserId) {
+    throw new AppError("Usuario ja cadastrado.", 409, "USER_USERNAME_EXISTS");
   }
 }
 
@@ -112,6 +125,7 @@ export const userService = {
   },
 
   async create(data: UserCreateInput) {
+    await ensureUniqueUsername(data.username);
     await ensureUniqueEmail(data.email);
     await ensureMemberAvailable(data.memberId);
 
@@ -130,6 +144,10 @@ export const userService = {
 
     if (data.email) {
       await ensureUniqueEmail(data.email, id);
+    }
+
+    if (data.username) {
+      await ensureUniqueUsername(data.username, id);
     }
 
     await ensureMemberAvailable(data.memberId, id);

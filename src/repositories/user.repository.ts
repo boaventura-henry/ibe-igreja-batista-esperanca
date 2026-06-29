@@ -5,6 +5,7 @@ import type { UserCreateInput, UserListQueryInput, UserUpdateInput } from "@/val
 const userSelect = {
   id: true,
   name: true,
+  username: true,
   email: true,
   role: true,
   memberId: true,
@@ -59,6 +60,7 @@ function buildWhere(filters: UserListQueryInput): Prisma.UserWhereInput {
     and.push({
       OR: [
         { name: { contains: filters.search, mode: "insensitive" } },
+        { username: { contains: filters.search, mode: "insensitive" } },
         { email: { contains: filters.search, mode: "insensitive" } },
         { member: { name: { contains: filters.search, mode: "insensitive" } } }
       ]
@@ -110,9 +112,9 @@ export const userRepository = {
     return { users, total };
   },
 
-  findByEmailWithPassword(email: string) {
+  findByUsernameWithPassword(username: string) {
     return prisma.user.findUnique({
-      where: { email },
+      where: { username },
       select: {
         ...userSelect,
         passwordHash: true
@@ -130,6 +132,13 @@ export const userRepository = {
   findByEmail(email: string) {
     return prisma.user.findUnique({
       where: { email },
+      select: { id: true }
+    });
+  },
+
+  findByUsername(username: string) {
+    return prisma.user.findUnique({
+      where: { username },
       select: { id: true }
     });
   },
@@ -155,6 +164,7 @@ export const userRepository = {
     return prisma.user.create({
       data: {
         name: data.name,
+        username: data.username,
         email: data.email,
         passwordHash: data.passwordHash,
         role: data.role,
@@ -172,6 +182,7 @@ export const userRepository = {
       where: { id },
       data: {
         name: data.name,
+        username: data.username,
         email: data.email,
         role: data.role,
         memberId: data.memberId,
@@ -277,17 +288,33 @@ export const userRepository = {
     });
   },
 
-  upsertAdmin(data: { name: string; email: string; passwordHash: string; accessRoleId?: string | null }) {
-    return prisma.user.upsert({
-      where: { email: data.email },
-      update: {
-        name: data.name,
-        passwordHash: data.passwordHash,
-        role: "ADMIN",
-        accessRoleId: data.accessRoleId,
-        isActive: true
+  async upsertAdmin(data: { username: string; name: string; email: string; passwordHash: string; accessRoleId?: string | null }) {
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [{ username: data.username }, { email: data.email }]
       },
-      create: {
+      select: { id: true }
+    });
+
+    if (existing) {
+      return prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          username: data.username,
+          name: data.name,
+          email: data.email,
+          passwordHash: data.passwordHash,
+          role: "ADMIN",
+          accessRoleId: data.accessRoleId,
+          isActive: true
+        },
+        select: userSelect
+      });
+    }
+
+    return prisma.user.create({
+      data: {
+        username: data.username,
         name: data.name,
         email: data.email,
         passwordHash: data.passwordHash,

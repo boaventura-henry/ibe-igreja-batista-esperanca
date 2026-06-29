@@ -14,7 +14,7 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Usuario", type: "text" },
         password: { label: "Senha", type: "password" }
       },
       async authorize(credentials) {
@@ -26,6 +26,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.username = user.username;
         token.role = user.role;
         token.memberId = user.memberId;
         token.accessRoleId = user.accessRoleId;
@@ -39,6 +40,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
+        session.user.username = token.username;
         session.user.role = token.role;
         session.user.memberId = token.memberId;
         session.user.accessRoleId = token.accessRoleId;

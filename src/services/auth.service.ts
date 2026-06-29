@@ -15,7 +15,7 @@ export const authService = {
   },
 
   async login(input: LoginInput): Promise<AuthSessionUser | null> {
-    const user = await userRepository.findByEmailWithPassword(input.email);
+    const user = await userRepository.findByUsernameWithPassword(input.username);
 
     if (!user) {
       return null;
@@ -42,6 +42,7 @@ export const authService = {
     return {
       id: user.id,
       name: user.name,
+      username: user.username,
       email: user.email,
       role: user.role,
       memberId: user.memberId,

@@ -6,6 +6,7 @@ export type AuthRole = UserRole;
 export type AuthSessionUser = {
   id: string;
   name: string;
+  username: string;
   email: string;
   role: AuthRole;
   memberId?: string | null;
