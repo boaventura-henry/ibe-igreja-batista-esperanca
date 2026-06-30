@@ -11,6 +11,7 @@ function serializeDate(value: Date | null) {
 function serializeListItem(member: MemberListItem): MemberSummary {
   return {
     ...member,
+    ministries: member.memberMinistries.map((link) => link.ministry),
     updatedAt: member.updatedAt.toISOString()
   };
 }
@@ -23,6 +24,16 @@ function serializeDetail(member: MemberDetail) {
     joinedAt: serializeDate(member.joinedAt),
     createdAt: member.createdAt.toISOString(),
     updatedAt: member.updatedAt.toISOString(),
+    ministries: member.memberMinistries.map((link) => ({
+      id: link.ministry.id,
+      name: link.ministry.name,
+      description: link.ministry.description,
+      role: link.role,
+      status: link.status,
+      entryDate: serializeDate(link.entryDate),
+      exitDate: serializeDate(link.exitDate),
+      observations: link.observations
+    })),
     user: member.user
       ? {
           ...member.user,

@@ -14,6 +14,7 @@ const iconMap: Record<(typeof navigationItems)[number]["icon"], string> = {
   Chaves: "#",
   Usuarios: "U",
   Servir: "+",
+  Vinculos: "&",
   Agenda: "A",
   Dizimos: "$"
 };

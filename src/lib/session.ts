@@ -22,3 +22,13 @@ export async function requirePermission(permission: PermissionKey) {
 
   return user;
 }
+
+export async function requireAnyPermission(permissions: PermissionKey[]) {
+  const user = await requireCurrentUser();
+
+  if (!permissions.some((permission) => hasPermission(user, permission))) {
+    throw new AppError("Voce nao tem permissao para esta acao.", 403, "FORBIDDEN");
+  }
+
+  return user;
+}

@@ -47,6 +47,7 @@ ADMIN_USERNAME="ADMIN"
 ADMIN_NAME="Administrador"
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="UseUmaSenhaForteAqui"
+BLOB_READ_WRITE_TOKEN="vercel_blob_rw_token"
 ```
 
 Nao coloque credenciais reais no repositorio. O arquivo `.env` esta no `.gitignore`.
@@ -85,6 +86,10 @@ npm run build
 5. Publique o projeto.
 
 O script `build` executa `prisma generate` antes de `next build`, garantindo que o Prisma Client exista durante o build da Vercel.
+
+## Imagens com Vercel Blob
+
+Fotos de membros e imagens de ministerios usam Vercel Blob. Crie um Blob Store no projeto da Vercel e configure `BLOB_READ_WRITE_TOKEN` nos ambientes necessários. Sem essa variavel, as rotas de upload retornam erro amigavel e o cadastro ainda permite informar uma URL manualmente.
 
 ## Usuario administrador inicial
 

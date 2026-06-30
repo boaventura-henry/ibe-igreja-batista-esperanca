@@ -26,6 +26,23 @@ const sexLabels: Record<string, string> = {
   NOT_INFORMED: "Nao informado"
 };
 
+const memberMinistryRoleLabels: Record<string, string> = {
+  LEADER: "Lider",
+  VICE_LEADER: "Vice-lider",
+  SECRETARY: "Secretario",
+  TREASURER: "Tesoureiro",
+  VOLUNTEER: "Voluntario",
+  MEMBER: "Membro"
+};
+
+const memberMinistryStatusLabels: Record<string, string> = {
+  ACTIVE: "Ativo",
+  INACTIVE: "Inativo",
+  TRANSFERRED: "Transferido",
+  REMOVED: "Removido",
+  LEFT: "Saiu"
+};
+
 function display(value: string | null | undefined) {
   return value && value.trim().length > 0 ? value : "-";
 }
@@ -92,13 +109,40 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
               </div>
             </div>
 
-            <InfoSection title="Ministerios">
+            <InfoSection
+              title="Ministerios"
+              action={
+                <Link
+                  href={`/membros-ministerios?memberId=${member.id}`}
+                  className="rounded-md border border-hope-100 px-3 py-2 text-xs font-bold text-ink-700 hover:bg-hope-50"
+                >
+                  Gerenciar
+                </Link>
+              }
+            >
               {member.ministries.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-3">
                   {member.ministries.map((ministry) => (
-                    <span key={ministry.id} className="rounded-md bg-hope-50 px-3 py-2 text-sm font-bold text-hope-700">
-                      {ministry.name}
-                    </span>
+                    <div key={`${ministry.id}-${ministry.entryDate}`} className="rounded-md border border-hope-100 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-ink-900">{ministry.name}</p>
+                          <p className="text-xs font-semibold text-ink-500">
+                            {memberMinistryRoleLabels[ministry.role]} - {memberMinistryStatusLabels[ministry.status]}
+                          </p>
+                        </div>
+                        <span className="rounded-md bg-hope-50 px-2 py-1 text-xs font-bold text-hope-700">
+                          {memberMinistryStatusLabels[ministry.status]}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs text-ink-600">
+                        Entrada: {displayDate(ministry.entryDate)}
+                        {ministry.exitDate ? ` | Saida: ${displayDate(ministry.exitDate)}` : " | Em andamento"}
+                      </p>
+                      {ministry.observations ? (
+                        <p className="mt-2 text-xs text-ink-500">{ministry.observations}</p>
+                      ) : null}
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -224,10 +268,21 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
   }
 }
 
-function InfoSection({ title, children }: { title: string; children: React.ReactNode }) {
+function InfoSection({
+  title,
+  children,
+  action
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
     <section className="rounded-md border border-hope-100 bg-white p-4 shadow-sm">
-      <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-ink-500">{title}</h2>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-ink-500">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   );

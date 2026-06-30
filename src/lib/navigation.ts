@@ -4,6 +4,7 @@ export const navigationItems = [
   { href: "/perfis-acesso", label: "Perfis de Acesso", icon: "Chaves", permission: "accessRole.view" },
   { href: "/usuarios", label: "Usuarios", icon: "Usuarios", permission: "user.view" },
   { href: "/ministerios", label: "Ministerios", icon: "Servir", permission: "ministry.view" },
+  { href: "/membros-ministerios", label: "Membros x Ministerios", icon: "Vinculos", permission: "memberMinistry.view" },
   { href: "/eventos", label: "Eventos", icon: "Agenda" },
   { href: "/contribuicoes", label: "Contribuicoes", icon: "Dizimos" }
 ] as const;

@@ -548,7 +548,7 @@ export function MemberManager() {
                   <h2 className="text-lg font-bold text-ink-900">
                     {editingId ? "Editar membro" : "Novo membro"}
                   </h2>
-                  <p className="text-sm text-ink-500">Dados pessoais, contato, endereco e vinculos.</p>
+                  <p className="text-sm text-ink-500">Dados pessoais, contato e endereco.</p>
                 </div>
                 <button
                   type="button"
@@ -648,25 +648,6 @@ export function MemberManager() {
                       }}
                       className={inputClass}
                     />
-                  </Field>
-                  <Field label="Ministerios" className="md:col-span-2">
-                    <select
-                      multiple
-                      value={form.ministryIds}
-                      onChange={(event) =>
-                        updateForm(
-                          "ministryIds",
-                          Array.from(event.target.selectedOptions).map((option) => option.value)
-                        )
-                      }
-                      className={`${inputClass} min-h-28`}
-                    >
-                      {data?.filters.ministries.map((ministry) => (
-                        <option key={ministry.id} value={ministry.id}>
-                          {ministry.name}
-                        </option>
-                      ))}
-                    </select>
                   </Field>
                   <Field label="URL da foto" className="md:col-span-2">
                     <input value={form.photoUrl} onChange={(event) => updateForm("photoUrl", event.target.value)} className={inputClass} />

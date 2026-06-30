@@ -25,7 +25,7 @@ function serialize(ministry: MinistryRecord): MinistrySummary {
     isSystem: ministry.isSystem,
     leaderMember: ministry.leaderMember,
     viceLeaderMember: ministry.viceLeaderMember,
-    membersCount: ministry._count.members,
+    membersCount: ministry._count.memberMinistries,
     eventsCount: ministry._count.events,
     createdAt: ministry.createdAt.toISOString(),
     updatedAt: ministry.updatedAt.toISOString()

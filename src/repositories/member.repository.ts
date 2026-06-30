@@ -14,13 +14,23 @@ const memberListSelect = {
   status: true,
   photoUrl: true,
   updatedAt: true,
-  ministries: {
+  memberMinistries: {
+    where: {
+      deletedAt: null,
+      status: "ACTIVE"
+    },
     select: {
-      id: true,
-      name: true
+      ministry: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
     },
     orderBy: {
-      name: "asc"
+      ministry: {
+        name: "asc"
+      }
     }
   }
 } satisfies Prisma.MemberSelect;
@@ -79,14 +89,27 @@ const memberDetailSelect = {
       email: true
     }
   },
-  ministries: {
+  memberMinistries: {
+    where: {
+      deletedAt: null
+    },
     select: {
       id: true,
-      name: true,
-      description: true
+      role: true,
+      status: true,
+      entryDate: true,
+      exitDate: true,
+      observations: true,
+      ministry: {
+        select: {
+          id: true,
+          name: true,
+          description: true
+        }
+      }
     },
     orderBy: {
-      name: "asc"
+      entryDate: "desc"
     }
   },
   donations: {
@@ -148,10 +171,7 @@ function createMemberData(data: MemberCreateInput): Prisma.MemberCreateInput {
     name: data.name,
     cpf: data.cpf,
     sex: data.sex,
-    status: data.status,
-    ministries: {
-      connect: data.ministryIds.map((id) => ({ id }))
-    }
+    status: data.status
   };
 }
 
@@ -190,7 +210,15 @@ function buildWhere(filters: MemberListQueryInput): Prisma.MemberWhereInput {
   }
 
   if (filters.ministryId) {
-    and.push({ ministries: { some: { id: filters.ministryId } } });
+    and.push({
+      memberMinistries: {
+        some: {
+          ministryId: filters.ministryId,
+          status: "ACTIVE",
+          deletedAt: null
+        }
+      }
+    });
   }
 
   return { AND: and };
@@ -251,20 +279,10 @@ export const memberRepository = {
   },
 
   update(id: string, data: MemberUpdateInput, userId: string) {
-    const ministryData =
-      data.ministryIds === undefined
-        ? {}
-        : {
-            ministries: {
-              set: data.ministryIds.map((ministryId) => ({ id: ministryId }))
-            }
-          };
-
     return prisma.member.update({
       where: { id },
       data: {
         ...updateMemberData(data),
-        ...ministryData,
         updatedBy: { connect: { id: userId } }
       },
       select: memberDetailSelect

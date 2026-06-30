@@ -11,6 +11,30 @@ export const availablePermissions = [
   { code: "ministry.create", name: "Criar ministerios", label: "Criar ministerios", module: "Ministerios" },
   { code: "ministry.update", name: "Alterar ministerios", label: "Alterar ministerios", module: "Ministerios" },
   { code: "ministry.delete", name: "Excluir ministerios", label: "Excluir ministerios", module: "Ministerios" },
+  {
+    code: "memberMinistry.view",
+    name: "Visualizar vinculos membro-ministerio",
+    label: "Visualizar vinculos",
+    module: "Membros x Ministerios"
+  },
+  {
+    code: "memberMinistry.create",
+    name: "Criar vinculos membro-ministerio",
+    label: "Criar vinculos",
+    module: "Membros x Ministerios"
+  },
+  {
+    code: "memberMinistry.update",
+    name: "Alterar vinculos membro-ministerio",
+    label: "Alterar vinculos",
+    module: "Membros x Ministerios"
+  },
+  {
+    code: "memberMinistry.delete",
+    name: "Excluir vinculos membro-ministerio",
+    label: "Excluir vinculos",
+    module: "Membros x Ministerios"
+  },
   { code: "accessRole.view", name: "Visualizar perfis", label: "Visualizar perfis", module: "Perfis de Acesso" },
   { code: "accessRole.create", name: "Criar perfis", label: "Criar perfis", module: "Perfis de Acesso" },
   { code: "accessRole.update", name: "Alterar perfis", label: "Alterar perfis", module: "Perfis de Acesso" },

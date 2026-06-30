@@ -14,6 +14,13 @@ export type {
   MemberSummary
 } from "./member.types";
 export type {
+  MemberMinistryFormValues,
+  MemberMinistryListResult,
+  MemberMinistryMinistry,
+  MemberMinistryPerson,
+  MemberMinistrySummary
+} from "./member-ministry.types";
+export type {
   MinistryFormValues,
   MinistryListResult,
   MinistryPerson,

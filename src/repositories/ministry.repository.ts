@@ -53,7 +53,12 @@ const ministrySelect = {
   },
   _count: {
     select: {
-      members: true,
+      memberMinistries: {
+        where: {
+          status: "ACTIVE",
+          deletedAt: null
+        }
+      },
       events: true
     }
   }

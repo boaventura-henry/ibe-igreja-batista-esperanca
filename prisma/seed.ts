@@ -21,7 +21,7 @@ const defaultAccessRoles: Array<{
   {
     name: "Pastor",
     description: "Acesso pastoral para visualizar e manter cadastros de membros.",
-    permissions: ["member.view", "member.create", "member.update", "ministry.view"]
+    permissions: ["member.view", "member.create", "member.update", "ministry.view", "memberMinistry.view"]
   },
   {
     name: "Secretario",
@@ -34,13 +34,16 @@ const defaultAccessRoles: Array<{
       "member.export",
       "ministry.view",
       "ministry.create",
-      "ministry.update"
+      "ministry.update",
+      "memberMinistry.view",
+      "memberMinistry.create",
+      "memberMinistry.update"
     ]
   },
   {
     name: "Membro",
     description: "Acesso basico para visualizacao.",
-    permissions: ["member.view", "ministry.view"]
+    permissions: ["member.view", "ministry.view", "memberMinistry.view"]
   }
 ];
 

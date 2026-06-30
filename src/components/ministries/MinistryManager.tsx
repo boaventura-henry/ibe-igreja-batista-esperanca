@@ -99,6 +99,7 @@ export function MinistryManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingMinistry, setViewingMinistry] = useState<MinistrySummary | null>(null);
   const [form, setForm] = useState<MinistryFormValues>(emptyForm);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
     status: "",
@@ -248,6 +249,30 @@ export function MinistryManager() {
       await loadMinistries();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o ministerio.");
+    }
+  }
+
+  async function uploadImage(file: File) {
+    const formData = new FormData();
+    formData.set("file", file);
+    setIsUploadingImage(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/ministries/photo", {
+        method: "POST",
+        body: formData
+      });
+      const payload = (await response.json()) as ApiResponse<{ url: string }>;
+
+      if (!payload.success) {
+        throw new Error(payload.error.message);
+      }
+
+      updateForm("imageUrl", payload.data.url);
+      setMessage("Imagem enviada com sucesso.");
+    } finally {
+      setIsUploadingImage(false);
     }
   }
 
@@ -463,6 +488,41 @@ export function MinistryManager() {
                 <Field label="Imagem URL" className="md:col-span-2">
                   <input value={form.imageUrl} onChange={(event) => updateForm("imageUrl", event.target.value)} className={inputClass} />
                 </Field>
+                <Field label="Upload da imagem" className="md:col-span-2">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={isUploadingImage}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+
+                      if (file) {
+                        uploadImage(file).catch((error: unknown) => {
+                          setMessage(error instanceof Error ? error.message : "Nao foi possivel enviar a imagem.");
+                        });
+                      }
+                    }}
+                    className={inputClass}
+                  />
+                </Field>
+                {form.imageUrl ? (
+                  <div className="md:col-span-4">
+                    <div className="overflow-hidden rounded-md border border-hope-100 bg-hope-50">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={form.imageUrl} alt="" className="max-h-56 w-full object-cover" />
+                      <div className="flex items-center justify-between gap-3 px-3 py-2">
+                        <p className="truncate text-xs font-semibold text-ink-600">{form.imageUrl}</p>
+                        <button
+                          type="button"
+                          onClick={() => updateForm("imageUrl", "")}
+                          className="shrink-0 rounded-md border border-hope-100 bg-white px-3 py-2 text-xs font-bold text-ink-700 hover:bg-hope-50"
+                        >
+                          Limpar imagem
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
                 <Field label="Ordem">
                   <input type="number" min={0} value={form.displayOrder} onChange={(event) => updateForm("displayOrder", Number(event.target.value))} className={inputClass} />
                 </Field>
