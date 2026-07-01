@@ -75,6 +75,32 @@ enum MemberMinistryStatus {
   LEFT
 }
 
+enum ScheduleStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+  CANCELED
+}
+
+enum ScheduleMemberStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  REPLACED
+  ABSENT
+}
+
+enum ScheduleMemberRole {
+  LEADER
+  VOCAL
+  INSTRUMENT
+  MEDIA
+  RECEPTION
+  CHILDREN
+  SUPPORT
+  OTHER
+}
+
 model User {
   id                      String           @id @default(cuid())
   name                    String
@@ -95,6 +121,10 @@ model User {
   updatedMembers          Member[]         @relation("MemberUpdatedBy")
   createdMemberMinistries MemberMinistry[] @relation("MemberMinistryCreatedBy")
   updatedMemberMinistries MemberMinistry[] @relation("MemberMinistryUpdatedBy")
+  createdSchedules         Schedule[]       @relation("ScheduleCreatedBy")
+  updatedSchedules         Schedule[]       @relation("ScheduleUpdatedBy")
+  createdScheduleMembers   ScheduleMember[] @relation("ScheduleMemberCreatedBy")
+  updatedScheduleMembers   ScheduleMember[] @relation("ScheduleMemberUpdatedBy")
   createdMinistries       Ministry[]       @relation("MinistryCreatedBy")
   updatedMinistries       Ministry[]       @relation("MinistryUpdatedBy")
   createdAccessRoles      AccessRole[]     @relation("AccessRoleCreatedBy")
@@ -178,6 +208,8 @@ model Member {
   viceLedMinistries Ministry[]       @relation("MinistryViceLeader")
   donations         Donation[]
   memberMinistries  MemberMinistry[]
+  scheduleMembers   ScheduleMember[] @relation("ScheduleMemberMember")
+  replacements      ScheduleMember[] @relation("ScheduleMemberReplacement")
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -215,6 +247,7 @@ model Ministry {
   createdBy          User?            @relation("MinistryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy          User?            @relation("MinistryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   memberMinistries   MemberMinistry[]
+  schedules          Schedule[]
   events             Event[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
@@ -254,6 +287,67 @@ model MemberMinistry {
   @@index([exitDate])
   @@index([deletedAt])
   @@index([memberId, ministryId, status, deletedAt])
+}
+
+model Schedule {
+  id              String           @id @default(cuid())
+  title           String
+  description     String?
+  ministryId      String
+  date            DateTime
+  startTime       String?
+  endTime         String?
+  location        String?
+  status          ScheduleStatus   @default(DRAFT)
+  observations    String?
+  createdById     String?
+  updatedById     String?
+  deletedAt       DateTime?
+  ministry        Ministry         @relation(fields: [ministryId], references: [id], onDelete: Restrict)
+  members         ScheduleMember[]
+  createdBy       User?            @relation("ScheduleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy       User?            @relation("ScheduleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([title])
+  @@index([ministryId])
+  @@index([date])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model ScheduleMember {
+  id                 String               @id @default(cuid())
+  scheduleId         String
+  memberId           String
+  role               ScheduleMemberRole   @default(OTHER)
+  status             ScheduleMemberStatus @default(PENDING)
+  confirmedAt        DateTime?
+  declinedAt         DateTime?
+  declineReason      String?
+  replacedByMemberId String?
+  observations       String?
+  createdById        String?
+  updatedById        String?
+  deletedAt          DateTime?
+  schedule           Schedule             @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  member             Member               @relation("ScheduleMemberMember", fields: [memberId], references: [id], onDelete: Cascade)
+  replacedByMember   Member?              @relation("ScheduleMemberReplacement", fields: [replacedByMemberId], references: [id], onDelete: SetNull)
+  createdBy          User?                @relation("ScheduleMemberCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy          User?                @relation("ScheduleMemberUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([scheduleId])
+  @@index([memberId])
+  @@index([role])
+  @@index([status])
+  @@index([replacedByMemberId])
+  @@index([confirmedAt])
+  @@index([declinedAt])
+  @@index([deletedAt])
+  @@index([scheduleId, memberId, deletedAt])
 }
 
 model Event {

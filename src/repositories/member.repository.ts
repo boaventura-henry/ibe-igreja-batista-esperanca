@@ -112,6 +112,43 @@ const memberDetailSelect = {
       entryDate: "desc"
     }
   },
+  scheduleMembers: {
+    where: {
+      deletedAt: null,
+      schedule: {
+        deletedAt: null
+      }
+    },
+    select: {
+      id: true,
+      role: true,
+      status: true,
+      confirmedAt: true,
+      declinedAt: true,
+      declineReason: true,
+      schedule: {
+        select: {
+          id: true,
+          title: true,
+          date: true,
+          startTime: true,
+          status: true,
+          ministry: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      schedule: {
+        date: "desc"
+      }
+    },
+    take: 12
+  },
   donations: {
     select: {
       id: true,

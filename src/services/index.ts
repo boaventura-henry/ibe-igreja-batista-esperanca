@@ -4,4 +4,6 @@ export { healthService } from "./health.service";
 export { memberMinistryService } from "./member-ministry.service";
 export { memberService } from "./member.service";
 export { ministryService } from "./ministry.service";
+export { myScheduleService } from "./my-schedule.service";
+export { scheduleService } from "./schedule.service";
 export { userService } from "./user.service";

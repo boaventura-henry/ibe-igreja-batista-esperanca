@@ -8,6 +8,8 @@ const protectedRoutes = [
   "/usuarios",
   "/ministerios",
   "/membros-ministerios",
+  "/escalas",
+  "/minhas-escalas",
   "/eventos",
   "/contribuicoes"
 ];
@@ -44,6 +46,14 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
+    if (pathname.startsWith("/escalas") && !request.nextauth.token?.permissionCodes?.includes("schedule.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (pathname.startsWith("/minhas-escalas") && !request.nextauth.token?.permissionCodes?.includes("mySchedule.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
     return NextResponse.next();
   },
   {
@@ -75,6 +85,8 @@ export const config = {
     "/usuarios/:path*",
     "/ministerios/:path*",
     "/membros-ministerios/:path*",
+    "/escalas/:path*",
+    "/minhas-escalas/:path*",
     "/eventos/:path*",
     "/contribuicoes/:path*"
   ]

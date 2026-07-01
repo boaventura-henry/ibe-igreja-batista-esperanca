@@ -34,6 +34,18 @@ function serializeDetail(member: MemberDetail) {
       exitDate: serializeDate(link.exitDate),
       observations: link.observations
     })),
+    schedules: member.scheduleMembers.map((link) => ({
+      id: link.id,
+      role: link.role,
+      status: link.status,
+      confirmedAt: serializeDate(link.confirmedAt),
+      declinedAt: serializeDate(link.declinedAt),
+      declineReason: link.declineReason,
+      schedule: {
+        ...link.schedule,
+        date: link.schedule.date.toISOString()
+      }
+    })),
     user: member.user
       ? {
           ...member.user,

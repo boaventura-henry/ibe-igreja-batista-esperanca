@@ -27,4 +27,18 @@ export type {
   MinistryStatusFilter,
   MinistrySummary
 } from "./ministry.types";
+export type {
+  MyScheduleListResult,
+  MyScheduleParticipant,
+  MyScheduleSummary
+} from "./my-schedule.types";
+export type {
+  ScheduleFormValues,
+  ScheduleListResult,
+  ScheduleMemberFormValues,
+  ScheduleMemberSummary,
+  ScheduleMinistry,
+  SchedulePerson,
+  ScheduleSummary
+} from "./schedule.types";
 export type { UserFormValues, UserListResult, UserStatusFilter, UserSummary } from "./user.types";

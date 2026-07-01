@@ -43,6 +43,25 @@ const memberMinistryStatusLabels: Record<string, string> = {
   LEFT: "Saiu"
 };
 
+const scheduleRoleLabels: Record<string, string> = {
+  LEADER: "Lider",
+  VOCAL: "Vocal",
+  INSTRUMENT: "Instrumento",
+  MEDIA: "Midia",
+  RECEPTION: "Recepcao",
+  CHILDREN: "Infantil",
+  SUPPORT: "Apoio",
+  OTHER: "Outro"
+};
+
+const scheduleMemberStatusLabels: Record<string, string> = {
+  PENDING: "Pendente",
+  CONFIRMED: "Confirmado",
+  DECLINED: "Recusou",
+  REPLACED: "Substituido",
+  ABSENT: "Ausente"
+};
+
 function display(value: string | null | undefined) {
   return value && value.trim().length > 0 ? value : "-";
 }
@@ -238,6 +257,41 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
                 </div>
               ) : (
                 <p className="text-sm text-ink-500">Nenhuma contribuicao registrada.</p>
+              )}
+            </InfoSection>
+
+            <InfoSection title="Escalas">
+              {member.schedules.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-hope-100 text-sm">
+                    <thead className="text-left text-xs font-bold uppercase tracking-wide text-ink-500">
+                      <tr>
+                        <th className="py-2 pr-4">Data</th>
+                        <th className="py-2 pr-4">Escala</th>
+                        <th className="py-2 pr-4">Ministerio</th>
+                        <th className="py-2 pr-4">Funcao</th>
+                        <th className="py-2 pr-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-hope-100">
+                      {member.schedules.map((item) => (
+                        <tr key={item.id}>
+                          <td className="py-3 pr-4 text-ink-700">{displayDate(item.schedule.date)}</td>
+                          <td className="py-3 pr-4">
+                            <Link href={`/escalas/${item.schedule.id}`} className="font-semibold text-hope-700 hover:text-hope-900">
+                              {item.schedule.title}
+                            </Link>
+                          </td>
+                          <td className="py-3 pr-4 text-ink-700">{item.schedule.ministry.name}</td>
+                          <td className="py-3 pr-4 text-ink-700">{scheduleRoleLabels[item.role]}</td>
+                          <td className="py-3 pr-4 text-ink-700">{scheduleMemberStatusLabels[item.status]}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-ink-500">Nenhuma escala encontrada para este membro.</p>
               )}
             </InfoSection>
 
