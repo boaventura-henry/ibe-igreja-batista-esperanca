@@ -2,6 +2,18 @@ export { loginSchema, seedAdminSchema } from "./auth.validator";
 export type { LoginInput, SeedAdminInput } from "./auth.validator";
 export { accessRoleCreateSchema, accessRoleUpdateSchema } from "./access-role.validator";
 export type { AccessRoleCreateInput, AccessRoleUpdateInput } from "./access-role.validator";
+export {
+  accessRequestApproveSchema,
+  accessRequestCreateSchema,
+  accessRequestListQuerySchema,
+  accessRequestRejectSchema
+} from "./access-request.validator";
+export type {
+  AccessRequestApproveInput,
+  AccessRequestCreateInput,
+  AccessRequestListQueryInput,
+  AccessRequestRejectInput
+} from "./access-request.validator";
 export { requireEnv } from "./env";
 export {
   memberCreateSchema,
@@ -23,6 +35,8 @@ export type {
   MemberMinistryListQueryInput,
   MemberMinistryUpdateInput
 } from "./member-ministry.validator";
+export { memberPortalUpdateProfileSchema } from "./member-portal.validator";
+export type { MemberPortalUpdateProfileInput } from "./member-portal.validator";
 export {
   ministryCreateSchema,
   ministryListQuerySchema,

@@ -29,7 +29,9 @@ const defaultAccessRoles: Array<{
       "memberMinistry.view",
       "schedule.view",
       "mySchedule.view",
-      "mySchedule.confirm"
+      "mySchedule.confirm",
+      "memberPortal.view",
+      "memberPortal.updateProfile"
     ]
   },
   {
@@ -55,7 +57,10 @@ const defaultAccessRoles: Array<{
       "schedule.complete",
       "schedule.confirm",
       "mySchedule.view",
-      "mySchedule.confirm"
+      "mySchedule.confirm",
+      "memberPortal.view",
+      "memberPortal.updateProfile",
+      "accessRequest.view"
     ]
   },
   {
@@ -68,7 +73,12 @@ const defaultAccessRoles: Array<{
       "schedule.view",
       "schedule.confirm",
       "mySchedule.view",
-      "mySchedule.confirm"
+      "mySchedule.confirm",
+      "memberPortal.view",
+      "memberPortal.updateProfile",
+      "accessRequest.view",
+      "accessRequest.approve",
+      "accessRequest.reject"
     ]
   }
 ];

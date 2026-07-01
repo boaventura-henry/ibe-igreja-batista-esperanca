@@ -6,10 +6,12 @@ const protectedRoutes = [
   "/membros",
   "/perfis-acesso",
   "/usuarios",
+  "/solicitacoes-acesso",
   "/ministerios",
   "/membros-ministerios",
   "/escalas",
   "/minhas-escalas",
+  "/portal",
   "/eventos",
   "/contribuicoes"
 ];
@@ -35,6 +37,13 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
+    if (
+      pathname.startsWith("/solicitacoes-acesso") &&
+      !request.nextauth.token?.permissionCodes?.includes("accessRequest.view")
+    ) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
     if (pathname.startsWith("/ministerios") && !request.nextauth.token?.permissionCodes?.includes("ministry.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
@@ -51,6 +60,10 @@ export default withAuth(
     }
 
     if (pathname.startsWith("/minhas-escalas") && !request.nextauth.token?.permissionCodes?.includes("mySchedule.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (pathname.startsWith("/portal") && !request.nextauth.token?.permissionCodes?.includes("memberPortal.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
@@ -83,10 +96,12 @@ export const config = {
     "/membros/:path*",
     "/perfis-acesso/:path*",
     "/usuarios/:path*",
+    "/solicitacoes-acesso/:path*",
     "/ministerios/:path*",
     "/membros-ministerios/:path*",
     "/escalas/:path*",
     "/minhas-escalas/:path*",
+    "/portal/:path*",
     "/eventos/:path*",
     "/contribuicoes/:path*"
   ]

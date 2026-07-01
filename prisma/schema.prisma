@@ -101,6 +101,13 @@ enum ScheduleMemberRole {
   OTHER
 }
 
+enum UserAccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+}
+
 model User {
   id                      String           @id @default(cuid())
   name                    String
@@ -125,6 +132,8 @@ model User {
   updatedSchedules         Schedule[]       @relation("ScheduleUpdatedBy")
   createdScheduleMembers   ScheduleMember[] @relation("ScheduleMemberCreatedBy")
   updatedScheduleMembers   ScheduleMember[] @relation("ScheduleMemberUpdatedBy")
+  approvedAccessRequests   UserAccessRequest[] @relation("UserAccessRequestApprovedBy")
+  rejectedAccessRequests   UserAccessRequest[] @relation("UserAccessRequestRejectedBy")
   createdMinistries       Ministry[]       @relation("MinistryCreatedBy")
   updatedMinistries       Ministry[]       @relation("MinistryUpdatedBy")
   createdAccessRoles      AccessRole[]     @relation("AccessRoleCreatedBy")
@@ -210,6 +219,8 @@ model Member {
   memberMinistries  MemberMinistry[]
   scheduleMembers   ScheduleMember[] @relation("ScheduleMemberMember")
   replacements      ScheduleMember[] @relation("ScheduleMemberReplacement")
+  possibleAccessRequests UserAccessRequest[] @relation("UserAccessRequestPossibleMember")
+  approvedAccessRequests UserAccessRequest[] @relation("UserAccessRequestApprovedMember")
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -348,6 +359,44 @@ model ScheduleMember {
   @@index([declinedAt])
   @@index([deletedAt])
   @@index([scheduleId, memberId, deletedAt])
+}
+
+model UserAccessRequest {
+  id               String                  @id @default(cuid())
+  name             String
+  username         String
+  email            String
+  phone            String?
+  cpf              String?
+  birthDate        DateTime?
+  passwordHash     String
+  status           UserAccessRequestStatus @default(PENDING)
+  possibleMemberId String?
+  approvedMemberId String?
+  approvedById     String?
+  approvedAt       DateTime?
+  rejectedById     String?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+  deletedAt        DateTime?
+  possibleMember   Member?                 @relation("UserAccessRequestPossibleMember", fields: [possibleMemberId], references: [id], onDelete: SetNull)
+  approvedMember   Member?                 @relation("UserAccessRequestApprovedMember", fields: [approvedMemberId], references: [id], onDelete: SetNull)
+  approvedBy       User?                   @relation("UserAccessRequestApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  rejectedBy       User?                   @relation("UserAccessRequestRejectedBy", fields: [rejectedById], references: [id], onDelete: SetNull)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([username])
+  @@index([email])
+  @@index([cpf])
+  @@index([phone])
+  @@index([status])
+  @@index([possibleMemberId])
+  @@index([approvedMemberId])
+  @@index([approvedById])
+  @@index([rejectedById])
+  @@index([deletedAt])
+  @@index([username, status, deletedAt])
 }
 
 model Event {

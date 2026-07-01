@@ -4,6 +4,13 @@ export type {
   AccessRoleListResult,
   AccessRoleSummary
 } from "./access-role.types";
+export type {
+  AccessRequestDetailResult,
+  AccessRequestListResult,
+  AccessRequestMemberSummary,
+  AccessRequestSummary,
+  PublicAccessRequestFormValues
+} from "./access-request.types";
 export type { AuthRole, AuthSessionUser } from "./auth";
 export type {
   MemberFormValues,
@@ -20,6 +27,13 @@ export type {
   MemberMinistryPerson,
   MemberMinistrySummary
 } from "./member-ministry.types";
+export type {
+  MemberPortalDashboard,
+  MemberPortalMinistry,
+  MemberPortalProfile,
+  MemberPortalSchedulePreview,
+  MemberPortalUpdateProfileInput
+} from "./member-portal.types";
 export type {
   MinistryFormValues,
   MinistryListResult,

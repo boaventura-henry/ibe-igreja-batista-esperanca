@@ -45,6 +45,26 @@ export const availablePermissions = [
   { code: "schedule.confirm", name: "Confirmar escalas", label: "Confirmar escalas", module: "Escalas" },
   { code: "mySchedule.view", name: "Visualizar minhas escalas", label: "Visualizar minhas escalas", module: "Minhas Escalas" },
   { code: "mySchedule.confirm", name: "Responder minhas escalas", label: "Responder minhas escalas", module: "Minhas Escalas" },
+  { code: "memberPortal.view", name: "Acessar portal do membro", label: "Acessar portal", module: "Portal do Membro" },
+  { code: "memberPortal.updateProfile", name: "Atualizar proprio cadastro", label: "Atualizar cadastro", module: "Portal do Membro" },
+  {
+    code: "accessRequest.view",
+    name: "Visualizar solicitacoes de acesso",
+    label: "Visualizar solicitacoes",
+    module: "Solicitacoes de Acesso"
+  },
+  {
+    code: "accessRequest.approve",
+    name: "Aprovar solicitacoes de acesso",
+    label: "Aprovar solicitacoes",
+    module: "Solicitacoes de Acesso"
+  },
+  {
+    code: "accessRequest.reject",
+    name: "Rejeitar solicitacoes de acesso",
+    label: "Rejeitar solicitacoes",
+    module: "Solicitacoes de Acesso"
+  },
   { code: "accessRole.view", name: "Visualizar perfis", label: "Visualizar perfis", module: "Perfis de Acesso" },
   { code: "accessRole.create", name: "Criar perfis", label: "Criar perfis", module: "Perfis de Acesso" },
   { code: "accessRole.update", name: "Alterar perfis", label: "Alterar perfis", module: "Perfis de Acesso" },
