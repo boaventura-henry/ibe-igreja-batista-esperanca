@@ -35,26 +35,31 @@ const optionalCapacity = z.preprocess(
 );
 
 const eventBaseObjectSchema = z.object({
-    title: z.string().trim().min(2, "Informe o titulo do evento."),
-    description: optionalText,
-    type: z.enum(EventType).default(EventType.OTHER),
-    status: z.enum(EventStatus).default(EventStatus.DRAFT),
-    ministryId: optionalCuid,
-    responsibleMemberId: optionalCuid,
-    startDate: z.coerce.date({ message: "Informe a data inicial." }),
-    endDate: z.preprocess(emptyToNull, z.coerce.date().nullable().optional()),
-    startTime: optionalTime,
-    endTime: optionalTime,
-    location: optionalText,
-    address: optionalText,
-    capacity: optionalCapacity,
-    requiresRegistration: z.boolean().default(false),
-    isPublic: z.boolean().default(false),
-    imageUrl: optionalText,
-    observations: optionalText
-  });
+  title: z.string().trim().min(2, "Informe o titulo do evento."),
+  description: optionalText,
+  type: z.enum(EventType),
+  status: z.enum(EventStatus),
+  ministryId: optionalCuid,
+  responsibleMemberId: optionalCuid,
+  startDate: z.coerce.date({ message: "Informe a data inicial." }),
+  endDate: z.preprocess(emptyToNull, z.coerce.date().nullable().optional()),
+  startTime: optionalTime,
+  endTime: optionalTime,
+  location: optionalText,
+  address: optionalText,
+  capacity: optionalCapacity,
+  requiresRegistration: z.boolean(),
+  isPublic: z.boolean(),
+  imageUrl: optionalText,
+  observations: optionalText
+});
 
-export const eventCreateSchema = eventBaseObjectSchema.refine((data) => !data.endDate || data.endDate >= data.startDate, {
+export const eventCreateSchema = eventBaseObjectSchema.extend({
+  type: z.enum(EventType).default(EventType.OTHER),
+  status: z.enum(EventStatus).default(EventStatus.DRAFT),
+  requiresRegistration: z.boolean().default(false),
+  isPublic: z.boolean().default(false)
+}).refine((data) => !data.endDate || data.endDate >= data.startDate, {
     message: "A data final nao pode ser menor que a data inicial.",
     path: ["endDate"]
   });

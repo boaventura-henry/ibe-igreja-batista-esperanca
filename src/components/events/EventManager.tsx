@@ -69,21 +69,28 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value));
 }
 
-function normalizeForm(form: EventFormValues) {
-  return {
-    ...form,
+function normalizeForm(form: EventFormValues, options: { includeStatus?: boolean } = {}) {
+  const payload = {
+    title: form.title,
     description: form.description?.trim() || null,
+    type: form.type,
+    status: options.includeStatus ? form.status : undefined,
     ministryId: form.ministryId || null,
     responsibleMemberId: form.responsibleMemberId || null,
+    startDate: form.startDate,
     endDate: form.endDate || null,
     startTime: form.startTime?.trim() || null,
     endTime: form.endTime?.trim() || null,
     location: form.location?.trim() || null,
     address: form.address?.trim() || null,
     capacity: form.capacity === "" ? null : Number(form.capacity),
+    requiresRegistration: form.requiresRegistration,
+    isPublic: form.isPublic,
     imageUrl: form.imageUrl?.trim() || null,
     observations: form.observations?.trim() || null
   };
+
+  return payload;
 }
 
 export function EventManager() {
@@ -241,7 +248,7 @@ export function EventManager() {
       const response = await fetch(editingId ? `/api/events/${editingId}` : "/api/events", {
         method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(normalizeForm(form))
+        body: JSON.stringify(normalizeForm(form, { includeStatus: !editingId }))
       });
       const payload = (await response.json()) as ApiResponse<EventSummary>;
 
