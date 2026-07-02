@@ -63,6 +63,10 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
+    if (pathname.startsWith("/eventos") && !request.nextauth.token?.permissionCodes?.includes("event.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
     if (pathname.startsWith("/portal") && !request.nextauth.token?.permissionCodes?.includes("memberPortal.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }

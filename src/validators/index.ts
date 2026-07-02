@@ -14,6 +14,8 @@ export type {
   AccessRequestListQueryInput,
   AccessRequestRejectInput
 } from "./access-request.validator";
+export { eventCreateSchema, eventListQuerySchema, eventUpdateSchema } from "./event.validator";
+export type { EventCreateInput, EventListQueryInput, EventUpdateInput } from "./event.validator";
 export { requireEnv } from "./env";
 export {
   memberCreateSchema,

@@ -34,6 +34,12 @@ const adminPermissions = [
   "schedule.publish",
   "schedule.cancel",
   "schedule.complete",
+  "event.create",
+  "event.update",
+  "event.delete",
+  "event.publish",
+  "event.cancel",
+  "event.complete",
   "accessRequest.view",
   "accessRequest.approve",
   "accessRequest.reject"

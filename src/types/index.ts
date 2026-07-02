@@ -13,6 +13,13 @@ export type {
 } from "./access-request.types";
 export type { AuthRole, AuthSessionUser } from "./auth";
 export type {
+  EventFormValues,
+  EventListResult,
+  EventMinistry,
+  EventPerson,
+  EventSummary
+} from "./event.types";
+export type {
   MemberFormValues,
   MemberListFilters,
   MemberListResult,

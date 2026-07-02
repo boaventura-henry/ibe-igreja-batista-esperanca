@@ -9,6 +9,6 @@ export const navigationItems = [
   { href: "/escalas", label: "Escalas", icon: "Agenda", permission: "schedule.view" },
   { href: "/minhas-escalas", label: "Minhas Escalas", icon: "Agenda", permission: "mySchedule.view" },
   { href: "/portal", label: "Portal do Membro", icon: "Inicio", permission: "memberPortal.view" },
-  { href: "/eventos", label: "Eventos", icon: "Agenda" },
+  { href: "/eventos", label: "Eventos", icon: "Agenda", permission: "event.view" },
   { href: "/contribuicoes", label: "Contribuicoes", icon: "Dizimos" }
 ] as const;

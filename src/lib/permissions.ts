@@ -45,6 +45,13 @@ export const availablePermissions = [
   { code: "schedule.confirm", name: "Confirmar escalas", label: "Confirmar escalas", module: "Escalas" },
   { code: "mySchedule.view", name: "Visualizar minhas escalas", label: "Visualizar minhas escalas", module: "Minhas Escalas" },
   { code: "mySchedule.confirm", name: "Responder minhas escalas", label: "Responder minhas escalas", module: "Minhas Escalas" },
+  { code: "event.view", name: "Visualizar eventos", label: "Visualizar eventos", module: "Eventos" },
+  { code: "event.create", name: "Criar eventos", label: "Criar eventos", module: "Eventos" },
+  { code: "event.update", name: "Alterar eventos", label: "Alterar eventos", module: "Eventos" },
+  { code: "event.delete", name: "Excluir eventos", label: "Excluir eventos", module: "Eventos" },
+  { code: "event.publish", name: "Publicar eventos", label: "Publicar eventos", module: "Eventos" },
+  { code: "event.cancel", name: "Cancelar eventos", label: "Cancelar eventos", module: "Eventos" },
+  { code: "event.complete", name: "Concluir eventos", label: "Concluir eventos", module: "Eventos" },
   { code: "memberPortal.view", name: "Acessar portal do membro", label: "Acessar portal", module: "Portal do Membro" },
   { code: "memberPortal.updateProfile", name: "Atualizar proprio cadastro", label: "Atualizar cadastro", module: "Portal do Membro" },
   {

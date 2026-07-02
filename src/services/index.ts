@@ -1,6 +1,7 @@
 export { accessRoleService } from "./access-role.service";
 export { accessRequestService } from "./access-request.service";
 export { authService } from "./auth.service";
+export { eventService } from "./event.service";
 export { healthService } from "./health.service";
 export { memberMinistryService } from "./member-ministry.service";
 export { memberPortalService } from "./member-portal.service";

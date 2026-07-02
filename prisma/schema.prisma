@@ -101,6 +101,26 @@ enum ScheduleMemberRole {
   OTHER
 }
 
+enum EventType {
+  SERVICE
+  CONFERENCE
+  MEETING
+  CLASS
+  COURSE
+  REHEARSAL
+  VIGIL
+  RETREAT
+  OUTREACH
+  OTHER
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELED
+  COMPLETED
+}
+
 enum UserAccessRequestStatus {
   PENDING
   APPROVED
@@ -132,6 +152,8 @@ model User {
   updatedSchedules         Schedule[]       @relation("ScheduleUpdatedBy")
   createdScheduleMembers   ScheduleMember[] @relation("ScheduleMemberCreatedBy")
   updatedScheduleMembers   ScheduleMember[] @relation("ScheduleMemberUpdatedBy")
+  createdEvents            Event[]          @relation("EventCreatedBy")
+  updatedEvents            Event[]          @relation("EventUpdatedBy")
   approvedAccessRequests   UserAccessRequest[] @relation("UserAccessRequestApprovedBy")
   rejectedAccessRequests   UserAccessRequest[] @relation("UserAccessRequestRejectedBy")
   createdMinistries       Ministry[]       @relation("MinistryCreatedBy")
@@ -219,6 +241,7 @@ model Member {
   memberMinistries  MemberMinistry[]
   scheduleMembers   ScheduleMember[] @relation("ScheduleMemberMember")
   replacements      ScheduleMember[] @relation("ScheduleMemberReplacement")
+  responsibleEvents Event[]          @relation("EventResponsibleMember")
   possibleAccessRequests UserAccessRequest[] @relation("UserAccessRequestPossibleMember")
   approvedAccessRequests UserAccessRequest[] @relation("UserAccessRequestApprovedMember")
   createdAt         DateTime         @default(now())
@@ -400,16 +423,45 @@ model UserAccessRequest {
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  location    String?
-  startsAt    DateTime
-  endsAt      DateTime?
-  ministryId  String?
-  ministry    Ministry? @relation(fields: [ministryId], references: [id], onDelete: SetNull)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                  String      @id @default(cuid())
+  title               String
+  slug                String      @unique
+  description         String?
+  type                EventType   @default(OTHER)
+  status              EventStatus @default(DRAFT)
+  ministryId          String?
+  responsibleMemberId String?
+  startDate           DateTime
+  endDate             DateTime?
+  startTime           String?
+  endTime             String?
+  location            String?
+  address             String?
+  capacity            Int?
+  requiresRegistration Boolean    @default(false)
+  isPublic            Boolean     @default(false)
+  imageUrl            String?
+  observations        String?
+  createdById         String?
+  updatedById         String?
+  deletedAt           DateTime?
+  ministry            Ministry?   @relation(fields: [ministryId], references: [id], onDelete: SetNull)
+  responsibleMember   Member?     @relation("EventResponsibleMember", fields: [responsibleMemberId], references: [id], onDelete: SetNull)
+  createdBy           User?       @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy           User?       @relation("EventUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([title])
+  @@index([slug])
+  @@index([type])
+  @@index([status])
+  @@index([ministryId])
+  @@index([responsibleMemberId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isPublic])
+  @@index([deletedAt])
 }
 
 model Donation {

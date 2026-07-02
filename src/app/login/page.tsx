@@ -35,7 +35,7 @@ export default async function LoginPage() {
             </span>
             <h2 className="mt-5 text-2xl font-bold text-ink-900">Entrar no sistema</h2>
             <p className="mt-2 text-sm text-ink-500">
-              Entre com seu email e senha para acessar a area administrativa.
+              Entre com seu usuario e senha para acessar a area administrativa.
             </p>
           </div>
 
