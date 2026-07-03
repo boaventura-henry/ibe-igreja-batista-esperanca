@@ -158,9 +158,9 @@ export function FinancialCategoryManager() {
 }
 
 function Pager({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (page: number) => void }) {
-  return <div className="flex items-center justify-end gap-2 text-sm font-bold"><button disabled={page <= 1} onClick={() => onPage(page - 1)} className="rounded-md border px-3 py-2 disabled:opacity-40">Anterior</button><span>{page} / {totalPages}</span><button disabled={page >= totalPages} onClick={() => onPage(page + 1)} className="rounded-md border px-3 py-2 disabled:opacity-40">Proxima</button></div>;
+  return <div className="flex flex-wrap items-center justify-end gap-2 text-sm font-bold"><button disabled={page <= 1} onClick={() => onPage(page - 1)} className="rounded-md border px-3 py-2 disabled:opacity-40">Anterior</button><span>{page} / {totalPages}</span><button disabled={page >= totalPages} onClick={() => onPage(page + 1)} className="rounded-md border px-3 py-2 disabled:opacity-40">Proxima</button></div>;
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4"><div className="w-full max-w-xl rounded-md bg-white p-5 shadow-xl"><div className="mb-4 flex justify-between"><h2 className="text-lg font-bold">{title}</h2><button onClick={onClose} className="font-bold text-ink-600">Fechar</button></div>{children}</div></div>;
+  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/30 p-4"><div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-md bg-white p-5 shadow-xl"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{title}</h2><button onClick={onClose} className="font-bold text-ink-600">Fechar</button></div>{children}</div></div>;
 }

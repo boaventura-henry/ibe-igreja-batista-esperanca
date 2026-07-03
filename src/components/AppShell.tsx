@@ -26,11 +26,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const permissionCodes = session?.user.permissionCodes ?? [];
 
   return (
-    <div className="min-h-screen bg-[#f7faf8] text-ink-900">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-hope-100 bg-white px-5 py-6 shadow-soft lg:block">
-        <Brand />
+    <div className="min-h-screen overflow-x-hidden bg-[#f7faf8] text-ink-900">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-hope-100 bg-white shadow-soft lg:flex lg:flex-col">
+        <div className="shrink-0 px-5 py-6">
+          <Brand />
+        </div>
         <Navigation pathname={pathname} permissionCodes={permissionCodes} />
-        <div className="absolute inset-x-5 bottom-6">
+        <div className="shrink-0 border-t border-hope-100 px-5 py-4">
           <LogoutButton className="flex w-full items-center justify-center rounded-md border border-hope-100 px-3 py-3 text-sm font-bold text-ink-700 transition hover:bg-hope-50 hover:text-hope-700" />
         </div>
       </aside>
@@ -48,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {mobileMenu.isOpen ? (
-        <div className="fixed inset-x-0 top-[69px] z-20 border-b border-hope-100 bg-white px-4 py-4 shadow-soft lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-[69px] z-20 overflow-y-auto border-b border-hope-100 bg-white px-4 py-4 shadow-soft lg:hidden">
           <Navigation
             pathname={pathname}
             permissionCodes={permissionCodes}
@@ -58,8 +60,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
 
-      <main className="lg:pl-72">
-        <div className="mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="min-w-0 lg:pl-72">
+        <div className="mx-auto min-h-screen w-full max-w-7xl min-w-0 px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </div>
       </main>
@@ -69,12 +71,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-3">
+    <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-hope-600 text-lg font-bold text-white">
         IBE
       </span>
       {!compact ? (
-        <span>
+        <span className="min-w-0">
           <span className="block text-sm font-bold uppercase tracking-wide text-hope-700">
             Igreja Batista
           </span>
@@ -97,7 +99,7 @@ function Navigation({
   onNavigate?: () => void;
 }) {
   return (
-    <nav className="mt-8 grid gap-2">
+    <nav className="grid flex-1 gap-2 overflow-y-auto px-5 pb-4 lg:pt-2">
       {navigationItems
         .filter((item) => !("permission" in item) || permissionCodes.includes(item.permission))
         .map((item) => {
@@ -122,7 +124,7 @@ function Navigation({
               >
                 {iconMap[item.icon]}
               </span>
-              {item.label}
+              <span className="min-w-0 break-words">{item.label}</span>
             </Link>
           );
         })}
