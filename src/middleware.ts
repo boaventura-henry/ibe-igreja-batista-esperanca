@@ -13,6 +13,7 @@ const protectedRoutes = [
   "/minhas-escalas",
   "/portal",
   "/eventos",
+  "/relatorios",
   "/financeiro",
   "/contribuicoes"
 ];
@@ -71,6 +72,10 @@ export default withAuth(
     }
 
     if (pathname.startsWith("/eventos") && !request.nextauth.token?.permissionCodes?.includes("event.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (pathname.startsWith("/relatorios") && !request.nextauth.token?.permissionCodes?.includes("report.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
@@ -154,6 +159,7 @@ export const config = {
     "/minhas-escalas/:path*",
     "/portal/:path*",
     "/eventos/:path*",
+    "/relatorios/:path*",
     "/financeiro/:path*",
     "/contribuicoes/:path*"
   ]

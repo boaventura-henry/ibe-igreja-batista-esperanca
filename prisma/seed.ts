@@ -24,6 +24,8 @@ const defaultAccessRoles: Array<{
     permissions: [
       "dashboard.admin.view",
       "dashboard.portal.view",
+      "report.view",
+      "report.export",
       "member.view",
       "member.create",
       "member.update",
@@ -47,6 +49,8 @@ const defaultAccessRoles: Array<{
     permissions: [
       "dashboard.admin.view",
       "dashboard.portal.view",
+      "report.view",
+      "report.export",
       "member.view",
       "member.create",
       "member.update",
