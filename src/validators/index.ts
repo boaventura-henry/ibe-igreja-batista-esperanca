@@ -82,6 +82,22 @@ export type {
 export { myScheduleDeclineSchema } from "./my-schedule.validator";
 export type { MyScheduleDeclineInput } from "./my-schedule.validator";
 export {
+  eventReportSchema,
+  financialReportSchema,
+  memberReportSchema,
+  ministryReportSchema,
+  portalContributionReportSchema,
+  scheduleReportSchema
+} from "./report.validator";
+export type {
+  EventReportInput,
+  FinancialReportInput,
+  MemberReportInput,
+  MinistryReportInput,
+  PortalContributionReportInput,
+  ScheduleReportInput
+} from "./report.validator";
+export {
   scheduleCreateSchema,
   scheduleListQuerySchema,
   scheduleMemberCreateSchema,

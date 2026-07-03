@@ -77,6 +77,18 @@ export type {
   MyScheduleSummary
 } from "./my-schedule.types";
 export type {
+  ReportCatalogGroup,
+  ReportColumn,
+  ReportDefinition,
+  ReportExportFormat,
+  ReportFileResult,
+  ReportFilterField,
+  ReportKey,
+  ReportPagination,
+  ReportRunResult,
+  ReportViewResult
+} from "./report.types";
+export type {
   ScheduleFormValues,
   ScheduleListResult,
   ScheduleMemberFormValues,

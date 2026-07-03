@@ -31,6 +31,7 @@ export type {
 export { ministryRepository } from "./ministry.repository";
 export type { MinistryRecord } from "./ministry.repository";
 export { myScheduleRepository } from "./my-schedule.repository";
+export { reportRepository } from "./report.repository";
 export type { MyScheduleRecord } from "./my-schedule.repository";
 export { scheduleRepository } from "./schedule.repository";
 export type { ScheduleMemberRecord, ScheduleRecord } from "./schedule.repository";
