@@ -1,4 +1,5 @@
 import {
+  AnnouncementStatus,
   EventStatus,
   FinancialEntryStatus,
   FinancialEntryType,
@@ -104,7 +105,10 @@ export const dashboardRepository = {
       upcomingSchedules,
       monthlyIncome,
       monthlyExpense,
-      latestContributions
+      latestContributions,
+      publishedAnnouncements,
+      activeAnnouncements,
+      pinnedAnnouncements
     ] = await prisma.$transaction([
       prisma.member.count({
         where: {
@@ -174,6 +178,29 @@ export const dashboardRepository = {
         select: latestContributionSelect,
         orderBy: [{ launchDate: "desc" }, { createdAt: "desc" }],
         take: 5
+      }),
+      prisma.announcement.count({
+        where: {
+          deletedAt: null,
+          status: AnnouncementStatus.PUBLISHED
+        }
+      }),
+      prisma.announcement.count({
+        where: {
+          deletedAt: null,
+          status: AnnouncementStatus.PUBLISHED,
+          OR: [{ publishAt: null }, { publishAt: { lte: new Date() } }],
+          AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }]
+        }
+      }),
+      prisma.announcement.count({
+        where: {
+          deletedAt: null,
+          status: AnnouncementStatus.PUBLISHED,
+          isPinned: true,
+          OR: [{ publishAt: null }, { publishAt: { lte: new Date() } }],
+          AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }]
+        }
       })
     ]);
 
@@ -184,7 +211,10 @@ export const dashboardRepository = {
       upcomingSchedules,
       monthlyIncome: monthlyIncome._sum.amount,
       monthlyExpense: monthlyExpense._sum.amount,
-      latestContributions
+      latestContributions,
+      publishedAnnouncements,
+      activeAnnouncements,
+      pinnedAnnouncements
     };
   },
 

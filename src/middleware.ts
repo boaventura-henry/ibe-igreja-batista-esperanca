@@ -13,6 +13,7 @@ const protectedRoutes = [
   "/minhas-escalas",
   "/portal",
   "/eventos",
+  "/comunicados",
   "/relatorios",
   "/financeiro",
   "/contribuicoes"
@@ -75,6 +76,10 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
+    if (pathname.startsWith("/comunicados") && !request.nextauth.token?.permissionCodes?.includes("announcement.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
     if (pathname.startsWith("/relatorios") && !request.nextauth.token?.permissionCodes?.includes("report.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
@@ -103,6 +108,13 @@ export default withAuth(
     if (
       pathname.startsWith("/portal/minhas-contribuicoes") &&
       !request.nextauth.token?.permissionCodes?.includes("memberContribution.view")
+    ) {
+      return NextResponse.redirect(new URL("/portal", request.url));
+    }
+
+    if (
+      pathname.startsWith("/portal/avisos") &&
+      !request.nextauth.token?.permissionCodes?.includes("portalAnnouncement.view")
     ) {
       return NextResponse.redirect(new URL("/portal", request.url));
     }
@@ -159,6 +171,7 @@ export const config = {
     "/minhas-escalas/:path*",
     "/portal/:path*",
     "/eventos/:path*",
+    "/comunicados/:path*",
     "/relatorios/:path*",
     "/financeiro/:path*",
     "/contribuicoes/:path*"

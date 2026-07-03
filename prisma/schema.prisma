@@ -157,6 +157,18 @@ enum UserAccessRequestStatus {
   CANCELED
 }
 
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AnnouncementAudience {
+  ALL
+  MINISTRY
+  PORTAL_ONLY
+}
+
 model User {
   id                      String           @id @default(cuid())
   name                    String
@@ -189,6 +201,9 @@ model User {
   updatedFinancialEntries    FinancialEntry[]    @relation("FinancialEntryUpdatedBy")
   openedFinancialClosings    FinancialClosing[]  @relation("FinancialClosingOpenedBy")
   closedFinancialClosings    FinancialClosing[]  @relation("FinancialClosingClosedBy")
+  createdAnnouncements       Announcement[]      @relation("AnnouncementCreatedBy")
+  updatedAnnouncements       Announcement[]      @relation("AnnouncementUpdatedBy")
+  announcementReads          AnnouncementRead[]
   approvedAccessRequests   UserAccessRequest[] @relation("UserAccessRequestApprovedBy")
   rejectedAccessRequests   UserAccessRequest[] @relation("UserAccessRequestRejectedBy")
   createdMinistries       Ministry[]       @relation("MinistryCreatedBy")
@@ -319,6 +334,7 @@ model Ministry {
   memberMinistries   MemberMinistry[]
   schedules          Schedule[]
   events             Event[]
+  announcements      Announcement[]
   financialEntries   FinancialEntry[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
@@ -457,6 +473,53 @@ model UserAccessRequest {
   @@index([rejectedById])
   @@index([deletedAt])
   @@index([username, status, deletedAt])
+}
+
+model Announcement {
+  id           String               @id @default(cuid())
+  title        String
+  content      String
+  status       AnnouncementStatus   @default(DRAFT)
+  audience     AnnouncementAudience @default(ALL)
+  ministryId   String?
+  isPinned     Boolean              @default(false)
+  publishAt    DateTime?
+  expiresAt    DateTime?
+  externalLink String?
+  createdById  String?
+  updatedById  String?
+  deletedAt    DateTime?
+  ministry     Ministry?            @relation(fields: [ministryId], references: [id], onDelete: SetNull)
+  createdBy    User?                @relation("AnnouncementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?                @relation("AnnouncementUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  reads        AnnouncementRead[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([title])
+  @@index([status])
+  @@index([audience])
+  @@index([ministryId])
+  @@index([isPinned])
+  @@index([publishAt])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@index([status, audience, publishAt, expiresAt, deletedAt])
+}
+
+model AnnouncementRead {
+  id             String       @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
+  @@index([readAt])
 }
 
 model Event {

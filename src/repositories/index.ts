@@ -2,6 +2,8 @@ export { accessRoleRepository } from "./access-role.repository";
 export type { AccessRoleDetail, AccessRoleListItem } from "./access-role.repository";
 export { accessRequestRepository } from "./access-request.repository";
 export type { PrivateAccessRequest, SafeAccessRequest } from "./access-request.repository";
+export { announcementRepository } from "./announcement.repository";
+export type { AnnouncementRecord } from "./announcement.repository";
 export { databaseRepository } from "./database.repository";
 export { dashboardRepository } from "./dashboard.repository";
 export type {

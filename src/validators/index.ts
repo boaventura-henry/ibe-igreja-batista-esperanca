@@ -14,6 +14,16 @@ export type {
   AccessRequestListQueryInput,
   AccessRequestRejectInput
 } from "./access-request.validator";
+export {
+  announcementCreateSchema,
+  announcementListQuerySchema,
+  announcementUpdateSchema
+} from "./announcement.validator";
+export type {
+  AnnouncementCreateInput,
+  AnnouncementListQueryInput,
+  AnnouncementUpdateInput
+} from "./announcement.validator";
 export { eventCreateSchema, eventListQuerySchema, eventUpdateSchema } from "./event.validator";
 export type { EventCreateInput, EventListQueryInput, EventUpdateInput } from "./event.validator";
 export {

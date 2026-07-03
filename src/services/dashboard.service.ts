@@ -1,4 +1,4 @@
-import { dashboardRepository } from "@/repositories";
+import { announcementRepository, dashboardRepository } from "@/repositories";
 import type {
   AdminDashboardContribution,
   AdminDashboardData,
@@ -6,6 +6,7 @@ import type {
   AdminDashboardSchedule,
   PortalDashboardData,
   PortalDashboardEvent,
+  PortalDashboardNotice,
   PortalDashboardSchedule
 } from "@/types";
 
@@ -99,6 +100,24 @@ function serializePortalEvent(event: AdminDashboardEvent): PortalDashboardEvent 
   return event;
 }
 
+function serializePortalNotice(notice: {
+  id: string;
+  title: string;
+  content: string;
+  publishAt: Date | null;
+  isPinned: boolean;
+  reads: Array<{ readAt: Date }>;
+}): PortalDashboardNotice {
+  return {
+    id: notice.id,
+    title: notice.title,
+    content: notice.content,
+    publishAt: notice.publishAt?.toISOString() ?? null,
+    isPinned: notice.isPinned,
+    readAt: notice.reads[0]?.readAt.toISOString() ?? null
+  };
+}
+
 export const dashboardService = {
   async getAdminDashboard(): Promise<AdminDashboardData> {
     const data = await dashboardRepository.getAdminDashboardData();
@@ -108,6 +127,9 @@ export const dashboardService = {
     return {
       activeMembers: data.activeMembers,
       newMembersThisMonth: data.newMembersThisMonth,
+      publishedAnnouncements: data.publishedAnnouncements,
+      activeAnnouncements: data.activeAnnouncements,
+      pinnedAnnouncements: data.pinnedAnnouncements,
       upcomingEvents: data.upcomingEvents.map(serializeEvent),
       upcomingSchedules: data.upcomingSchedules.map(serializeSchedule),
       monthlyIncome: monthlyIncome.toFixed(2),
@@ -117,15 +139,16 @@ export const dashboardService = {
     };
   },
 
-  async getPortalDashboard(memberId: string | null | undefined): Promise<PortalDashboardData> {
+  async getPortalDashboard(userId: string, memberId: string | null | undefined): Promise<PortalDashboardData> {
     const nextEvent = await dashboardRepository.findNextPublicEvent();
+    const notices = await announcementRepository.listPortalAnnouncements(userId, memberId);
 
     if (!memberId) {
       return {
         userWithoutMember: true,
         nextSchedule: null,
         nextEvent: nextEvent ? serializePortalEvent(serializeEvent(nextEvent)) : null,
-        notices: ["Avisos estarao disponiveis em breve."]
+        notices: notices.slice(0, 3).map(serializePortalNotice)
       };
     }
 
@@ -135,7 +158,7 @@ export const dashboardService = {
       userWithoutMember: false,
       nextSchedule: nextSchedule ? serializePortalSchedule(nextSchedule) : null,
       nextEvent: nextEvent ? serializePortalEvent(serializeEvent(nextEvent)) : null,
-      notices: ["Avisos estarao disponiveis em breve."]
+      notices: notices.slice(0, 3).map(serializePortalNotice)
     };
   }
 };

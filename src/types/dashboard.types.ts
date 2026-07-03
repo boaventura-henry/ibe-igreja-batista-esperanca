@@ -44,6 +44,9 @@ export type AdminDashboardContribution = {
 export type AdminDashboardData = {
   activeMembers: number;
   newMembersThisMonth: number;
+  publishedAnnouncements: number;
+  activeAnnouncements: number;
+  pinnedAnnouncements: number;
   upcomingEvents: AdminDashboardEvent[];
   upcomingSchedules: AdminDashboardSchedule[];
   monthlyIncome: string;
@@ -77,9 +80,18 @@ export type PortalDashboardEvent = {
   location: string | null;
 };
 
+export type PortalDashboardNotice = {
+  id: string;
+  title: string;
+  content: string;
+  publishAt: string | null;
+  isPinned: boolean;
+  readAt: string | null;
+};
+
 export type PortalDashboardData = {
   userWithoutMember: boolean;
   nextSchedule: PortalDashboardSchedule | null;
   nextEvent: PortalDashboardEvent | null;
-  notices: string[];
+  notices: PortalDashboardNotice[];
 };

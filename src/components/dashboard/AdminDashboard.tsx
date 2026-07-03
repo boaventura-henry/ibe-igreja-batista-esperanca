@@ -79,6 +79,9 @@ export function AdminDashboard() {
         <StatCard label="Novos membros no mes" value={String(data.newMembersThisMonth)} detail="Com base na data de criacao" />
         <StatCard label="Entradas do mes" value={formatCurrency(data.monthlyIncome)} detail="Lancamentos confirmados" />
         <StatCard label="Saldo do mes" value={formatCurrency(data.monthlyBalance)} detail={`${formatCurrency(data.monthlyIncome)} - ${formatCurrency(data.monthlyExpense)}`} />
+        <StatCard label="Comunicados publicados" value={String(data.publishedAnnouncements)} detail="Publicados e nao deletados" />
+        <StatCard label="Comunicados ativos" value={String(data.activeAnnouncements)} detail="Visiveis no portal agora" />
+        <StatCard label="Comunicados fixados" value={String(data.pinnedAnnouncements)} detail="Destaques ativos no portal" />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">

@@ -11,6 +11,13 @@ export type {
   AccessRequestSummary,
   PublicAccessRequestFormValues
 } from "./access-request.types";
+export type {
+  AnnouncementFormValues,
+  AnnouncementListResult,
+  AnnouncementMinistry,
+  AnnouncementSummary,
+  PortalAnnouncementListResult
+} from "./announcement.types";
 export type { AuthRole, AuthSessionUser } from "./auth";
 export type {
   AdminDashboardContribution,
@@ -20,6 +27,7 @@ export type {
   AdminDashboardSchedule,
   PortalDashboardData,
   PortalDashboardEvent,
+  PortalDashboardNotice,
   PortalDashboardSchedule
 } from "./dashboard.types";
 export type {
