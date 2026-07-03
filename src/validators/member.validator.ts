@@ -41,12 +41,16 @@ function isValidCpf(value: string) {
   );
 }
 
-const cpfSchema = z
-  .string()
-  .trim()
-  .transform((value) => onlyDigits(value))
-  .refine((value) => value.length === 11, "Informe um CPF com 11 digitos.")
-  .refine(isValidCpf, "Informe um CPF valido.");
+const cpfSchema = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .trim()
+    .transform((value) => onlyDigits(value))
+    .refine((value) => value.length === 11, "Informe um CPF com 11 digitos.")
+    .refine(isValidCpf, "Informe um CPF valido.")
+    .optional()
+);
 
 const phoneSchema = z.preprocess(
   emptyToUndefined,

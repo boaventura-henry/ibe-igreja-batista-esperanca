@@ -564,8 +564,8 @@ export function MemberManager() {
                   <Field label="Nome completo" className="md:col-span-2">
                     <input required value={form.name} onChange={(event) => updateForm("name", event.target.value)} className={inputClass} />
                   </Field>
-                  <Field label="CPF">
-                    <input required value={form.cpf} onChange={(event) => updateForm("cpf", formatCpf(event.target.value))} className={inputClass} />
+                  <Field label="CPF opcional">
+                    <input value={form.cpf} onChange={(event) => updateForm("cpf", formatCpf(event.target.value))} className={inputClass} />
                   </Field>
                   <Field label="RG">
                     <input value={form.rg} onChange={(event) => updateForm("rg", event.target.value)} className={inputClass} />
