@@ -10,5 +10,8 @@ export const navigationItems = [
   { href: "/minhas-escalas", label: "Minhas Escalas", icon: "Agenda", permission: "mySchedule.view" },
   { href: "/portal", label: "Portal do Membro", icon: "Inicio", permission: "memberPortal.view" },
   { href: "/eventos", label: "Eventos", icon: "Agenda", permission: "event.view" },
+  { href: "/financeiro/categorias", label: "Financeiro - Categorias", icon: "Dizimos", permission: "financialCategory.view" },
+  { href: "/financeiro/lancamentos", label: "Financeiro - Lancamentos", icon: "Dizimos", permission: "financialEntry.view" },
+  { href: "/financeiro/fechamentos", label: "Financeiro - Fechamentos", icon: "Dizimos", permission: "financialClosing.view" },
   { href: "/contribuicoes", label: "Contribuicoes", icon: "Dizimos" }
 ] as const;

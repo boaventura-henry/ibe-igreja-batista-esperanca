@@ -10,6 +10,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 const portalNavigation = [
   { href: "/portal", label: "Inicio" },
   { href: "/portal/minhas-escalas", label: "Minhas Escalas" },
+  { href: "/portal/minhas-contribuicoes", label: "Minhas Contribuicoes" },
   { href: "/portal/meu-cadastro", label: "Meu Cadastro" },
   { href: "/portal/meus-ministerios", label: "Meus Ministerios" },
   { href: "/portal/eventos", label: "Eventos" },
@@ -40,6 +41,9 @@ const adminPermissions = [
   "event.publish",
   "event.cancel",
   "event.complete",
+  "financialCategory.view",
+  "financialEntry.view",
+  "financialClosing.view",
   "accessRequest.view",
   "accessRequest.approve",
   "accessRequest.reject"

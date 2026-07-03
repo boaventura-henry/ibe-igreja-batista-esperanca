@@ -121,6 +121,35 @@ enum EventStatus {
   COMPLETED
 }
 
+enum FinancialEntryType {
+  INCOME
+  EXPENSE
+}
+
+enum FinancialPaymentMethod {
+  CASH
+  PIX
+  DEBIT_CARD
+  CREDIT_CARD
+  BANK_TRANSFER
+  CHECK
+  OTHER
+}
+
+enum FinancialEntryStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+  REFUNDED
+}
+
+enum FinancialEntryOrigin {
+  MANUAL
+  PIX
+  EVENT
+  OTHER
+}
+
 enum UserAccessRequestStatus {
   PENDING
   APPROVED
@@ -154,6 +183,12 @@ model User {
   updatedScheduleMembers   ScheduleMember[] @relation("ScheduleMemberUpdatedBy")
   createdEvents            Event[]          @relation("EventCreatedBy")
   updatedEvents            Event[]          @relation("EventUpdatedBy")
+  createdFinancialCategories FinancialCategory[] @relation("FinancialCategoryCreatedBy")
+  updatedFinancialCategories FinancialCategory[] @relation("FinancialCategoryUpdatedBy")
+  createdFinancialEntries    FinancialEntry[]    @relation("FinancialEntryCreatedBy")
+  updatedFinancialEntries    FinancialEntry[]    @relation("FinancialEntryUpdatedBy")
+  openedFinancialClosings    FinancialClosing[]  @relation("FinancialClosingOpenedBy")
+  closedFinancialClosings    FinancialClosing[]  @relation("FinancialClosingClosedBy")
   approvedAccessRequests   UserAccessRequest[] @relation("UserAccessRequestApprovedBy")
   rejectedAccessRequests   UserAccessRequest[] @relation("UserAccessRequestRejectedBy")
   createdMinistries       Ministry[]       @relation("MinistryCreatedBy")
@@ -238,6 +273,7 @@ model Member {
   ledMinistries     Ministry[]       @relation("MinistryLeader")
   viceLedMinistries Ministry[]       @relation("MinistryViceLeader")
   donations         Donation[]
+  financialEntries  FinancialEntry[]
   memberMinistries  MemberMinistry[]
   scheduleMembers   ScheduleMember[] @relation("ScheduleMemberMember")
   replacements      ScheduleMember[] @relation("ScheduleMemberReplacement")
@@ -283,6 +319,7 @@ model Ministry {
   memberMinistries   MemberMinistry[]
   schedules          Schedule[]
   events             Event[]
+  financialEntries   FinancialEntry[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -447,6 +484,7 @@ model Event {
   deletedAt           DateTime?
   ministry            Ministry?   @relation(fields: [ministryId], references: [id], onDelete: SetNull)
   responsibleMember   Member?     @relation("EventResponsibleMember", fields: [responsibleMemberId], references: [id], onDelete: SetNull)
+  financialEntries    FinancialEntry[]
   createdBy           User?       @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy           User?       @relation("EventUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt           DateTime    @default(now())
@@ -461,6 +499,93 @@ model Event {
   @@index([startDate])
   @@index([endDate])
   @@index([isPublic])
+  @@index([deletedAt])
+}
+
+model FinancialCategory {
+  id                 String             @id @default(cuid())
+  name               String
+  description        String?
+  type               FinancialEntryType
+  displayOrder       Int                @default(0)
+  showInMemberPortal Boolean            @default(false)
+  isSystem           Boolean            @default(false)
+  isActive           Boolean            @default(true)
+  createdById        String?
+  updatedById        String?
+  deletedAt          DateTime?
+  entries            FinancialEntry[]
+  createdBy          User?              @relation("FinancialCategoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy          User?              @relation("FinancialCategoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@unique([name, type])
+  @@index([name])
+  @@index([type])
+  @@index([displayOrder])
+  @@index([isActive])
+  @@index([showInMemberPortal])
+  @@index([deletedAt])
+}
+
+model FinancialEntry {
+  id            String                 @id @default(cuid())
+  entryNumber   Int                    @unique
+  type          FinancialEntryType
+  memberId      String?
+  categoryId    String
+  eventId       String?
+  ministryId    String?
+  amount        Decimal                @db.Decimal(12, 2)
+  paymentMethod FinancialPaymentMethod @default(OTHER)
+  status        FinancialEntryStatus   @default(CONFIRMED)
+  origin        FinancialEntryOrigin   @default(MANUAL)
+  anonymous     Boolean                @default(false)
+  launchDate    DateTime
+  referenceDate DateTime
+  observation   String?
+  createdById   String?
+  updatedById   String?
+  deletedAt     DateTime?
+  member        Member?                @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  category      FinancialCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  event         Event?                 @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  ministry      Ministry?              @relation(fields: [ministryId], references: [id], onDelete: SetNull)
+  createdBy     User?                  @relation("FinancialEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?                  @relation("FinancialEntryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([entryNumber])
+  @@index([type])
+  @@index([memberId])
+  @@index([categoryId])
+  @@index([eventId])
+  @@index([ministryId])
+  @@index([paymentMethod])
+  @@index([status])
+  @@index([origin])
+  @@index([launchDate])
+  @@index([referenceDate])
+  @@index([deletedAt])
+}
+
+model FinancialClosing {
+  id             String   @id @default(cuid())
+  date           DateTime @unique
+  openingBalance Decimal  @db.Decimal(12, 2)
+  closingBalance Decimal  @db.Decimal(12, 2)
+  openedById     String?
+  closedById     String?
+  observation    String?
+  deletedAt      DateTime?
+  openedBy       User?    @relation("FinancialClosingOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+  closedBy       User?    @relation("FinancialClosingClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([date])
   @@index([deletedAt])
 }
 

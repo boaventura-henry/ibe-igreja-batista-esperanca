@@ -5,6 +5,12 @@ export type { PrivateAccessRequest, SafeAccessRequest } from "./access-request.r
 export { databaseRepository } from "./database.repository";
 export { eventRepository } from "./event.repository";
 export type { EventRecord } from "./event.repository";
+export { financialCategoryRepository } from "./financial-category.repository";
+export type { FinancialCategoryRecord } from "./financial-category.repository";
+export { financialClosingRepository } from "./financial-closing.repository";
+export type { FinancialClosingRecord } from "./financial-closing.repository";
+export { financialEntryRepository } from "./financial-entry.repository";
+export type { FinancialEntryRecord } from "./financial-entry.repository";
 export { memberRepository } from "./member.repository";
 export type { MemberDetail, MemberListItem } from "./member.repository";
 export { memberMinistryRepository } from "./member-ministry.repository";

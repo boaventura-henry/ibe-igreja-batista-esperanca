@@ -6,7 +6,7 @@ import { availablePermissions, type PermissionCode } from "../src/lib/permission
 import { prisma } from "../src/prisma/client";
 import { ZodError } from "zod";
 import { createSlug } from "../src/utils/identity";
-import { MinistryIcon } from "@prisma/client";
+import { FinancialEntryType, MinistryIcon } from "@prisma/client";
 
 const defaultAccessRoles: Array<{
   name: string;
@@ -29,6 +29,10 @@ const defaultAccessRoles: Array<{
       "memberMinistry.view",
       "schedule.view",
       "event.view",
+      "financialCategory.view",
+      "financialEntry.view",
+      "financialClosing.view",
+      "memberContribution.view",
       "mySchedule.view",
       "mySchedule.confirm",
       "memberPortal.view",
@@ -64,6 +68,9 @@ const defaultAccessRoles: Array<{
       "event.publish",
       "event.cancel",
       "event.complete",
+      "financialCategory.view",
+      "financialEntry.view",
+      "memberContribution.view",
       "mySchedule.view",
       "mySchedule.confirm",
       "memberPortal.view",
@@ -81,6 +88,7 @@ const defaultAccessRoles: Array<{
       "schedule.view",
       "schedule.confirm",
       "event.view",
+      "memberContribution.view",
       "mySchedule.view",
       "mySchedule.confirm",
       "memberPortal.view",
@@ -106,6 +114,29 @@ const defaultMinistries: Array<{
   { name: "Mídia", color: "#DC2626", icon: MinistryIcon.CAMERA, displayOrder: 6 },
   { name: "Intercessão", color: "#0891B2", icon: MinistryIcon.CROSS, displayOrder: 7 },
   { name: "Patrimônio", color: "#4B5563", icon: MinistryIcon.HOME, displayOrder: 8 }
+];
+
+const defaultFinancialCategories: Array<{
+  name: string;
+  type: FinancialEntryType;
+  displayOrder: number;
+  showInMemberPortal: boolean;
+}> = [
+  { name: "Dizimo", type: FinancialEntryType.INCOME, displayOrder: 1, showInMemberPortal: true },
+  { name: "Oferta", type: FinancialEntryType.INCOME, displayOrder: 2, showInMemberPortal: true },
+  { name: "Missoes", type: FinancialEntryType.INCOME, displayOrder: 3, showInMemberPortal: true },
+  { name: "Construcao", type: FinancialEntryType.INCOME, displayOrder: 4, showInMemberPortal: true },
+  { name: "Campanha", type: FinancialEntryType.INCOME, displayOrder: 5, showInMemberPortal: true },
+  { name: "Evento", type: FinancialEntryType.INCOME, displayOrder: 6, showInMemberPortal: true },
+  { name: "Doacao", type: FinancialEntryType.INCOME, displayOrder: 7, showInMemberPortal: true },
+  { name: "Outros", type: FinancialEntryType.INCOME, displayOrder: 8, showInMemberPortal: false },
+  { name: "Conta de Luz", type: FinancialEntryType.EXPENSE, displayOrder: 1, showInMemberPortal: false },
+  { name: "Agua", type: FinancialEntryType.EXPENSE, displayOrder: 2, showInMemberPortal: false },
+  { name: "Internet", type: FinancialEntryType.EXPENSE, displayOrder: 3, showInMemberPortal: false },
+  { name: "Manutencao", type: FinancialEntryType.EXPENSE, displayOrder: 4, showInMemberPortal: false },
+  { name: "Compra de Equipamentos", type: FinancialEntryType.EXPENSE, displayOrder: 5, showInMemberPortal: false },
+  { name: "Ajuda Social", type: FinancialEntryType.EXPENSE, displayOrder: 6, showInMemberPortal: false },
+  { name: "Outros", type: FinancialEntryType.EXPENSE, displayOrder: 7, showInMemberPortal: false }
 ];
 
 async function main() {
@@ -174,6 +205,31 @@ async function main() {
   }
 
   console.log(`Ministries ready: ${defaultMinistries.length}`);
+
+  for (const category of defaultFinancialCategories) {
+    await prisma.financialCategory.upsert({
+      where: {
+        name_type: {
+          name: category.name,
+          type: category.type
+        }
+      },
+      update: {
+        displayOrder: category.displayOrder,
+        showInMemberPortal: category.showInMemberPortal,
+        isSystem: true,
+        isActive: true,
+        deletedAt: null
+      },
+      create: {
+        ...category,
+        isSystem: true,
+        isActive: true
+      }
+    });
+  }
+
+  console.log(`Financial categories ready: ${defaultFinancialCategories.length}`);
 
   const passwordHash = await hashPassword(admin.password);
 

@@ -20,6 +20,19 @@ export type {
   EventSummary
 } from "./event.types";
 export type {
+  FinancialCategoryFormValues,
+  FinancialCategoryListResult,
+  FinancialCategorySummary,
+  FinancialClosingFormValues,
+  FinancialClosingListResult,
+  FinancialClosingSummary,
+  FinancialEntryFormValues,
+  FinancialEntryListResult,
+  FinancialEntrySummary,
+  MemberContributionListResult,
+  MemberContributionSummary
+} from "./financial.types";
+export type {
   MemberFormValues,
   MemberListFilters,
   MemberListResult,

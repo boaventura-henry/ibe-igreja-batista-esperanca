@@ -13,6 +13,7 @@ const protectedRoutes = [
   "/minhas-escalas",
   "/portal",
   "/eventos",
+  "/financeiro",
   "/contribuicoes"
 ];
 
@@ -67,6 +68,34 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
+    if (
+      pathname.startsWith("/financeiro/categorias") &&
+      !request.nextauth.token?.permissionCodes?.includes("financialCategory.view")
+    ) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (
+      pathname.startsWith("/financeiro/lancamentos") &&
+      !request.nextauth.token?.permissionCodes?.includes("financialEntry.view")
+    ) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (
+      pathname.startsWith("/financeiro/fechamentos") &&
+      !request.nextauth.token?.permissionCodes?.includes("financialClosing.view")
+    ) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (
+      pathname.startsWith("/portal/minhas-contribuicoes") &&
+      !request.nextauth.token?.permissionCodes?.includes("memberContribution.view")
+    ) {
+      return NextResponse.redirect(new URL("/portal", request.url));
+    }
+
     if (pathname.startsWith("/portal") && !request.nextauth.token?.permissionCodes?.includes("memberPortal.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
@@ -107,6 +136,7 @@ export const config = {
     "/minhas-escalas/:path*",
     "/portal/:path*",
     "/eventos/:path*",
+    "/financeiro/:path*",
     "/contribuicoes/:path*"
   ]
 };
