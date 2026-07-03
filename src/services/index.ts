@@ -1,6 +1,7 @@
 export { accessRoleService } from "./access-role.service";
 export { accessRequestService } from "./access-request.service";
 export { authService } from "./auth.service";
+export { dashboardService } from "./dashboard.service";
 export { eventService } from "./event.service";
 export { financialCategoryService } from "./financial-category.service";
 export { financialClosingService } from "./financial-closing.service";

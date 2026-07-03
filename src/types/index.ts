@@ -13,6 +13,16 @@ export type {
 } from "./access-request.types";
 export type { AuthRole, AuthSessionUser } from "./auth";
 export type {
+  AdminDashboardContribution,
+  AdminDashboardData,
+  AdminDashboardEvent,
+  AdminDashboardMetric,
+  AdminDashboardSchedule,
+  PortalDashboardData,
+  PortalDashboardEvent,
+  PortalDashboardSchedule
+} from "./dashboard.types";
+export type {
   EventFormValues,
   EventListResult,
   EventMinistry,

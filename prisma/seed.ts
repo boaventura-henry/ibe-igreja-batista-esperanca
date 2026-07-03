@@ -22,6 +22,8 @@ const defaultAccessRoles: Array<{
     name: "Pastor",
     description: "Acesso pastoral para visualizar e manter cadastros de membros.",
     permissions: [
+      "dashboard.admin.view",
+      "dashboard.portal.view",
       "member.view",
       "member.create",
       "member.update",
@@ -43,6 +45,8 @@ const defaultAccessRoles: Array<{
     name: "Secretario",
     description: "Acesso operacional para secretaria da igreja.",
     permissions: [
+      "dashboard.admin.view",
+      "dashboard.portal.view",
       "member.view",
       "member.create",
       "member.update",
@@ -82,6 +86,7 @@ const defaultAccessRoles: Array<{
     name: "Membro",
     description: "Acesso basico para visualizacao.",
     permissions: [
+      "dashboard.portal.view",
       "member.view",
       "ministry.view",
       "memberMinistry.view",

@@ -3,6 +3,13 @@ export type { AccessRoleDetail, AccessRoleListItem } from "./access-role.reposit
 export { accessRequestRepository } from "./access-request.repository";
 export type { PrivateAccessRequest, SafeAccessRequest } from "./access-request.repository";
 export { databaseRepository } from "./database.repository";
+export { dashboardRepository } from "./dashboard.repository";
+export type {
+  AdminDashboardContributionRecord,
+  AdminDashboardEventRecord,
+  AdminDashboardScheduleRecord,
+  PortalDashboardScheduleRecord
+} from "./dashboard.repository";
 export { eventRepository } from "./event.repository";
 export type { EventRecord } from "./event.repository";
 export { financialCategoryRepository } from "./financial-category.repository";

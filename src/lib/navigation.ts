@@ -1,5 +1,5 @@
 export const navigationItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "Inicio" },
+  { href: "/dashboard", label: "Dashboard", icon: "Inicio", permission: "dashboard.admin.view" },
   { href: "/membros", label: "Membros", icon: "Pessoas" },
   { href: "/perfis-acesso", label: "Perfis de Acesso", icon: "Chaves", permission: "accessRole.view" },
   { href: "/usuarios", label: "Usuarios", icon: "Usuarios", permission: "user.view" },

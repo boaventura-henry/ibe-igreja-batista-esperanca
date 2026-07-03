@@ -18,6 +18,7 @@ const portalNavigation = [
 ] as const;
 
 const adminPermissions = [
+  "dashboard.admin.view",
   "member.create",
   "member.update",
   "member.delete",

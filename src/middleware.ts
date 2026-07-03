@@ -30,6 +30,12 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
+    if (pathname.startsWith("/dashboard") && !request.nextauth.token?.permissionCodes?.includes("dashboard.admin.view")) {
+      const fallback = request.nextauth.token?.permissionCodes?.includes("dashboard.portal.view") ? "/portal" : "/login";
+
+      return NextResponse.redirect(new URL(fallback, request.url));
+    }
+
     if (pathname.startsWith("/perfis-acesso") && !request.nextauth.token?.permissionCodes?.includes("accessRole.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
@@ -96,7 +102,19 @@ export default withAuth(
       return NextResponse.redirect(new URL("/portal", request.url));
     }
 
-    if (pathname.startsWith("/portal") && !request.nextauth.token?.permissionCodes?.includes("memberPortal.view")) {
+    if (
+      pathname === "/portal" &&
+      !request.nextauth.token?.permissionCodes?.includes("dashboard.portal.view")
+    ) {
+      const fallback = request.nextauth.token?.permissionCodes?.includes("dashboard.admin.view") ? "/dashboard" : "/login";
+
+      return NextResponse.redirect(new URL(fallback, request.url));
+    }
+
+    if (
+      pathname.startsWith("/portal") &&
+      !request.nextauth.token?.permissionCodes?.includes("memberPortal.view")
+    ) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
