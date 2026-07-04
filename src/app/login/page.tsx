@@ -12,7 +12,7 @@ export default async function LoginPage() {
 
   return (
     <main className="grid min-h-screen bg-hope-50 lg:grid-cols-[1fr_560px]">
-      <section className="flex min-h-[46vh] items-end bg-[linear-gradient(135deg,rgba(35,127,82,0.92),rgba(16,32,26,0.88)),url('https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center px-6 py-10 text-white lg:min-h-screen lg:px-12">
+      <section className="flex min-h-[46vh] items-end bg-[linear-gradient(135deg,rgba(35,127,82,0.92),rgba(16,32,26,0.88)),url('https://github.com/boaventura-henry/ibe-igreja-batista-esperanca/blob/66674094b05d975d9766428b3414626279ce1d2f/public/icons/logo-IBE.png?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center px-6 py-10 text-white lg:min-h-screen lg:px-12">
         <div className="max-w-2xl">
           <p className="text-sm font-bold uppercase tracking-wide text-gold-100">
             IBE - Igreja Batista Esperanca
