@@ -91,6 +91,16 @@ O script `build` executa `prisma generate` antes de `next build`, garantindo que
 
 Fotos de membros e imagens de ministerios usam Vercel Blob. Crie um Blob Store no projeto da Vercel e configure `BLOB_READ_WRITE_TOKEN` nos ambientes necessários. Sem essa variavel, as rotas de upload retornam erro amigavel e o cadastro ainda permite informar uma URL manualmente.
 
+## PWA
+
+O IBE esta preparado como Progressive Web App instalavel.
+
+No Android, abra a URL de producao no Chrome e use a opcao **Instalar app** ou **Adicionar a tela inicial**. No iOS, abra no Safari, toque em **Compartilhar** e escolha **Adicionar a Tela de Inicio**.
+
+O app possui manifest, icones, service worker e uma pagina offline basica. Quando estiver sem conexao, rotas publicas essenciais e assets estaticos podem continuar disponiveis; paginas administrativas e APIs autenticadas nao sao cacheadas para evitar exposicao de dados sensiveis.
+
+Notificacoes push ainda nao foram implementadas nesta fase.
+
 ## Usuario administrador inicial
 
 O seed cria ou atualiza o administrador inicial usando variaveis de ambiente:
