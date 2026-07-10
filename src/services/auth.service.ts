@@ -15,7 +15,7 @@ export const authService = {
   },
 
   async login(input: LoginInput): Promise<AuthSessionUser | null> {
-    const user = await userRepository.findByUsernameWithPassword(input.username);
+    const user = await userRepository.findByLoginIdentifierWithPassword(input.username);
 
     if (!user) {
       return null;

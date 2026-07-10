@@ -1,8 +1,13 @@
 import { UserRole } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { accessRequestRepository, type SafeAccessRequest } from "@/repositories";
-import type { AccessRequestDetailResult, AccessRequestListResult, AccessRequestSummary } from "@/types";
-import { hashPassword } from "@/utils";
+import type {
+  AccessRequestDetailResult,
+  AccessRequestListResult,
+  AccessRequestMemberMatch,
+  AccessRequestSummary
+} from "@/types";
+import { buildFallbackEmail, hashPassword, normalizeNameForMatch } from "@/utils";
 import type {
   AccessRequestApproveInput,
   AccessRequestCreateInput,
@@ -12,6 +17,15 @@ import type {
 
 function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2002"
+  );
 }
 
 function serializeMember(
@@ -26,7 +40,12 @@ function serializeMember(
     name: member.name,
     email: member.email,
     cpf: member.cpf,
-    birthDate: serializeDate(member.birthDate)
+    rg: member.rg,
+    phone: member.phone,
+    mobilePhone: member.mobilePhone,
+    whatsapp: member.whatsapp,
+    birthDate: serializeDate(member.birthDate),
+    status: member.status
   };
 }
 
@@ -38,6 +57,7 @@ function serializeRequest(request: SafeAccessRequest): AccessRequestSummary {
     email: request.email,
     phone: request.phone,
     cpf: request.cpf,
+    rg: request.rg,
     birthDate: serializeDate(request.birthDate),
     status: request.status,
     possibleMember: serializeMember(request.possibleMember),
@@ -60,19 +80,120 @@ function serializeMembers(
     name: member.name,
     email: member.email,
     cpf: member.cpf,
-    birthDate: serializeDate(member.birthDate)
+    rg: member.rg,
+    phone: member.phone,
+    mobilePhone: member.mobilePhone,
+    whatsapp: member.whatsapp,
+    birthDate: serializeDate(member.birthDate),
+    status: member.status
   }));
 }
 
-async function ensureUsernameAvailable(username: string) {
-  const [existingUser, pendingRequest] = await Promise.all([
-    accessRequestRepository.findUserByUsername(username),
-    accessRequestRepository.findPendingByUsername(username)
-  ]);
+function sameDay(left: Date | null | undefined, right: Date | null | undefined) {
+  return Boolean(left && right && left.toISOString().slice(0, 10) === right.toISOString().slice(0, 10));
+}
 
-  if (existingUser || pendingRequest) {
-    throw new AppError("Usuario indisponivel.", 409, "USERNAME_UNAVAILABLE");
+function nameSimilarity(left: string, right: string) {
+  const a = normalizeNameForMatch(left);
+  const b = normalizeNameForMatch(right);
+
+  if (!a || !b) {
+    return 0;
   }
+
+  if (a === b) {
+    return 1;
+  }
+
+  const aParts = new Set(a.split(" ").filter(Boolean));
+  const bParts = b.split(" ").filter(Boolean);
+  const common = bParts.filter((part) => aParts.has(part)).length;
+
+  return common / Math.max(aParts.size, bParts.length, 1);
+}
+
+function evaluateMemberMatch(
+  member: Awaited<ReturnType<typeof accessRequestRepository.findMemberCandidates>>[number],
+  data: AccessRequestCreateInput
+): AccessRequestMemberMatch & { hasActiveUser: boolean } {
+  const criteria: string[] = [];
+  let score = 0;
+
+  if (data.cpf && member.cpf === data.cpf) {
+    criteria.push("CPF igual");
+    score = 100;
+  }
+
+  if (data.rg && member.rg === data.rg) {
+    criteria.push("RG igual");
+    score = 100;
+  }
+
+  const phoneMatches = [member.phone, member.mobilePhone, member.whatsapp].some((phone) => phone === data.phone);
+  const birthMatches = sameDay(member.birthDate, data.birthDate);
+  const similarity = nameSimilarity(member.name, data.name);
+
+  if (phoneMatches) {
+    criteria.push("Telefone igual");
+  }
+
+  if (birthMatches) {
+    criteria.push("Data de nascimento igual");
+  }
+
+  if (similarity >= 1) {
+    criteria.push("Nome igual");
+  } else if (similarity >= 0.5) {
+    criteria.push("Nome parecido");
+  }
+
+  if (data.email && member.email === data.email) {
+    criteria.push("E-mail igual");
+  }
+
+  if (score !== 100 && phoneMatches && birthMatches && similarity >= 0.8) {
+    score = 100;
+  }
+
+  if (score !== 100) {
+    if ((phoneMatches && similarity >= 0.5) || (birthMatches && similarity >= 0.5) || (data.email && member.email === data.email && similarity >= 0.5)) {
+      score = 70;
+    } else if (similarity >= 0.5 || phoneMatches || (data.email && member.email === data.email)) {
+      score = 35;
+    }
+  }
+
+  const confidence = score >= 100 ? "HIGH" : score >= 70 ? "MEDIUM" : "LOW";
+
+  return {
+    member: serializeMember(member)!,
+    score,
+    confidence,
+    criteria,
+    recommendation:
+      score >= 100
+        ? "Correspondencia forte."
+        : score >= 70
+          ? "Revisar manualmente antes de aprovar."
+          : "Baixa confianca. Nao vincular automaticamente.",
+    hasActiveUser: Boolean(member.user?.isActive)
+  };
+}
+
+async function findMemberMatchesForAccessRequest(data: AccessRequestCreateInput) {
+  const candidates = await accessRequestRepository.findMemberCandidates({
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    cpf: data.cpf,
+    rg: data.rg,
+    birthDate: data.birthDate
+  });
+
+  return candidates
+    .map((member) => evaluateMemberMatch(member, data))
+    .filter((match) => match.score > 0)
+    .sort((a, b) => b.score - a.score);
 }
 
 async function ensureRequestPending(id: string) {
@@ -91,30 +212,112 @@ async function ensureRequestPending(id: string) {
 
 export const accessRequestService = {
   async createPublic(data: AccessRequestCreateInput) {
-    await ensureUsernameAvailable(data.username);
-
-    const possibleMember = await accessRequestRepository.suggestMember({
-      email: data.email,
-      phone: data.phone,
-      cpf: data.cpf,
-      name: data.name,
-      birthDate: data.birthDate
-    });
     const passwordHash = await hashPassword(data.password);
+    const email = data.email ?? buildFallbackEmail(data.username);
+    const [memberAccessRole, existingIdentifier, existingCpfIdentifier, pendingDuplicate, existingEmail] = await Promise.all([
+      accessRequestRepository.findAccessRoleByName("Membro"),
+      accessRequestRepository.findUserByIdentifier(data.username),
+      data.cpf ? accessRequestRepository.findUserByIdentifier(data.cpf) : Promise.resolve(null),
+      accessRequestRepository.findPendingDuplicate({
+        username: data.username,
+        phone: data.phone,
+        cpf: data.cpf,
+        rg: data.rg,
+        email: data.email
+      }),
+      data.email ? accessRequestRepository.findUserByEmail(data.email) : Promise.resolve(null)
+    ]);
 
-    await accessRequestRepository.create({
+    if (!memberAccessRole) {
+      throw new AppError("Perfil de acesso Membro nao encontrado.", 409, "MEMBER_ACCESS_ROLE_NOT_FOUND");
+    }
+
+    if (pendingDuplicate) {
+      throw new AppError("Ja existe uma solicitacao pendente com esses dados.", 409, "ACCESS_REQUEST_DUPLICATE");
+    }
+
+    const matches = await findMemberMatchesForAccessRequest(data);
+    const highConfidenceMatches = matches.filter((match) => match.score === 100);
+    const bestMatch = matches[0];
+
+    const requestPayload = {
       name: data.name,
       username: data.username,
-      email: data.email,
+      email,
       phone: data.phone,
       cpf: data.cpf,
+      rg: data.rg,
       birthDate: data.birthDate,
-      passwordHash,
-      possibleMemberId: possibleMember?.id
-    });
+      passwordHash
+    };
+
+    const hasUserConflict = Boolean(existingIdentifier || existingCpfIdentifier || existingEmail);
+
+    if (highConfidenceMatches.length === 1 && !highConfidenceMatches[0].hasActiveUser && !hasUserConflict) {
+      try {
+        await accessRequestRepository.autoApproveWithExistingMember({
+          request: {
+            ...requestPayload,
+            possibleMemberId: highConfidenceMatches[0].member.id
+          },
+          accessRoleId: memberAccessRole.id
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          throw new AppError("Sua solicitacao foi enviada e sera analisada em breve.", 409, "ACCESS_REQUEST_CONFLICT");
+        }
+
+        throw error;
+      }
+
+      return {
+        message: "Solicitacao aceita. Voce ja pode acessar o sistema."
+      };
+    }
+
+    // Auto-create is intentionally conservative: any plausible member match or
+    // user conflict must keep the request pending for manual review.
+    if (matches.length === 0 && !hasUserConflict) {
+      try {
+        await accessRequestRepository.autoApproveWithNewMember({
+          request: requestPayload,
+          accessRoleId: memberAccessRole.id
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          throw new AppError("Sua solicitacao foi enviada e sera analisada em breve.", 409, "ACCESS_REQUEST_CONFLICT");
+        }
+
+        throw error;
+      }
+
+      return {
+        message: "Solicitacao aceita. Voce ja pode acessar o sistema."
+      };
+    }
+
+    try {
+      await accessRequestRepository.create({
+        name: data.name,
+        username: data.username,
+        email: data.email,
+        phone: data.phone,
+        cpf: data.cpf,
+        rg: data.rg,
+        birthDate: data.birthDate,
+        passwordHash,
+        possibleMemberId: bestMatch?.member.id
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new AppError("Ja existe uma solicitacao pendente com esses dados.", 409, "ACCESS_REQUEST_DUPLICATE");
+      }
+
+      throw error;
+    }
 
     return {
-      message: "Solicitacao enviada. Aguarde a aprovacao da secretaria."
+      message: "Sua solicitacao foi enviada e sera analisada em breve."
     };
   },
 
@@ -142,9 +345,22 @@ export const accessRequestService = {
       throw new AppError("Solicitacao nao encontrada.", 404, "ACCESS_REQUEST_NOT_FOUND");
     }
 
+    const matches = await findMemberMatchesForAccessRequest({
+      name: request.name,
+      username: request.username,
+      email: request.email ?? undefined,
+      phone: request.phone ?? "",
+      cpf: request.cpf ?? undefined,
+      rg: request.rg ?? undefined,
+      birthDate: request.birthDate ?? new Date(0),
+      password: "unused-password",
+      confirmPassword: "unused-password"
+    });
+
     return {
       request: serializeRequest(request),
-      members: serializeMembers(members)
+      members: serializeMembers(members),
+      matches
     };
   },
 
@@ -153,8 +369,8 @@ export const accessRequestService = {
     const [member, linkedUser, existingUsername, existingEmail, memberAccessRole] = await Promise.all([
       accessRequestRepository.findMemberById(data.memberId),
       accessRequestRepository.findMemberWithActiveUser(data.memberId),
-      accessRequestRepository.findUserByUsername(request.username),
-      accessRequestRepository.findUserByEmail(request.email),
+      accessRequestRepository.findUserByIdentifier(request.username),
+      request.email ? accessRequestRepository.findUserByEmail(request.email) : Promise.resolve(null),
       accessRequestRepository.findAccessRoleByName("Membro")
     ]);
 
@@ -187,7 +403,7 @@ export const accessRequestService = {
         user: {
           name: request.name,
           username: request.username,
-          email: request.email,
+          email: request.email ?? buildFallbackEmail(request.username),
           passwordHash: request.passwordHash,
           role: UserRole.LEADER,
           mustChangePassword: data.mustChangePassword

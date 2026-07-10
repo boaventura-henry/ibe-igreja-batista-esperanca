@@ -1,6 +1,6 @@
 import { UserAccessRequestStatus } from "@prisma/client";
 import { z } from "zod";
-import { usernameSchema } from "./auth.validator";
+import { isValidCpf, normalizeLoginIdentifier, normalizeOptionalDigits, normalizeRg } from "@/utils";
 import { strongPasswordSchema } from "./user.validator";
 
 const emptyToUndefined = (value: unknown) => {
@@ -18,22 +18,26 @@ const digitsOnly = (value: unknown) => {
     return value;
   }
 
-  const digits = value.replace(/\D/g, "");
-
-  return digits.length > 0 ? digits : undefined;
+  return normalizeOptionalDigits(value);
 };
 
 export const accessRequestCreateSchema = z
   .object({
     name: z.string().trim().min(2, "Informe seu nome completo."),
-    username: usernameSchema,
-    email: z.email("Informe um e-mail valido.").trim().toLowerCase(),
-    phone: z.preprocess(digitsOnly, z.string().min(10, "Informe um telefone valido.").max(11).optional()),
-    cpf: z.preprocess(digitsOnly, z.string().length(11, "Informe um CPF valido.").optional()),
-    birthDate: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
+    email: z.preprocess(emptyToUndefined, z.email("Informe um e-mail valido.").trim().toLowerCase().optional()),
+    phone: z.preprocess(digitsOnly, z.string().min(10, "Informe um telefone valido.").max(11, "Informe um telefone valido.")),
+    cpf: z
+      .preprocess(digitsOnly, z.string().length(11, "Informe um CPF valido.").optional())
+      .refine((value) => !value || isValidCpf(value), "Informe um CPF valido."),
+    rg: z.preprocess((value) => (typeof value === "string" ? normalizeRg(value) : value), z.string().max(30).optional()),
+    birthDate: z.preprocess(emptyToUndefined, z.coerce.date({ message: "Informe sua data de nascimento." })),
     password: strongPasswordSchema,
     confirmPassword: z.string().min(1, "Confirme sua senha.")
   })
+  .transform((data) => ({
+    ...data,
+    username: normalizeLoginIdentifier(data.phone)
+  }))
   .refine((data) => data.password === data.confirmPassword, {
     message: "As senhas nao conferem.",
     path: ["confirmPassword"]

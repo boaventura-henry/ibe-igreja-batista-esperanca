@@ -7,6 +7,7 @@ export type {
 export type {
   AccessRequestDetailResult,
   AccessRequestListResult,
+  AccessRequestMemberMatch,
   AccessRequestMemberSummary,
   AccessRequestSummary,
   PublicAccessRequestFormValues

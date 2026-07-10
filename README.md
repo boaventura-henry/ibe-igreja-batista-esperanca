@@ -108,7 +108,7 @@ O seed cria ou atualiza o administrador inicial usando variaveis de ambiente:
 - `ADMIN_USERNAME`: usuario de login, sempre normalizado em maiusculo.
 - `ADMIN_NAME`: nome exibido no sistema.
 - `ADMIN_EMAIL`: e-mail cadastral.
-- `ADMIN_PASSWORD`: senha forte usada para gerar o hash.
+- `ADMIN_PASSWORD`: senha com pelo menos 6 caracteres usada para gerar o hash.
 
 Execute:
 
@@ -116,7 +116,7 @@ Execute:
 npm run prisma:seed
 ```
 
-O login do sistema usa `username + senha`. O e-mail permanece apenas como informacao cadastral.
+O login do sistema aceita telefone ou CPF com senha. O identificador legado `ADMIN_USERNAME` continua aceito para compatibilidade do administrador e usuarios antigos. O e-mail permanece apenas como informacao cadastral.
 
 ## Estrutura inicial
 

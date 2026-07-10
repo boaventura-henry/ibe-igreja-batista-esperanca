@@ -122,6 +122,59 @@ export const userRepository = {
     });
   },
 
+  async findByLoginIdentifierWithPassword(identifier: string) {
+    const digits = identifier.replace(/\D/g, "");
+    const select = {
+      ...userSelect,
+      passwordHash: true
+    };
+
+    if (digits.length >= 10) {
+      const phoneMatches = await prisma.user.findMany({
+        where: {
+          OR: [
+            { member: { phone: digits } },
+            { member: { mobilePhone: digits } },
+            { member: { whatsapp: digits } }
+          ]
+        },
+        select,
+        take: 2
+      });
+
+      if (phoneMatches.length === 1) {
+        return phoneMatches[0];
+      }
+
+      if (phoneMatches.length > 1) {
+        return null;
+      }
+    }
+
+    if (digits.length === 11) {
+      const cpfMatches = await prisma.user.findMany({
+        where: {
+          member: { cpf: digits }
+        },
+        select,
+        take: 2
+      });
+
+      if (cpfMatches.length === 1) {
+        return cpfMatches[0];
+      }
+
+      if (cpfMatches.length > 1) {
+        return null;
+      }
+    }
+
+    return prisma.user.findUnique({
+      where: { username: digits.length >= 10 ? digits : identifier },
+      select
+    });
+  },
+
   findById(id: string) {
     return prisma.user.findUnique({
       where: { id },
@@ -139,6 +192,21 @@ export const userRepository = {
   findByUsername(username: string) {
     return prisma.user.findUnique({
       where: { username },
+      select: { id: true }
+    });
+  },
+
+  findByIdentifier(identifier: string) {
+    return prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: identifier },
+          { member: { phone: identifier } },
+          { member: { mobilePhone: identifier } },
+          { member: { whatsapp: identifier } },
+          { member: { cpf: identifier } }
+        ]
+      },
       select: { id: true }
     });
   },

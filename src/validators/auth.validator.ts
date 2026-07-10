@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { normalizeUsername } from "@/utils";
+import { normalizeLoginIdentifier, normalizeUsername } from "@/utils";
 
 export const usernameSchema = z
   .string()
@@ -10,17 +10,18 @@ export const usernameSchema = z
   .transform(normalizeUsername);
 
 export const loginSchema = z.object({
-  username: usernameSchema,
-  password: z.string().min(8, "Informe uma senha com pelo menos 8 caracteres.")
+  username: z
+    .string()
+    .trim()
+    .min(4, "Informe telefone ou CPF.")
+    .max(30, "Informe telefone ou CPF valido.")
+    .transform(normalizeLoginIdentifier),
+  password: z.string().min(6, "Informe uma senha com pelo menos 6 caracteres.")
 });
 
 const strongPasswordSchema = z
   .string()
-  .min(12, "ADMIN_PASSWORD must have at least 12 characters.")
-  .regex(/[a-z]/, "ADMIN_PASSWORD must include a lowercase letter.")
-  .regex(/[A-Z]/, "ADMIN_PASSWORD must include an uppercase letter.")
-  .regex(/[0-9]/, "ADMIN_PASSWORD must include a number.")
-  .regex(/[^A-Za-z0-9]/, "ADMIN_PASSWORD must include a symbol.");
+  .min(6, "ADMIN_PASSWORD must have at least 6 characters.");
 
 export const seedAdminSchema = z.object({
   username: usernameSchema,

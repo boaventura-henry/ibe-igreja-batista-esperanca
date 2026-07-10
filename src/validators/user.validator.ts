@@ -1,6 +1,6 @@
 import { UserRole } from "@prisma/client";
 import { z } from "zod";
-import { usernameSchema } from "./auth.validator";
+import { isValidCpf, normalizeLoginIdentifier } from "@/utils";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") {
@@ -14,15 +14,25 @@ const emptyToUndefined = (value: unknown) => {
 
 export const strongPasswordSchema = z
   .string()
-  .min(12, "A senha deve ter pelo menos 12 caracteres.")
-  .regex(/[a-z]/, "A senha deve incluir uma letra minuscula.")
-  .regex(/[A-Z]/, "A senha deve incluir uma letra maiuscula.")
-  .regex(/[0-9]/, "A senha deve incluir um numero.")
-  .regex(/[^A-Za-z0-9]/, "A senha deve incluir um simbolo.");
+  .min(6, "A senha deve ter pelo menos 6 caracteres.");
+
+export const loginIdentifierSchema = z
+  .string()
+  .trim()
+  .min(4, "Informe telefone ou CPF.")
+  .max(30, "Informe telefone ou CPF valido.")
+  .transform(normalizeLoginIdentifier)
+  .refine((value) => {
+    if (/^\d{11}$/.test(value) && !isValidCpf(value)) {
+      return true;
+    }
+
+    return /^[A-Z0-9_.]+$/.test(value);
+  }, "Informe telefone ou CPF valido.");
 
 export const userCreateSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do usuario."),
-  username: usernameSchema,
+  username: loginIdentifierSchema,
   email: z.email("Informe um e-mail valido.").trim().toLowerCase(),
   password: strongPasswordSchema,
   role: z.enum(UserRole).default(UserRole.LEADER),

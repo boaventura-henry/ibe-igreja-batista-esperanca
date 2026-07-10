@@ -441,9 +441,10 @@ model UserAccessRequest {
   id               String                  @id @default(cuid())
   name             String
   username         String
-  email            String
+  email            String?
   phone            String?
   cpf              String?
+  rg               String?
   birthDate        DateTime?
   passwordHash     String
   status           UserAccessRequestStatus @default(PENDING)
@@ -465,6 +466,7 @@ model UserAccessRequest {
   @@index([username])
   @@index([email])
   @@index([cpf])
+  @@index([rg])
   @@index([phone])
   @@index([status])
   @@index([possibleMemberId])

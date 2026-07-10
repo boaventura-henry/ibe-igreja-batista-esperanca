@@ -10,10 +10,10 @@ type ApiResponse<T> =
 
 const emptyForm: PublicAccessRequestFormValues = {
   name: "",
-  username: "",
   email: "",
   phone: "",
   cpf: "",
+  rg: "",
   birthDate: "",
   password: "",
   confirmPassword: ""
@@ -40,7 +40,9 @@ export default function RequestAccessPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          email: form.email || undefined,
           cpf: form.cpf || undefined,
+          rg: form.rg || undefined,
           phone: form.phone || undefined,
           birthDate: form.birthDate || undefined
         })
@@ -67,8 +69,8 @@ export default function RequestAccessPage() {
           <p className="text-xs font-bold uppercase tracking-wide text-hope-700">IBE</p>
           <h1 className="mt-3 text-3xl font-bold">Solicitar acesso</h1>
           <p className="mt-3 text-sm leading-6 text-ink-600">
-            Envie seus dados para a secretaria avaliar o acesso ao Portal do Membro. O vinculo com o cadastro da igreja
-            sera confirmado manualmente.
+            Envie seus dados para acessar o Portal do Membro. Quando houver correspondencia segura com o cadastro da
+            igreja, o acesso podera ser liberado automaticamente.
           </p>
           <div className="mt-6 rounded-md bg-hope-50 p-4 text-sm font-semibold text-ink-700">
             Ja possui usuario?
@@ -82,7 +84,7 @@ export default function RequestAccessPage() {
           <form onSubmit={handleSubmit}>
             <div className="border-b border-hope-100 px-5 py-4">
               <h2 className="text-lg font-bold">Dados da solicitacao</h2>
-              <p className="text-sm text-ink-500">A senha deve seguir a politica de seguranca atual.</p>
+              <p className="text-sm text-ink-500">A senha deve ter pelo menos 6 caracteres.</p>
             </div>
 
             <div className="grid gap-4 p-5 md:grid-cols-2">
@@ -94,31 +96,22 @@ export default function RequestAccessPage() {
                   className={inputClass}
                 />
               </Field>
-              <Field label="Usuario">
+              <Field label="Telefone/WhatsApp">
                 <input
                   required
-                  value={form.username}
-                  onChange={(event) => setForm((current) => ({ ...current, username: event.target.value.toUpperCase() }))}
+                  value={form.phone}
+                  onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
                   className={inputClass}
-                  placeholder="CSJOAOSANTOS"
+                  placeholder="11999999999"
                 />
               </Field>
-              <Field label="E-mail">
+              <Field label="E-mail opcional">
                 <input
-                  required
                   type="email"
                   value={form.email}
                   onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                   className={inputClass}
                   placeholder="voce@email.com"
-                />
-              </Field>
-              <Field label="Telefone">
-                <input
-                  value={form.phone}
-                  onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                  className={inputClass}
-                  placeholder="11999999999"
                 />
               </Field>
               <Field label="CPF opcional">
@@ -129,8 +122,17 @@ export default function RequestAccessPage() {
                   placeholder="00000000000"
                 />
               </Field>
+              <Field label="RG opcional">
+                <input
+                  value={form.rg}
+                  onChange={(event) => setForm((current) => ({ ...current, rg: event.target.value }))}
+                  className={inputClass}
+                  placeholder="RG"
+                />
+              </Field>
               <Field label="Data de nascimento">
                 <input
+                  required
                   type="date"
                   value={form.birthDate}
                   onChange={(event) => setForm((current) => ({ ...current, birthDate: event.target.value }))}
@@ -144,6 +146,8 @@ export default function RequestAccessPage() {
                   value={form.password}
                   onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
                   className={inputClass}
+                  placeholder="Digite sua senha"
+                  minLength={6}
                 />
               </Field>
               <Field label="Confirmar senha">
@@ -153,6 +157,8 @@ export default function RequestAccessPage() {
                   value={form.confirmPassword}
                   onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))}
                   className={inputClass}
+                  placeholder="Confirme sua senha"
+                  minLength={6}
                 />
               </Field>
             </div>

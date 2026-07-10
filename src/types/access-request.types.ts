@@ -5,16 +5,30 @@ export type AccessRequestMemberSummary = {
   name: string;
   email: string | null;
   cpf: string | null;
+  rg: string | null;
+  phone: string | null;
+  mobilePhone: string | null;
+  whatsapp: string | null;
   birthDate: string | null;
+  status: string;
+};
+
+export type AccessRequestMemberMatch = {
+  member: AccessRequestMemberSummary;
+  score: number;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  criteria: string[];
+  recommendation: string;
 };
 
 export type AccessRequestSummary = {
   id: string;
   name: string;
   username: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   cpf: string | null;
+  rg: string | null;
   birthDate: string | null;
   status: UserAccessRequestStatus;
   possibleMember: AccessRequestMemberSummary | null;
@@ -41,14 +55,15 @@ export type AccessRequestListResult = {
 export type AccessRequestDetailResult = {
   request: AccessRequestSummary;
   members: AccessRequestMemberSummary[];
+  matches: AccessRequestMemberMatch[];
 };
 
 export type PublicAccessRequestFormValues = {
   name: string;
-  username: string;
   email: string;
   phone: string;
   cpf: string;
+  rg: string;
   birthDate: string;
   password: string;
   confirmPassword: string;

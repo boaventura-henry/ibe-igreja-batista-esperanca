@@ -20,7 +20,7 @@ const sortOptions = [
   { value: "createdAt", label: "Criacao" },
   { value: "updatedAt", label: "Atualizacao" },
   { value: "name", label: "Nome" },
-  { value: "username", label: "Usuario" },
+  { value: "username", label: "Login" },
   { value: "email", label: "E-mail" },
   { value: "status", label: "Status" }
 ];
@@ -274,6 +274,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
                     <p className="font-semibold text-ink-900">{request.name}</p>
                     <p className="text-xs font-semibold text-hope-700">{request.username}</p>
                     {request.cpf ? <p className="text-xs text-ink-500">CPF {request.cpf}</p> : null}
+                    {request.rg ? <p className="text-xs text-ink-500">RG {request.rg}</p> : null}
                   </td>
                   <td className="px-4 py-4 text-ink-700">
                     <p>{request.email}</p>
@@ -345,12 +346,38 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
 
             <div className="grid gap-4 p-5 md:grid-cols-2">
               <Info label="Nome" value={selected.request.name} />
-              <Info label="E-mail" value={selected.request.email} />
+              <Info label="E-mail" value={selected.request.email ?? "-"} />
               <Info label="Telefone" value={selected.request.phone ?? "-"} />
               <Info label="CPF" value={selected.request.cpf ?? "-"} />
+              <Info label="RG" value={selected.request.rg ?? "-"} />
               <Info label="Nascimento" value={selected.request.birthDate ? formatDate(selected.request.birthDate) : "-"} />
               <Info label="Status" value={statusLabels[selected.request.status]} />
               <Info label="Possivel membro" value={selected.request.possibleMember?.name ?? "-"} className="md:col-span-2" />
+            </div>
+
+            <div className="border-t border-hope-100 p-5">
+              <h3 className="text-sm font-bold text-ink-900">Possiveis correspondencias</h3>
+              <div className="mt-3 grid gap-3">
+                {selected.matches.length === 0 ? (
+                  <p className="rounded-md bg-hope-50 px-3 py-2 text-sm font-semibold text-ink-600">
+                    Nenhuma correspondencia encontrada.
+                  </p>
+                ) : null}
+                {selected.matches.map((match) => (
+                  <div key={match.member.id} className="rounded-md border border-hope-100 p-3 text-sm">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="font-bold text-ink-900">{match.member.name}</p>
+                      <span className="rounded-md bg-hope-50 px-2 py-1 text-xs font-bold text-hope-700">
+                        {match.score}% - {match.confidence}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-ink-500">
+                      {match.criteria.length > 0 ? match.criteria.join(", ") : "Sem criterios fortes."}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-500">{match.recommendation}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {canApprove && selected.request.status === "PENDING" ? (

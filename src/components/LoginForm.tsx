@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -35,11 +36,11 @@ export function LoginForm() {
   return (
     <form action={handleSubmit} className="grid gap-4">
       <label className="grid gap-2 text-sm font-semibold text-ink-700">
-        Usuario
+        Telefone ou CPF
         <input
           name="username"
           type="text"
-          placeholder="CSJOAOSANTOS"
+          placeholder="Informe telefone ou CPF"
           autoComplete="username"
           required
           minLength={4}
@@ -53,10 +54,10 @@ export function LoginForm() {
           <input
             name="password"
             type={showPassword ? "text" : "password"}
-            placeholder="********"
+            placeholder="Digite sua senha"
             autoComplete="current-password"
             required
-            minLength={8}
+            minLength={6}
             className="w-full rounded-md border-hope-100 pr-10 focus:border-hope-600 focus:ring-hope-600"
           />
           <button
@@ -88,6 +89,9 @@ export function LoginForm() {
       >
         {isPending ? "Entrando..." : "Acessar dashboard"}
       </button>
+      <Link href="/solicitar-acesso" className="text-center text-sm font-bold text-hope-700 underline">
+        Solicitar acesso
+      </Link>
     </form>
   );
 }

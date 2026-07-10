@@ -36,7 +36,7 @@ const roleOptions = [
 
 const sortOptions = [
   { value: "name", label: "Nome" },
-  { value: "username", label: "Usuario" },
+  { value: "username", label: "Login" },
   { value: "email", label: "E-mail" },
   { value: "lastLoginAt", label: "Ultimo login" },
   { value: "failedLoginAttempts", label: "Falhas" },
@@ -315,7 +315,7 @@ export function UserManager() {
           <table className="min-w-full divide-y divide-hope-100 text-sm">
             <thead className="bg-hope-50 text-left text-xs font-bold uppercase tracking-wide text-ink-500">
               <tr>
-                <th className="px-4 py-3">Usuario</th>
+                <th className="px-4 py-3">Usuario/Login</th>
                 <th className="px-4 py-3">Membro</th>
                 <th className="px-4 py-3">Perfil</th>
                 <th className="px-4 py-3">Status</th>
@@ -438,15 +438,29 @@ export function UserManager() {
                 <Field label="Nome">
                   <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className={inputClass} />
                 </Field>
-                <Field label="Usuario">
-                  <input required value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value.toUpperCase() }))} className={inputClass} />
+                <Field label="Telefone ou CPF">
+                  <input
+                    required
+                    value={form.username}
+                    onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
+                    className={inputClass}
+                    placeholder="Informe telefone ou CPF"
+                  />
                 </Field>
                 <Field label="E-mail">
                   <input required type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className={inputClass} />
                 </Field>
                 {!editingId ? (
                   <Field label="Senha inicial">
-                    <input required type="password" value={form.password ?? ""} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className={inputClass} />
+                    <input
+                      required
+                      type="password"
+                      value={form.password ?? ""}
+                      onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                      className={inputClass}
+                      placeholder="Digite sua senha"
+                      minLength={6}
+                    />
                   </Field>
                 ) : null}
                 <Field label="Papel legado">
@@ -507,7 +521,7 @@ export function UserManager() {
               </div>
               <div className="p-5">
                 <Field label="Nova senha">
-                  <input required type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={inputClass} />
+                  <input required type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={inputClass} placeholder="Digite sua senha" minLength={6} />
                 </Field>
               </div>
               <div className="flex justify-end gap-3 border-t border-hope-100 px-5 py-4">

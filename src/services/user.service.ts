@@ -52,7 +52,7 @@ async function ensureUniqueUsername(username: string | undefined, currentUserId?
     return;
   }
 
-  const existing = await userRepository.findByUsername(username);
+  const existing = await userRepository.findByIdentifier(username);
 
   if (existing && existing.id !== currentUserId) {
     throw new AppError("Usuario ja cadastrado.", 409, "USER_USERNAME_EXISTS");
