@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { PasswordInput } from "@/components/PasswordInput";
 import type { PublicAccessRequestFormValues } from "@/types";
 
 type ApiResponse<T> =
@@ -140,9 +141,8 @@ export default function RequestAccessPage() {
                 />
               </Field>
               <Field label="Senha">
-                <input
+                <PasswordInput
                   required
-                  type="password"
                   value={form.password}
                   onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
                   className={inputClass}
@@ -151,9 +151,8 @@ export default function RequestAccessPage() {
                 />
               </Field>
               <Field label="Confirmar senha">
-                <input
+                <PasswordInput
                   required
-                  type="password"
                   value={form.confirmPassword}
                   onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))}
                   className={inputClass}

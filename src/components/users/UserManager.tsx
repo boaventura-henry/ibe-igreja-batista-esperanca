@@ -2,6 +2,7 @@
 
 import { UserRole } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { PasswordInput } from "@/components/PasswordInput";
 import type { UserFormValues, UserListResult, UserSummary } from "@/types";
 
 type ApiResponse<T> =
@@ -452,9 +453,8 @@ export function UserManager() {
                 </Field>
                 {!editingId ? (
                   <Field label="Senha inicial">
-                    <input
+                    <PasswordInput
                       required
-                      type="password"
                       value={form.password ?? ""}
                       onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
                       className={inputClass}
@@ -521,7 +521,7 @@ export function UserManager() {
               </div>
               <div className="p-5">
                 <Field label="Nova senha">
-                  <input required type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={inputClass} placeholder="Digite sua senha" minLength={6} />
+                  <PasswordInput required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={inputClass} placeholder="Digite sua senha" minLength={6} />
                 </Field>
               </div>
               <div className="flex justify-end gap-3 border-t border-hope-100 px-5 py-4">
