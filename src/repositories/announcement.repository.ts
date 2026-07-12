@@ -29,6 +29,46 @@ const announcementSelect = {
 
 export type AnnouncementRecord = Prisma.AnnouncementGetPayload<{ select: typeof announcementSelect }>;
 
+function activePortalAudienceWhere(memberId: string | null | undefined): Prisma.AnnouncementWhereInput {
+  return {
+    OR: [
+      { audience: AnnouncementAudience.ALL },
+      { audience: AnnouncementAudience.PORTAL_ONLY },
+      ...(memberId
+        ? [
+            {
+              audience: AnnouncementAudience.MINISTRY,
+              ministry: {
+                deletedAt: null,
+                isActive: true,
+                memberMinistries: {
+                  some: {
+                    memberId,
+                    status: "ACTIVE",
+                    exitDate: null,
+                    deletedAt: null
+                  }
+                }
+              }
+            } satisfies Prisma.AnnouncementWhereInput
+          ]
+        : [])
+    ]
+  };
+}
+
+function activePortalAnnouncementWhere(memberId: string | null | undefined, now = new Date()): Prisma.AnnouncementWhereInput {
+  return {
+    AND: [
+      { deletedAt: null },
+      { status: AnnouncementStatus.PUBLISHED },
+      { OR: [{ publishAt: null }, { publishAt: { lte: now } }] },
+      { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+      activePortalAudienceWhere(memberId)
+    ]
+  };
+}
+
 function buildWhere(filters: AnnouncementListQueryInput): Prisma.AnnouncementWhereInput {
   const and: Prisma.AnnouncementWhereInput[] = [{ deletedAt: null }];
 
@@ -160,38 +200,7 @@ export const announcementRepository = {
     const now = new Date();
 
     return prisma.announcement.findMany({
-      where: {
-        deletedAt: null,
-        status: AnnouncementStatus.PUBLISHED,
-        OR: [{ publishAt: null }, { publishAt: { lte: now } }],
-        AND: [
-          {
-            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }]
-          },
-          {
-            OR: [
-              { audience: AnnouncementAudience.ALL },
-              { audience: AnnouncementAudience.PORTAL_ONLY },
-              ...(memberId
-                ? [
-                    {
-                      audience: AnnouncementAudience.MINISTRY,
-                      ministry: {
-                        memberMinistries: {
-                          some: {
-                            memberId,
-                            status: "ACTIVE",
-                            deletedAt: null
-                          }
-                        }
-                      }
-                    } satisfies Prisma.AnnouncementWhereInput
-                  ]
-                : [])
-            ]
-          }
-        ]
-      },
+      where: activePortalAnnouncementWhere(memberId, now),
       select: {
         ...announcementSelect,
         reads: {
@@ -210,28 +219,7 @@ export const announcementRepository = {
     return prisma.announcement.findFirst({
       where: {
         id,
-        deletedAt: null,
-        status: AnnouncementStatus.PUBLISHED,
-        OR: [{ publishAt: null }, { publishAt: { lte: now } }],
-        AND: [
-          { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-          {
-            OR: [
-              { audience: AnnouncementAudience.ALL },
-              { audience: AnnouncementAudience.PORTAL_ONLY },
-              ...(memberId
-                ? [
-                    {
-                      audience: AnnouncementAudience.MINISTRY,
-                      ministry: {
-                        memberMinistries: { some: { memberId, status: "ACTIVE", deletedAt: null } }
-                      }
-                    } satisfies Prisma.AnnouncementWhereInput
-                  ]
-                : [])
-            ]
-          }
-        ]
+        ...activePortalAnnouncementWhere(memberId, now)
       },
       select: { id: true }
     });

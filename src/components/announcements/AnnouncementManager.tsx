@@ -42,7 +42,12 @@ const sortOptions = [
 ];
 
 function dateTimeForInput(value: string | null) {
-  return value ? new Date(value).toISOString().slice(0, 16) : "";
+  if (!value) return "";
+
+  const date = new Date(value);
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+
+  return localDate.toISOString().slice(0, 16);
 }
 
 function formatDate(value: string | null) {
@@ -57,10 +62,14 @@ function normalizeForm(form: AnnouncementFormValues, includeStatus: boolean) {
     audience: form.audience,
     ministryId: form.audience === AnnouncementAudience.MINISTRY ? form.ministryId || null : null,
     isPinned: form.isPinned,
-    publishAt: form.publishAt || null,
-    expiresAt: form.expiresAt || null,
+    publishAt: dateTimeFromInput(form.publishAt),
+    expiresAt: dateTimeFromInput(form.expiresAt),
     externalLink: form.externalLink?.trim() || null
   };
+}
+
+function dateTimeFromInput(value: string | undefined) {
+  return value ? new Date(value).toISOString() : null;
 }
 
 export function AnnouncementManager() {

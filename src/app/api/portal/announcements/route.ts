@@ -9,7 +9,9 @@ export async function GET() {
   try {
     const user = await requirePermission("portalAnnouncement.view");
 
-    return apiSuccess(await announcementService.listForPortal(user.id, user.memberId));
+    return apiSuccess(await announcementService.listForPortal(user.id, user.memberId), {
+      headers: { "Cache-Control": "no-store, max-age=0" }
+    });
   } catch (error) {
     if (error instanceof AppError) return apiError(error.message, error.statusCode, error.code);
     const appError = toAppError(error);
