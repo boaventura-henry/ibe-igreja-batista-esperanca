@@ -86,6 +86,13 @@ export type {
   MyScheduleSummary
 } from "./my-schedule.types";
 export type {
+  PasswordResetApprovalResult,
+  PasswordResetRequestListResult,
+  PasswordResetRequestSummary,
+  PasswordResetRequestUserSummary,
+  PublicPasswordResetRequestFormValues
+} from "./password-reset-request.types";
+export type {
   ReportCatalogGroup,
   ReportColumn,
   ReportDefinition,

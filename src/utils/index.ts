@@ -9,4 +9,4 @@ export {
 } from "./access-identity";
 export { createSlug, normalizeUsername } from "./identity";
 export { formatCep, formatCpf, formatDateForInput, formatPhone, onlyDigits } from "./member-format";
-export { hashPassword, verifyPassword } from "./password";
+export { generateTemporaryPassword, hashPassword, verifyPassword } from "./password";

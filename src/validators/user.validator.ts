@@ -50,6 +50,17 @@ export const userResetPasswordSchema = z.object({
   password: strongPasswordSchema
 });
 
+export const userChangePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Informe a senha atual."),
+    password: strongPasswordSchema,
+    confirmPassword: z.string().min(1, "Confirme a nova senha.")
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas nao conferem.",
+    path: ["confirmPassword"]
+  });
+
 export const userListQuerySchema = z.object({
   search: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   status: z.enum(["ACTIVE", "INACTIVE", "LOCKED", "MUST_CHANGE_PASSWORD"]).optional(),
@@ -63,6 +74,7 @@ export const userListQuerySchema = z.object({
 });
 
 export type UserCreateInput = z.infer<typeof userCreateSchema>;
+export type UserChangePasswordInput = z.infer<typeof userChangePasswordSchema>;
 export type UserUpdateInput = z.infer<typeof userUpdateSchema>;
 export type UserResetPasswordInput = z.infer<typeof userResetPasswordSchema>;
 export type UserListQueryInput = z.infer<typeof userListQuerySchema>;

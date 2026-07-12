@@ -182,6 +182,16 @@ export const userRepository = {
     });
   },
 
+  findByIdWithPassword(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        ...userSelect,
+        passwordHash: true
+      }
+    });
+  },
+
   findByEmail(email: string) {
     return prisma.user.findUnique({
       where: { email },
@@ -268,6 +278,19 @@ export const userRepository = {
       data: {
         passwordHash,
         mustChangePassword: true,
+        failedLoginAttempts: 0,
+        lockedUntil: null
+      },
+      select: userSelect
+    });
+  },
+
+  changeOwnPassword(id: string, passwordHash: string) {
+    return prisma.user.update({
+      where: { id },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
         failedLoginAttempts: 0,
         lockedUntil: null
       },

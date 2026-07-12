@@ -14,6 +14,7 @@ export { memberPortalService } from "./member-portal.service";
 export { memberService } from "./member.service";
 export { ministryService } from "./ministry.service";
 export { myScheduleService } from "./my-schedule.service";
+export { passwordResetRequestService } from "./password-reset-request.service";
 export { reportService } from "./report.service";
 export { scheduleService } from "./schedule.service";
 export { userService } from "./user.service";

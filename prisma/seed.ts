@@ -46,7 +46,8 @@ const defaultAccessRoles: Array<{
       "mySchedule.view",
       "mySchedule.confirm",
       "memberPortal.view",
-      "memberPortal.updateProfile"
+      "memberPortal.updateProfile",
+      "passwordResetRequest.view"
     ]
   },
   {
@@ -96,7 +97,10 @@ const defaultAccessRoles: Array<{
       "mySchedule.confirm",
       "memberPortal.view",
       "memberPortal.updateProfile",
-      "accessRequest.view"
+      "accessRequest.view",
+      "passwordResetRequest.view",
+      "passwordResetRequest.approve",
+      "passwordResetRequest.reject"
     ]
   },
   {

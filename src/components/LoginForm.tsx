@@ -72,9 +72,14 @@ export function LoginForm() {
       >
         {isPending ? "Entrando..." : "Acessar dashboard"}
       </button>
-      <Link href="/solicitar-acesso" className="text-center text-sm font-bold text-hope-700 underline">
-        Solicitar acesso
-      </Link>
+      <div className="grid gap-2 text-center text-sm font-bold text-hope-700">
+        <Link href="/recuperar-senha" className="underline">
+          Esqueci minha senha
+        </Link>
+        <Link href="/solicitar-acesso" className="underline">
+          Solicitar acesso
+        </Link>
+      </div>
     </form>
   );
 }

@@ -7,6 +7,8 @@ const protectedRoutes = [
   "/perfis-acesso",
   "/usuarios",
   "/solicitacoes-acesso",
+  "/solicitacoes-recuperacao-senha",
+  "/trocar-senha",
   "/ministerios",
   "/membros-ministerios",
   "/escalas",
@@ -29,7 +31,19 @@ export default withAuth(
     const isAuthenticated = Boolean(request.nextauth.token);
 
     if (pathname === "/login" && isAuthenticated) {
+      if (request.nextauth.token?.mustChangePassword) {
+        return NextResponse.redirect(new URL("/trocar-senha", request.url));
+      }
+
       return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (isAuthenticated && request.nextauth.token?.mustChangePassword && pathname !== "/trocar-senha") {
+      return NextResponse.redirect(new URL("/trocar-senha", request.url));
+    }
+
+    if (pathname === "/trocar-senha") {
+      return NextResponse.next();
     }
 
     if (pathname.startsWith("/dashboard") && !request.nextauth.token?.permissionCodes?.includes("dashboard.admin.view")) {
@@ -49,6 +63,13 @@ export default withAuth(
     if (
       pathname.startsWith("/solicitacoes-acesso") &&
       !request.nextauth.token?.permissionCodes?.includes("accessRequest.view")
+    ) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (
+      pathname.startsWith("/solicitacoes-recuperacao-senha") &&
+      !request.nextauth.token?.permissionCodes?.includes("passwordResetRequest.view")
     ) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
@@ -165,6 +186,8 @@ export const config = {
     "/perfis-acesso/:path*",
     "/usuarios/:path*",
     "/solicitacoes-acesso/:path*",
+    "/solicitacoes-recuperacao-senha/:path*",
+    "/trocar-senha",
     "/ministerios/:path*",
     "/membros-ministerios/:path*",
     "/escalas/:path*",

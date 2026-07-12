@@ -2,8 +2,9 @@ import { UserRole } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { userRepository, type SafeUser } from "@/repositories";
 import type { UserListResult, UserSummary } from "@/types";
-import { hashPassword } from "@/utils";
+import { hashPassword, verifyPassword } from "@/utils";
 import type {
+  UserChangePasswordInput,
   UserCreateInput,
   UserListQueryInput,
   UserResetPasswordInput,
@@ -199,6 +200,28 @@ export const userService = {
     const passwordHash = await hashPassword(data.password);
 
     return serializeUser(await userRepository.updatePassword(id, passwordHash));
+  },
+
+  async changeOwnPassword(id: string, data: UserChangePasswordInput) {
+    const current = await userRepository.findByIdWithPassword(id);
+
+    if (!current) {
+      throw new AppError("Usuario nao encontrado.", 404, "USER_NOT_FOUND");
+    }
+
+    if (!current.mustChangePassword) {
+      throw new AppError("Troca obrigatoria de senha nao esta pendente.", 409, "PASSWORD_CHANGE_NOT_REQUIRED");
+    }
+
+    const isCurrentPasswordValid = await verifyPassword(data.currentPassword, current.passwordHash);
+
+    if (!isCurrentPasswordValid) {
+      throw new AppError("Senha atual invalida.", 400, "INVALID_CURRENT_PASSWORD");
+    }
+
+    const passwordHash = await hashPassword(data.password);
+
+    return serializeUser(await userRepository.changeOwnPassword(id, passwordHash));
   },
 
   async remove(id: string, actionUserId: string) {

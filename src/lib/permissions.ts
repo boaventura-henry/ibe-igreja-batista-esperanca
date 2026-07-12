@@ -97,6 +97,24 @@ export const availablePermissions = [
     label: "Rejeitar solicitacoes",
     module: "Solicitacoes de Acesso"
   },
+  {
+    code: "passwordResetRequest.view",
+    name: "Visualizar solicitacoes de recuperacao de senha",
+    label: "Visualizar recuperacoes",
+    module: "Recuperacao de Senha"
+  },
+  {
+    code: "passwordResetRequest.approve",
+    name: "Aprovar solicitacoes de recuperacao de senha",
+    label: "Aprovar recuperacoes",
+    module: "Recuperacao de Senha"
+  },
+  {
+    code: "passwordResetRequest.reject",
+    name: "Rejeitar solicitacoes de recuperacao de senha",
+    label: "Rejeitar recuperacoes",
+    module: "Recuperacao de Senha"
+  },
   { code: "accessRole.view", name: "Visualizar perfis", label: "Visualizar perfis", module: "Perfis de Acesso" },
   { code: "accessRole.create", name: "Criar perfis", label: "Criar perfis", module: "Perfis de Acesso" },
   { code: "accessRole.update", name: "Alterar perfis", label: "Alterar perfis", module: "Perfis de Acesso" },

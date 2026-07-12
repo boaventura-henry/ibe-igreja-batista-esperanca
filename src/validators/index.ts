@@ -92,6 +92,16 @@ export type {
 export { myScheduleDeclineSchema } from "./my-schedule.validator";
 export type { MyScheduleDeclineInput } from "./my-schedule.validator";
 export {
+  passwordResetRequestCreateSchema,
+  passwordResetRequestListQuerySchema,
+  passwordResetRequestRejectSchema
+} from "./password-reset-request.validator";
+export type {
+  PasswordResetRequestCreateInput,
+  PasswordResetRequestListQueryInput,
+  PasswordResetRequestRejectInput
+} from "./password-reset-request.validator";
+export {
   eventReportSchema,
   financialReportSchema,
   memberReportSchema,
@@ -123,12 +133,14 @@ export type {
 } from "./schedule.validator";
 export {
   strongPasswordSchema,
+  userChangePasswordSchema,
   userCreateSchema,
   userListQuerySchema,
   userResetPasswordSchema,
   userUpdateSchema
 } from "./user.validator";
 export type {
+  UserChangePasswordInput,
   UserCreateInput,
   UserListQueryInput,
   UserResetPasswordInput,
