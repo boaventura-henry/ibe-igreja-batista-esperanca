@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { MinistryIcon, WeekDay } from "@prisma/client";
@@ -17,7 +17,7 @@ const emptyForm: MinistryFormValues = {
   color: "#2563eb",
   icon: MinistryIcon.USERS,
   imageUrl: "",
-  displayOrder: 0,
+  displayOrder: 1,
   email: "",
   phone: "",
   meetingDay: "",
@@ -102,6 +102,9 @@ export function MinistryManager() {
   const [viewingMinistry, setViewingMinistry] = useState<MinistrySummary | null>(null);
   const [form, setForm] = useState<MinistryFormValues>(emptyForm);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isLoadingNextOrder, setIsLoadingNextOrder] = useState(false);
+  const nextOrderRequestIdRef = useRef(0);
+  const displayOrderTouchedRef = useRef(false);
   const [filters, setFilters] = useState({
     search: "",
     status: "",
@@ -170,15 +173,57 @@ export function MinistryManager() {
     }));
   }
 
-  function openCreateForm() {
+  function closeForm() {
+    nextOrderRequestIdRef.current += 1;
+    displayOrderTouchedRef.current = false;
+    setIsLoadingNextOrder(false);
+    setIsFormOpen(false);
+  }
+
+  async function openCreateForm() {
+    const requestId = nextOrderRequestIdRef.current + 1;
+    nextOrderRequestIdRef.current = requestId;
+    displayOrderTouchedRef.current = false;
     setEditingId(null);
     setForm(emptyForm);
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
+    setIsLoadingNextOrder(true);
+
+    try {
+      const response = await fetch("/api/ministries/next-order", { cache: "no-store" });
+      const payload = (await response.json()) as ApiResponse<{ displayOrder: number }>;
+
+      if (!payload.success) {
+        throw new Error(payload.error.message);
+      }
+
+      setForm((current) => {
+        if (nextOrderRequestIdRef.current !== requestId || displayOrderTouchedRef.current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          displayOrder: payload.data.displayOrder
+        };
+      });
+    } catch (error) {
+      if (nextOrderRequestIdRef.current === requestId) {
+        setFormMessage(error instanceof Error ? error.message : "Nao foi possivel sugerir a proxima ordem. Informe manualmente.");
+      }
+    } finally {
+      if (nextOrderRequestIdRef.current === requestId) {
+        setIsLoadingNextOrder(false);
+      }
+    }
   }
 
   async function openEditForm(id: string) {
+    nextOrderRequestIdRef.current += 1;
+    displayOrderTouchedRef.current = false;
+    setIsLoadingNextOrder(false);
     setMessage("");
     setFormMessage("");
 
@@ -248,7 +293,7 @@ export function MinistryManager() {
         throw new Error(payload.error.message);
       }
 
-      setIsFormOpen(false);
+      closeForm();
       setMessage(editingId ? "Ministerio atualizado com sucesso." : "Ministerio criado com sucesso.");
       await loadMinistries();
     } catch (error) {
@@ -472,7 +517,7 @@ export function MinistryManager() {
                   <h2 className="text-lg font-bold text-ink-900">{editingId ? "Editar ministerio" : "Novo ministerio"}</h2>
                   <p className="text-sm text-ink-500">Dados, lideranca, contatos e agenda.</p>
                 </div>
-                <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-3 py-2 text-sm font-bold text-ink-700">
+                <button type="button" onClick={closeForm} className="rounded-md border border-hope-100 px-3 py-2 text-sm font-bold text-ink-700">
                   Fechar
                 </button>
               </div>
@@ -534,7 +579,17 @@ export function MinistryManager() {
                   </div>
                 ) : null}
                 <Field label="Ordem">
-                  <input type="number" min={0} value={form.displayOrder} onChange={(event) => updateForm("displayOrder", Number(event.target.value))} className={inputClass} />
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.displayOrder}
+                    onChange={(event) => {
+                      displayOrderTouchedRef.current = true;
+                      updateForm("displayOrder", Number(event.target.value));
+                    }}
+                    className={inputClass}
+                  />
+                  {isLoadingNextOrder ? <span className="text-xs font-semibold normal-case tracking-normal text-ink-500">Calculando proxima ordem...</span> : null}
                 </Field>
                 <label className="flex items-center gap-2 text-sm font-bold text-ink-700">
                   <input type="checkbox" checked={form.isActive} onChange={(event) => updateForm("isActive", event.target.checked)} />
@@ -576,7 +631,7 @@ export function MinistryManager() {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-hope-100 px-5 py-4">
-                <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">
+                <button type="button" onClick={closeForm} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">
                   Cancelar
                 </button>
                 <button type="submit" className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">

@@ -76,7 +76,7 @@ async function ensureDisplayOrderAvailable(
   const existing = await ministryRepository.findActiveByDisplayOrder(displayOrder);
 
   if (existing && existing.id !== currentId) {
-    throw new AppError("Ja existe um ministerio ativo com esta ordem de exibicao.", 409, "MINISTRY_DISPLAY_ORDER_EXISTS");
+    throw new AppError("Já existe um ministério ativo com esta ordem. Informe outra ordem.", 409, "MINISTRY_DISPLAY_ORDER_EXISTS");
   }
 }
 
@@ -130,15 +130,21 @@ export const ministryService = {
     return serialize(ministry);
   },
 
+  async getNextDisplayOrder() {
+    return { displayOrder: await ministryRepository.getNextDisplayOrder() };
+  },
+
   async create(data: MinistryCreateInput, userId: string) {
     ensureHexColor(data.color);
     ensureDifferentLeaderIds(data.leaderMemberId, data.viceLeaderMemberId);
     await ensureUniqueName(data.name);
-    await ensureDisplayOrderAvailable(data.displayOrder, data.isActive);
+    const displayOrder = data.displayOrder ?? (await ministryRepository.getNextDisplayOrder());
+    await ensureDisplayOrderAvailable(displayOrder, data.isActive);
     const slug = await createUniqueSlug(data.name);
+    const createData = { ...data, displayOrder };
 
     try {
-      return serialize(await ministryRepository.create(data, userId, slug));
+      return serialize(await ministryRepository.create(createData, userId, slug));
     } catch (error) {
       if (isUniqueConstraint(error)) {
         throw new AppError("Ja existe um ministerio com este nome.", 409, "MINISTRY_NAME_EXISTS");

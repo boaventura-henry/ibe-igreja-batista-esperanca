@@ -100,7 +100,7 @@ function buildWhere(filters: MinistryListQueryInput): Prisma.MinistryWhereInput 
   return { AND: and };
 }
 
-function createMinistryData(data: MinistryCreateInput) {
+function createMinistryData(data: MinistryCreateInput & { displayOrder: number }) {
   return {
     name: data.name,
     description: data.description,
@@ -145,9 +145,14 @@ export const ministryRepository = {
   async list(filters: MinistryListQueryInput) {
     const where = buildWhere(filters);
     const skip = (filters.page - 1) * filters.pageSize;
-    const orderBy = {
-      [filters.sortBy]: filters.sortOrder
-    } satisfies Prisma.MinistryOrderByWithRelationInput;
+    const orderBy = filters.sortBy === "displayOrder"
+      ? [
+          { displayOrder: filters.sortOrder },
+          { name: "asc" as const }
+        ]
+      : {
+          [filters.sortBy]: filters.sortOrder
+        } satisfies Prisma.MinistryOrderByWithRelationInput | Prisma.MinistryOrderByWithRelationInput[];
 
     const [ministries, total] = await prisma.$transaction([
       prisma.ministry.findMany({
@@ -191,7 +196,16 @@ export const ministryRepository = {
     });
   },
 
-  create(data: MinistryCreateInput, userId: string, slug: string) {
+  async getNextDisplayOrder() {
+    const result = await prisma.ministry.aggregate({
+      where: { deletedAt: null },
+      _max: { displayOrder: true }
+    });
+
+    return result._max.displayOrder === null ? 1 : result._max.displayOrder + 1;
+  },
+
+  create(data: MinistryCreateInput & { displayOrder: number }, userId: string, slug: string) {
     return prisma.ministry.create({
       data: {
         ...createMinistryData(data),

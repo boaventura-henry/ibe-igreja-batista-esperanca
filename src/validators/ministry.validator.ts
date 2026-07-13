@@ -50,7 +50,7 @@ const ministryBaseSchema = z.object({
       .default("#2563eb"),
     icon: z.enum(MinistryIcon).default(MinistryIcon.USERS),
     imageUrl: optionalText,
-    displayOrder: z.coerce.number().int().min(0, "A ordem deve ser maior ou igual a zero.").default(0),
+    displayOrder: z.coerce.number().int().min(1, "A ordem deve ser maior ou igual a um.").optional(),
     email: optionalEmail,
     phone: optionalPhone,
     meetingDay: z.preprocess(emptyToNull, z.enum(WeekDay).nullable().optional()),
