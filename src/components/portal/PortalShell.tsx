@@ -12,6 +12,7 @@ const portalNavigation = [
   { href: "/portal/minhas-escalas", label: "Minhas Escalas" },
   { href: "/portal/minhas-contribuicoes", label: "Minhas Contribuicoes" },
   { href: "/portal/meu-cadastro", label: "Meu Cadastro" },
+  { href: "/portal/meu-usuario", label: "Meu Usuario", permission: "memberAccount.view" },
   { href: "/portal/meus-ministerios", label: "Meus Ministerios" },
   { href: "/portal/eventos", label: "Eventos" },
   { href: "/portal/avisos", label: "Avisos" }
@@ -126,9 +127,16 @@ function Brand({ compact = false }: { compact?: boolean }) {
 }
 
 function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const { data: session } = useSession();
+  const permissionCodes = session?.user.permissionCodes ?? [];
+
   return (
     <nav className="grid flex-1 gap-2 overflow-y-auto px-5 pb-4 lg:pt-2">
       {portalNavigation.map((item) => {
+        if ("permission" in item && !permissionCodes.includes(item.permission)) {
+          return null;
+        }
+
         const active = isRouteActive(pathname, item.href);
 
         return (

@@ -67,6 +67,8 @@ export type {
   MemberListQueryInput,
   MemberUpdateInput
 } from "./member.validator";
+export { memberAccountChangePasswordSchema, memberAccountUpdateSchema } from "./member-account.validator";
+export type { MemberAccountChangePasswordInput, MemberAccountUpdateInput } from "./member-account.validator";
 export {
   memberMinistryCreateSchema,
   memberMinistryListQuerySchema,

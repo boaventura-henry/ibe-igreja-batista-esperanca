@@ -24,6 +24,8 @@ export { memberRepository } from "./member.repository";
 export type { MemberDetail, MemberListItem } from "./member.repository";
 export { memberMinistryRepository } from "./member-ministry.repository";
 export type { MemberMinistryRecord } from "./member-ministry.repository";
+export { memberAccountRepository } from "./member-account.repository";
+export type { MemberAccountRecord, MemberAccountWithPasswordRecord } from "./member-account.repository";
 export { memberPortalRepository } from "./member-portal.repository";
 export type {
   MemberPortalMinistryRecord,

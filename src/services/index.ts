@@ -9,6 +9,7 @@ export { financialClosingService } from "./financial-closing.service";
 export { financialEntryService } from "./financial-entry.service";
 export { healthService } from "./health.service";
 export { memberContributionService } from "./member-contribution.service";
+export { memberAccountService } from "./member-account.service";
 export { memberMinistryService } from "./member-ministry.service";
 export { memberPortalService } from "./member-portal.service";
 export { memberService } from "./member.service";

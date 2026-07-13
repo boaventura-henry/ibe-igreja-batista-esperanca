@@ -79,6 +79,9 @@ export const availablePermissions = [
   { code: "portalAnnouncement.view", name: "Visualizar comunicados do portal", label: "Visualizar comunicados", module: "Portal do Membro" },
   { code: "memberPortal.view", name: "Acessar portal do membro", label: "Acessar portal", module: "Portal do Membro" },
   { code: "memberPortal.updateProfile", name: "Atualizar proprio cadastro", label: "Atualizar cadastro", module: "Portal do Membro" },
+  { code: "memberAccount.view", name: "Visualizar meu usuario", label: "Visualizar meu usuario", module: "Portal do Membro" },
+  { code: "memberAccount.update", name: "Atualizar meu usuario", label: "Atualizar meu usuario", module: "Portal do Membro" },
+  { code: "memberAccount.changePassword", name: "Alterar propria senha", label: "Alterar senha", module: "Portal do Membro" },
   {
     code: "accessRequest.view",
     name: "Visualizar solicitacoes de acesso",

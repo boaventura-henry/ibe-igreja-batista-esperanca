@@ -141,6 +141,13 @@ export default withAuth(
     }
 
     if (
+      pathname.startsWith("/portal/meu-usuario") &&
+      !request.nextauth.token?.permissionCodes?.includes("memberAccount.view")
+    ) {
+      return NextResponse.redirect(new URL("/portal", request.url));
+    }
+
+    if (
       pathname === "/portal" &&
       !request.nextauth.token?.permissionCodes?.includes("dashboard.portal.view")
     ) {

@@ -60,6 +60,11 @@ export type {
   MemberSummary
 } from "./member.types";
 export type {
+  MemberAccountChangePasswordInput,
+  MemberAccountData,
+  MemberAccountUpdateInput
+} from "./member-account.types";
+export type {
   MemberMinistryFormValues,
   MemberMinistryListResult,
   MemberMinistryMinistry,
