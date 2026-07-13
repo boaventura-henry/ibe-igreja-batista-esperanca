@@ -2,6 +2,7 @@
 
 import { PasswordResetRequestStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type {
   PasswordResetApprovalResult,
   PasswordResetRequestListResult,
@@ -63,6 +64,7 @@ export function PasswordResetRequestManager({
 }) {
   const [data, setData] = useState<PasswordResetRequestListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [rejectMessage, setRejectMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [temporaryPasswordUser, setTemporaryPasswordUser] = useState("");
@@ -152,7 +154,7 @@ export function PasswordResetRequestManager({
       return;
     }
 
-    setMessage("");
+    setRejectMessage("");
 
     try {
       const response = await fetch(`/api/password-reset-requests/${rejectRequest.id}/reject`, {
@@ -171,7 +173,7 @@ export function PasswordResetRequestManager({
       setMessage("Solicitacao rejeitada.");
       await loadRequests();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel rejeitar a solicitacao.");
+      setRejectMessage(error instanceof Error ? error.message : "Nao foi possivel rejeitar a solicitacao.");
     }
   }
 
@@ -289,7 +291,7 @@ export function PasswordResetRequestManager({
                       <div className="flex flex-wrap justify-end gap-2">
                         <ActionButton onClick={() => setSelectedRequest(request)}>Detalhes</ActionButton>
                         {canApprove ? <ActionButton onClick={() => approve(request)}>Resetar senha</ActionButton> : null}
-                        {canReject ? <ActionButton onClick={() => setRejectRequest(request)}>Rejeitar</ActionButton> : null}
+                        {canReject ? <ActionButton onClick={() => { setRejectMessage(""); setRejectRequest(request); }}>Rejeitar</ActionButton> : null}
                       </div>
                     ) : (
                       <ActionButton onClick={() => setSelectedRequest(request)}>Detalhes</ActionButton>
@@ -411,7 +413,8 @@ export function PasswordResetRequestManager({
                 <h2 className="text-lg font-bold text-ink-900">Rejeitar recuperacao</h2>
                 <p className="text-sm text-ink-500">{rejectRequest.identifier}</p>
               </div>
-              <div className="p-5">
+              <div className="grid gap-4 p-5">
+                <FormMessage id="password-reset-reject-message">{rejectMessage}</FormMessage>
                 <Field label="Motivo">
                   <textarea
                     required

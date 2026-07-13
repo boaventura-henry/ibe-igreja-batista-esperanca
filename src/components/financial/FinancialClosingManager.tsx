@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type { FinancialClosingFormValues, FinancialClosingListResult, FinancialClosingSummary } from "@/types";
 
 type ApiResponse<T> = ({ success: true; data: T } & T) | { success: false; error: { code: string; message: string } };
@@ -21,6 +22,7 @@ export function FinancialClosingManager() {
   const { data: session } = useSession();
   const [data, setData] = useState<FinancialClosingListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [form, setForm] = useState<FinancialClosingFormValues>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<FinancialClosingSummary | null>(null);
@@ -50,13 +52,15 @@ export function FinancialClosingManager() {
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function openEdit(id: string) {
     const response = await fetch(`/api/financial/closings/${id}`);
     const payload = (await response.json()) as ApiResponse<FinancialClosingSummary>;
-    if (!payload.success) return setMessage(payload.error.message);
+    if (!payload.success) return setFormMessage(payload.error.message);
+    setFormMessage("");
     setEditingId(id);
     setForm({
       date: dateForInput(payload.data.date),
@@ -69,6 +73,7 @@ export function FinancialClosingManager() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormMessage("");
     const response = await fetch(editingId ? `/api/financial/closings/${editingId}` : "/api/financial/closings", {
       method: editingId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -106,7 +111,7 @@ export function FinancialClosingManager() {
         </table>
       </div>
       {data?.pagination ? <div className="flex flex-wrap justify-end gap-2 text-sm font-bold"><button disabled={data.pagination.page <= 1} onClick={() => setFilters({ ...filters, page: String(data.pagination.page - 1) })} className="rounded-md border px-3 py-2 disabled:opacity-40">Anterior</button><span>{data.pagination.page} / {data.pagination.totalPages}</span><button disabled={data.pagination.page >= data.pagination.totalPages} onClick={() => setFilters({ ...filters, page: String(data.pagination.page + 1) })} className="rounded-md border px-3 py-2 disabled:opacity-40">Proxima</button></div> : null}
-      {isFormOpen ? <Modal title={editingId ? "Editar fechamento" : "Novo fechamento"} onClose={() => setIsFormOpen(false)}><form onSubmit={submit} className="grid gap-3"><input type="date" required value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} className="rounded-md border-hope-100" /><input type="number" step="0.01" value={form.openingBalance} onChange={(event) => setForm({ ...form, openingBalance: Number(event.target.value) })} className="rounded-md border-hope-100" /><input type="number" step="0.01" value={form.closingBalance} onChange={(event) => setForm({ ...form, closingBalance: Number(event.target.value) })} className="rounded-md border-hope-100" /><textarea value={form.observation} onChange={(event) => setForm({ ...form, observation: event.target.value })} className="rounded-md border-hope-100" /><button className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">Salvar</button></form></Modal> : null}
+      {isFormOpen ? <Modal title={editingId ? "Editar fechamento" : "Novo fechamento"} onClose={() => setIsFormOpen(false)}><form onSubmit={submit} className="grid gap-3"><FormMessage id="financial-closing-form-message">{formMessage}</FormMessage><input type="date" required value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} className="rounded-md border-hope-100" /><input type="number" step="0.01" value={form.openingBalance} onChange={(event) => setForm({ ...form, openingBalance: Number(event.target.value) })} className="rounded-md border-hope-100" /><input type="number" step="0.01" value={form.closingBalance} onChange={(event) => setForm({ ...form, closingBalance: Number(event.target.value) })} className="rounded-md border-hope-100" /><textarea value={form.observation} onChange={(event) => setForm({ ...form, observation: event.target.value })} className="rounded-md border-hope-100" /><button className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">Salvar</button></form></Modal> : null}
       {viewing ? <Modal title={`Fechamento ${dateForInput(viewing.date)}`} onClose={() => setViewing(null)}><p>{currency(viewing.openingBalance)} para {currency(viewing.closingBalance)}</p></Modal> : null}
     </div>
   );

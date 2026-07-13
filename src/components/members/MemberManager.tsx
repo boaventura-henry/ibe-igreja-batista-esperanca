@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { MemberFormValues, MemberListResult } from "@/types";
 import { formatCep, formatCpf, formatDateForInput, formatPhone, onlyDigits } from "@/utils";
@@ -87,6 +88,7 @@ export function MemberManager() {
   const [data, setData] = useState<MemberListResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<MemberFormValues>(emptyForm);
@@ -162,11 +164,13 @@ export function MemberManager() {
     setEditingId(null);
     setForm(emptyForm);
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function openEditForm(id: string) {
     setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(`/api/members/${id}`, { cache: "no-store" });
@@ -238,11 +242,11 @@ export function MemberManager() {
       };
 
       if (address.erro) {
-        setMessage("CEP nao encontrado.");
+        setFormMessage("CEP nao encontrado.");
         return;
       }
 
-      setMessage("");
+      setFormMessage("");
       setForm((current) => ({
         ...current,
         street: address.logradouro ?? current.street,
@@ -251,7 +255,7 @@ export function MemberManager() {
         state: address.uf ?? current.state
       }));
     } catch (error) {
-      setMessage(
+      setFormMessage(
         error instanceof DOMException && error.name === "AbortError"
           ? "Tempo esgotado ao buscar o CEP."
           : "Nao foi possivel buscar o endereco pelo CEP agora."
@@ -281,7 +285,7 @@ export function MemberManager() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(editingId ? `/api/members/${editingId}` : "/api/members", {
@@ -301,7 +305,7 @@ export function MemberManager() {
       setMessage(editingId ? "Cadastro atualizado com sucesso." : "Membro cadastrado com sucesso.");
       await loadMembers();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o membro.");
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o membro.");
     } finally {
       setIsSaving(false);
     }
@@ -560,6 +564,7 @@ export function MemberManager() {
               </div>
 
               <div className="grid gap-5 p-5">
+                <FormMessage id="member-form-message">{formMessage}</FormMessage>
                 <section className="grid gap-3 md:grid-cols-4">
                   <Field label="Nome completo" className="md:col-span-2">
                     <input required value={form.name} onChange={(event) => updateForm("name", event.target.value)} className={inputClass} />
@@ -642,7 +647,7 @@ export function MemberManager() {
                         const file = event.target.files?.[0];
                         if (file) {
                           uploadPhoto(file).catch((error: unknown) => {
-                            setMessage(error instanceof Error ? error.message : "Nao foi possivel enviar a foto.");
+                            setFormMessage(error instanceof Error ? error.message : "Nao foi possivel enviar a foto.");
                           });
                         }
                       }}

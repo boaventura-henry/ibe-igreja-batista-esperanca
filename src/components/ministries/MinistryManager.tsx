@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { MinistryIcon, WeekDay } from "@prisma/client";
 import type { MinistryFormValues, MinistryListResult, MinistrySummary } from "@/types";
 import { formatPhone, onlyDigits } from "@/utils";
@@ -94,6 +95,7 @@ export function MinistryManager() {
   const { data: session } = useSession();
   const [data, setData] = useState<MinistryListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -172,11 +174,13 @@ export function MinistryManager() {
     setEditingId(null);
     setForm(emptyForm);
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function openEditForm(id: string) {
     setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(`/api/ministries/${id}`, { cache: "no-store" });
@@ -230,7 +234,7 @@ export function MinistryManager() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(editingId ? `/api/ministries/${editingId}` : "/api/ministries", {
@@ -248,7 +252,7 @@ export function MinistryManager() {
       setMessage(editingId ? "Ministerio atualizado com sucesso." : "Ministerio criado com sucesso.");
       await loadMinistries();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o ministerio.");
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o ministerio.");
     }
   }
 
@@ -256,7 +260,7 @@ export function MinistryManager() {
     const formData = new FormData();
     formData.set("file", file);
     setIsUploadingImage(true);
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch("/api/ministries/photo", {
@@ -270,7 +274,10 @@ export function MinistryManager() {
       }
 
       updateForm("imageUrl", payload.data.url);
-      setMessage("Imagem enviada com sucesso.");
+      setFormMessage("Imagem enviada com sucesso.");
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel enviar a imagem.");
+      throw error;
     } finally {
       setIsUploadingImage(false);
     }
@@ -471,6 +478,9 @@ export function MinistryManager() {
               </div>
 
               <div className="grid gap-4 p-5 md:grid-cols-4">
+                <div className="md:col-span-4">
+                  <FormMessage id="ministry-form-message" tone={formMessage === "Imagem enviada com sucesso." ? "success" : "error"}>{formMessage}</FormMessage>
+                </div>
                 <Field label="Nome" className="md:col-span-2">
                   <input required value={form.name} onChange={(event) => updateForm("name", event.target.value)} className={inputClass} />
                 </Field>
@@ -498,7 +508,7 @@ export function MinistryManager() {
 
                       if (file) {
                         uploadImage(file).catch((error: unknown) => {
-                          setMessage(error instanceof Error ? error.message : "Nao foi possivel enviar a imagem.");
+                          setFormMessage(error instanceof Error ? error.message : "Nao foi possivel enviar a imagem.");
                         });
                       }
                     }}

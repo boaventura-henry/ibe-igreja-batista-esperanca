@@ -3,6 +3,7 @@
 import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { FormEvent, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type { ScheduleMemberFormValues, ScheduleSummary } from "@/types";
 
 type ApiResponse<T> =
@@ -77,6 +78,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   const { data: session } = useSession();
   const [schedule, setSchedule] = useState(initialSchedule);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [memberForm, setMemberForm] = useState<ScheduleMemberFormValues>(emptyMemberForm);
@@ -124,6 +126,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     setEditingId(null);
     setMemberForm(emptyMemberForm);
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
@@ -145,12 +148,13 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
       allowMinistryException: true
     });
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function handleMemberSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(
@@ -171,7 +175,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
       setMessage(editingId ? "Membro da escala atualizado." : "Membro adicionado a escala.");
       await reloadSchedule();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o membro da escala.");
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o membro da escala.");
     }
   }
 
@@ -285,6 +289,9 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                 <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-3 py-2 text-sm font-bold text-ink-700">Fechar</button>
               </div>
               <div className="grid gap-4 p-5 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <FormMessage id="schedule-member-form-message">{formMessage}</FormMessage>
+                </div>
                 <Field label="Membro">
                   <select required value={memberForm.memberId} onChange={(event) => updateForm("memberId", event.target.value)} className={inputClass}>
                     <option value="">Selecione</option>

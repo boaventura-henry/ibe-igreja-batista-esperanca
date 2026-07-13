@@ -3,6 +3,7 @@
 import { MemberMinistryRole, MemberMinistryStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type {
   MemberMinistryFormValues,
   MemberMinistryListResult,
@@ -82,6 +83,7 @@ export function MemberMinistryManager() {
   const { data: session } = useSession();
   const [data, setData] = useState<MemberMinistryListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -176,11 +178,13 @@ export function MemberMinistryManager() {
     setEditingId(null);
     setForm(emptyForm);
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function openEditForm(id: string, closing = false) {
     setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(`/api/member-ministries/${id}`, { cache: "no-store" });
@@ -209,7 +213,7 @@ export function MemberMinistryManager() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(editingId ? `/api/member-ministries/${editingId}` : "/api/member-ministries", {
@@ -227,7 +231,7 @@ export function MemberMinistryManager() {
       setMessage(editingId ? "Vinculo atualizado com sucesso." : "Vinculo criado com sucesso.");
       await loadLinks();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o vinculo.");
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o vinculo.");
     }
   }
 
@@ -424,6 +428,9 @@ export function MemberMinistryManager() {
               </div>
 
               <div className="grid gap-4 p-5 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <FormMessage id="member-ministry-form-message">{formMessage}</FormMessage>
+                </div>
                 <Field label="Membro">
                   <select required value={form.memberId} onChange={(event) => updateForm("memberId", event.target.value)} className={inputClass}>
                     <option value="">Selecione</option>

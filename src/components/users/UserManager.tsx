@@ -3,6 +3,7 @@
 import { UserRole } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { PasswordInput } from "@/components/PasswordInput";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type { UserFormValues, UserListResult, UserSummary } from "@/types";
 
 type ApiResponse<T> =
@@ -74,7 +75,11 @@ function formatDate(value: string | null) {
 export function UserManager() {
   const [data, setData] = useState<UserListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<UserFormValues>(emptyForm);
@@ -144,10 +149,12 @@ export function UserManager() {
     setAssignableMembers(data?.filters.members ?? []);
     setIsFormOpen(true);
     setMessage("");
+    setFormMessage("");
   }
 
   async function openEditForm(id: string) {
     setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(`/api/users/${id}`, { cache: "no-store" });
@@ -181,7 +188,8 @@ export function UserManager() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    setFormMessage("");
+    setIsSaving(true);
 
     try {
       const body = {
@@ -204,7 +212,9 @@ export function UserManager() {
       setMessage(editingId ? "Usuario atualizado com sucesso." : "Usuario criado com sucesso.");
       await loadUsers();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o usuario.");
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o usuario.");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -237,11 +247,30 @@ export function UserManager() {
       return;
     }
 
-    await runAction(`/api/users/${resetUser.id}/reset-password`, "Senha redefinida com sucesso.", {
-      password: newPassword
-    });
-    setResetUser(null);
-    setNewPassword("");
+    setResetMessage("");
+    setIsResetting(true);
+
+    try {
+      const response = await fetch(`/api/users/${resetUser.id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword })
+      });
+      const payload = (await response.json()) as ApiResponse<UserSummary>;
+
+      if (!payload.success) {
+        throw new Error(payload.error.message);
+      }
+
+      setMessage("Senha redefinida com sucesso.");
+      setResetUser(null);
+      setNewPassword("");
+      await loadUsers();
+    } catch (error) {
+      setResetMessage(error instanceof Error ? error.message : "Nao foi possivel redefinir a senha.");
+    } finally {
+      setIsResetting(false);
+    }
   }
 
   const pagination = data?.pagination;
@@ -436,6 +465,9 @@ export function UserManager() {
               </div>
 
               <div className="grid gap-4 p-5 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <FormMessage id="user-form-message">{formMessage}</FormMessage>
+                </div>
                 <Field label="Nome">
                   <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className={inputClass} />
                 </Field>
@@ -502,8 +534,8 @@ export function UserManager() {
                 <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">
                   Cancelar
                 </button>
-                <button type="submit" className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">
-                  Salvar usuario
+                <button type="submit" disabled={isSaving} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                  {isSaving ? "Salvando..." : "Salvar usuario"}
                 </button>
               </div>
             </form>
@@ -519,17 +551,18 @@ export function UserManager() {
                 <h2 className="text-lg font-bold text-ink-900">Redefinir senha</h2>
                 <p className="text-sm text-ink-500">{resetUser.email}</p>
               </div>
-              <div className="p-5">
+              <div className="grid gap-4 p-5">
+                <FormMessage id="reset-password-message">{resetMessage}</FormMessage>
                 <Field label="Nova senha">
                   <PasswordInput required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={inputClass} placeholder="Digite sua senha" minLength={6} />
                 </Field>
               </div>
               <div className="flex justify-end gap-3 border-t border-hope-100 px-5 py-4">
-                <button type="button" onClick={() => setResetUser(null)} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">
+                <button type="button" onClick={() => { setResetUser(null); setResetMessage(""); }} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">
                   Cancelar
                 </button>
-                <button type="submit" className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">
-                  Redefinir
+                <button type="submit" disabled={isResetting} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                  {isResetting ? "Redefinindo..." : "Redefinir"}
                 </button>
               </div>
             </form>

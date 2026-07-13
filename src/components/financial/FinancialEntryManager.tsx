@@ -3,6 +3,7 @@
 import { FinancialEntryOrigin, FinancialEntryStatus, FinancialEntryType, FinancialPaymentMethod } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type { FinancialEntryFormValues, FinancialEntryListResult, FinancialEntrySummary } from "@/types";
 
 type ApiResponse<T> = ({ success: true; data: T } & T) | { success: false; error: { code: string; message: string } };
@@ -52,6 +53,7 @@ export function FinancialEntryManager() {
   const { data: session } = useSession();
   const [data, setData] = useState<FinancialEntryListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [form, setForm] = useState<FinancialEntryFormValues>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<FinancialEntrySummary | null>(null);
@@ -85,13 +87,15 @@ export function FinancialEntryManager() {
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function openEdit(id: string) {
     const response = await fetch(`/api/financial/entries/${id}`);
     const payload = (await response.json()) as ApiResponse<FinancialEntrySummary>;
-    if (!payload.success) return setMessage(payload.error.message);
+    if (!payload.success) return setFormMessage(payload.error.message);
+    setFormMessage("");
     const entry = payload.data;
     setEditingId(id);
     setForm({
@@ -114,6 +118,7 @@ export function FinancialEntryManager() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormMessage("");
     const response = await fetch(editingId ? `/api/financial/entries/${editingId}` : "/api/financial/entries", {
       method: editingId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -157,6 +162,9 @@ export function FinancialEntryManager() {
       {isFormOpen ? (
         <Modal title={editingId ? "Editar lancamento" : "Novo lancamento"} onClose={() => setIsFormOpen(false)}>
           <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <FormMessage id="financial-entry-form-message">{formMessage}</FormMessage>
+            </div>
             <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as FinancialEntryType })} className="rounded-md border-hope-100">{Object.values(FinancialEntryType).map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}</select>
             <select required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="rounded-md border-hope-100"><option value="">Categoria</option>{data?.filters.categories.filter((category) => category.type === form.type).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
             <input required type="number" min={0.01} step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value ? Number(event.target.value) : "" })} placeholder="Valor" className="rounded-md border-hope-100" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { AnnouncementAudience, AnnouncementStatus } from "@prisma/client";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import type { AnnouncementFormValues, AnnouncementListResult, AnnouncementSummary } from "@/types";
@@ -76,6 +77,7 @@ export function AnnouncementManager() {
   const { data: session } = useSession();
   const [data, setData] = useState<AnnouncementListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -141,11 +143,13 @@ export function AnnouncementManager() {
     setEditingId(null);
     setForm(emptyForm);
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function openEditForm(id: string) {
     setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(`/api/announcements/${id}`, { cache: "no-store" });
@@ -174,7 +178,7 @@ export function AnnouncementManager() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(editingId ? `/api/announcements/${editingId}` : "/api/announcements", {
@@ -189,7 +193,7 @@ export function AnnouncementManager() {
       setMessage(editingId ? "Comunicado atualizado com sucesso." : "Comunicado criado com sucesso.");
       await loadAnnouncements();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o comunicado.");
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o comunicado.");
     }
   }
 
@@ -325,6 +329,7 @@ export function AnnouncementManager() {
           onClose={() => setIsFormOpen(false)}
           onSubmit={handleSubmit}
           updateForm={updateForm}
+          formMessage={formMessage}
         />
       ) : null}
 
@@ -343,7 +348,8 @@ function AnnouncementForm({
   form,
   onClose,
   onSubmit,
-  updateForm
+  updateForm,
+  formMessage
 }: {
   data: AnnouncementListResult | null;
   editingId: string | null;
@@ -351,6 +357,7 @@ function AnnouncementForm({
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   updateForm: <K extends keyof AnnouncementFormValues>(name: K, value: AnnouncementFormValues[K]) => void;
+  formMessage: string;
 }) {
   return (
     <div className="fixed inset-0 z-40 overflow-y-auto bg-ink-900/45 px-4 py-6">
@@ -365,6 +372,9 @@ function AnnouncementForm({
           </div>
 
           <div className="grid gap-4 p-5 md:grid-cols-4">
+            <div className="md:col-span-4">
+              <FormMessage id="announcement-form-message">{formMessage}</FormMessage>
+            </div>
             <Field label="Titulo" className="md:col-span-3"><input required value={form.title} onChange={(event) => updateForm("title", event.target.value)} className={inputClass} /></Field>
             <Field label="Status"><select value={form.status} disabled={Boolean(editingId)} onChange={(event) => updateForm("status", event.target.value as AnnouncementStatus)} className={inputClass}>{Object.values(AnnouncementStatus).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></Field>
             <Field label="Conteudo" className="md:col-span-4"><textarea required value={form.content} onChange={(event) => updateForm("content", event.target.value)} className={`${inputClass} min-h-32`} /></Field>

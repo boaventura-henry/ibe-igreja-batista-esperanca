@@ -3,6 +3,7 @@
 import { FinancialEntryType } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type { FinancialCategoryFormValues, FinancialCategoryListResult, FinancialCategorySummary } from "@/types";
 
 type ApiResponse<T> =
@@ -27,6 +28,7 @@ export function FinancialCategoryManager() {
   const { data: session } = useSession();
   const [data, setData] = useState<FinancialCategoryListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [form, setForm] = useState<FinancialCategoryFormValues>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<FinancialCategorySummary | null>(null);
@@ -60,13 +62,15 @@ export function FinancialCategoryManager() {
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function openEdit(id: string) {
     const response = await fetch(`/api/financial/categories/${id}`);
     const payload = (await response.json()) as ApiResponse<FinancialCategorySummary>;
-    if (!payload.success) return setMessage(payload.error.message);
+    if (!payload.success) return setFormMessage(payload.error.message);
+    setFormMessage("");
     const category = payload.data;
     setEditingId(id);
     setForm({
@@ -82,6 +86,7 @@ export function FinancialCategoryManager() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormMessage("");
     const response = await fetch(editingId ? `/api/financial/categories/${editingId}` : "/api/financial/categories", {
       method: editingId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -140,6 +145,7 @@ export function FinancialCategoryManager() {
       {isFormOpen ? (
         <Modal title={editingId ? "Editar categoria" : "Nova categoria"} onClose={() => setIsFormOpen(false)}>
           <form onSubmit={submit} className="grid gap-3">
+            <FormMessage id="financial-category-form-message">{formMessage}</FormMessage>
             <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nome" className="rounded-md border-hope-100" />
             <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Descricao" className="rounded-md border-hope-100" />
             <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as FinancialEntryType })} className="rounded-md border-hope-100">

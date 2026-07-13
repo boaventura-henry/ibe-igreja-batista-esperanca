@@ -2,6 +2,7 @@
 
 import { UserAccessRequestStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type { AccessRequestDetailResult, AccessRequestListResult, AccessRequestSummary } from "@/types";
 
 type ApiResponse<T> =
@@ -46,6 +47,7 @@ function formatDate(value: string | null) {
 export function AccessRequestManager({ canApprove, canReject }: { canApprove: boolean; canReject: boolean }) {
   const [data, setData] = useState<AccessRequestListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [selected, setSelected] = useState<AccessRequestDetailResult | null>(null);
   const [approveMemberId, setApproveMemberId] = useState("");
@@ -109,6 +111,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
 
   async function openDetails(id: string) {
     setMessage("");
+    setActionMessage("");
 
     try {
       const response = await fetch(`/api/access-requests/${id}`, { cache: "no-store" });
@@ -133,7 +136,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
       return;
     }
 
-    setMessage("");
+    setActionMessage("");
 
     try {
       const response = await fetch(`/api/access-requests/${selected.request.id}/approve`, {
@@ -151,7 +154,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
       setMessage("Solicitacao aprovada e usuario criado.");
       await loadRequests();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel aprovar a solicitacao.");
+      setActionMessage(error instanceof Error ? error.message : "Nao foi possivel aprovar a solicitacao.");
     }
   }
 
@@ -162,7 +165,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
       return;
     }
 
-    setMessage("");
+    setActionMessage("");
 
     try {
       const response = await fetch(`/api/access-requests/${rejectRequest.id}/reject`, {
@@ -181,7 +184,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
       setMessage("Solicitacao rejeitada.");
       await loadRequests();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel rejeitar a solicitacao.");
+      setActionMessage(error instanceof Error ? error.message : "Nao foi possivel rejeitar a solicitacao.");
     }
   }
 
@@ -294,7 +297,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
                         <ActionButton onClick={() => openDetails(request.id)}>Aprovar</ActionButton>
                       ) : null}
                       {canReject && request.status === "PENDING" ? (
-                        <ActionButton onClick={() => setRejectRequest(request)}>Rejeitar</ActionButton>
+                        <ActionButton onClick={() => { setActionMessage(""); setRejectRequest(request); }}>Rejeitar</ActionButton>
                       ) : null}
                     </div>
                   </td>
@@ -382,6 +385,9 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
 
             {canApprove && selected.request.status === "PENDING" ? (
               <form onSubmit={approve} className="border-t border-hope-100 p-5">
+                <div className="mb-4">
+                  <FormMessage id="access-request-approve-message">{actionMessage}</FormMessage>
+                </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Membro aprovado">
                     <select required value={approveMemberId} onChange={(event) => setApproveMemberId(event.target.value)} className={filterInputClass}>
@@ -417,7 +423,8 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
                 <h2 className="text-lg font-bold text-ink-900">Rejeitar solicitacao</h2>
                 <p className="text-sm text-ink-500">{rejectRequest.username}</p>
               </div>
-              <div className="p-5">
+              <div className="grid gap-4 p-5">
+                <FormMessage id="access-request-reject-message">{actionMessage}</FormMessage>
                 <Field label="Motivo">
                   <textarea
                     required

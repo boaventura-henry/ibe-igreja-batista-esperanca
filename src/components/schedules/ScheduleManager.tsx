@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ScheduleStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type { ScheduleFormValues, ScheduleListResult, ScheduleSummary } from "@/types";
 import { formatDateForInput } from "@/utils";
 
@@ -67,6 +68,7 @@ export function ScheduleManager() {
   const { data: session } = useSession();
   const [data, setData] = useState<ScheduleListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -145,6 +147,7 @@ export function ScheduleManager() {
     setEditingId(null);
     setForm(emptyForm);
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
@@ -162,12 +165,13 @@ export function ScheduleManager() {
       observations: schedule.observations ?? ""
     });
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(editingId ? `/api/schedules/${editingId}` : "/api/schedules", {
@@ -185,7 +189,7 @@ export function ScheduleManager() {
       setMessage(editingId ? "Escala atualizada com sucesso." : "Escala criada com sucesso.");
       await loadSchedules();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar a escala.");
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar a escala.");
     }
   }
 
@@ -355,6 +359,9 @@ export function ScheduleManager() {
                 <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-3 py-2 text-sm font-bold text-ink-700">Fechar</button>
               </div>
               <div className="grid gap-4 p-5 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <FormMessage id="schedule-form-message">{formMessage}</FormMessage>
+                </div>
                 <Field label="Titulo" className="md:col-span-2"><input required value={form.title} onChange={(event) => updateForm("title", event.target.value)} className={inputClass} /></Field>
                 <Field label="Ministerio">
                   <select required value={form.ministryId} onChange={(event) => updateForm("ministryId", event.target.value)} className={inputClass}>

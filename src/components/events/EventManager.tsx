@@ -3,6 +3,7 @@
 import { EventStatus, EventType } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { FormMessage } from "@/components/ui/FormMessage";
 import type { EventFormValues, EventListResult, EventSummary } from "@/types";
 
 type ApiResponse<T> =
@@ -97,6 +98,7 @@ export function EventManager() {
   const { data: session } = useSession();
   const [data, setData] = useState<EventListResult | null>(null);
   const [message, setMessage] = useState("");
+  const [formMessage, setFormMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -182,11 +184,13 @@ export function EventManager() {
     setEditingId(null);
     setForm(emptyForm);
     setMessage("");
+    setFormMessage("");
     setIsFormOpen(true);
   }
 
   async function openEditForm(id: string) {
     setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(`/api/events/${id}`, { cache: "no-store" });
@@ -242,7 +246,7 @@ export function EventManager() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch(editingId ? `/api/events/${editingId}` : "/api/events", {
@@ -260,7 +264,7 @@ export function EventManager() {
       setMessage(editingId ? "Evento atualizado com sucesso." : "Evento criado com sucesso.");
       await loadEvents();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o evento.");
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o evento.");
     }
   }
 
@@ -268,7 +272,7 @@ export function EventManager() {
     const formData = new FormData();
     formData.set("file", file);
     setIsUploadingImage(true);
-    setMessage("");
+    setFormMessage("");
 
     try {
       const response = await fetch("/api/events/photo", {
@@ -282,7 +286,10 @@ export function EventManager() {
       }
 
       updateForm("imageUrl", payload.data.url);
-      setMessage("Imagem enviada com sucesso.");
+      setFormMessage("Imagem enviada com sucesso.");
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel enviar a imagem.");
+      throw error;
     } finally {
       setIsUploadingImage(false);
     }
@@ -442,6 +449,7 @@ export function EventManager() {
           onSubmit={handleSubmit}
           onUpload={uploadImage}
           updateForm={updateForm}
+          formMessage={formMessage}
         />
       ) : null}
 
@@ -462,7 +470,8 @@ function EventForm({
   onClose,
   onSubmit,
   onUpload,
-  updateForm
+  updateForm,
+  formMessage
 }: {
   data: EventListResult | null;
   editingId: string | null;
@@ -472,6 +481,7 @@ function EventForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onUpload: (file: File) => Promise<void>;
   updateForm: <K extends keyof EventFormValues>(name: K, value: EventFormValues[K]) => void;
+  formMessage: string;
 }) {
   return (
     <div className="fixed inset-0 z-40 overflow-y-auto bg-ink-900/45 px-4 py-6">
@@ -486,6 +496,9 @@ function EventForm({
           </div>
 
           <div className="grid gap-4 p-5 md:grid-cols-4">
+            <div className="md:col-span-4">
+              <FormMessage id="event-form-message" tone={formMessage === "Imagem enviada com sucesso." ? "success" : "error"}>{formMessage}</FormMessage>
+            </div>
             <Field label="Titulo" className="md:col-span-2"><input required value={form.title} onChange={(event) => updateForm("title", event.target.value)} className={inputClass} /></Field>
             <Field label="Tipo"><select value={form.type} onChange={(event) => updateForm("type", event.target.value as EventType)} className={inputClass}>{Object.values(EventType).map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}</select></Field>
             <Field label="Status"><select value={form.status} onChange={(event) => updateForm("status", event.target.value as EventStatus)} className={inputClass}>{Object.values(EventStatus).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></Field>
