@@ -4,6 +4,8 @@ export { accessRequestRepository } from "./access-request.repository";
 export type { PrivateAccessRequest, SafeAccessRequest } from "./access-request.repository";
 export { announcementRepository } from "./announcement.repository";
 export type { AnnouncementRecord } from "./announcement.repository";
+export { birthdayRepository } from "./birthday.repository";
+export type { BirthdayRecord } from "./birthday.repository";
 export { databaseRepository } from "./database.repository";
 export { dashboardRepository } from "./dashboard.repository";
 export type {

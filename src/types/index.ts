@@ -31,6 +31,7 @@ export type {
   PortalDashboardNotice,
   PortalDashboardSchedule
 } from "./dashboard.types";
+export type { BirthdayDashboardData, BirthdayPerson } from "./birthday.types";
 export type {
   EventFormValues,
   EventListResult,

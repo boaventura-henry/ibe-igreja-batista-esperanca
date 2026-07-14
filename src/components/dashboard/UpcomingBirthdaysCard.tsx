@@ -1,0 +1,1 @@
+export { UpcomingBirthdaysCard } from "./BirthdayCard";

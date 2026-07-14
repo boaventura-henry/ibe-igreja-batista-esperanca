@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StatCard } from "@/components/StatCard";
+import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
 import type { AdminDashboardData } from "@/types";
 import type { ApiResponseBody } from "@/types/api";
 
@@ -74,6 +75,7 @@ export function AdminDashboard() {
 
   return (
     <div className="grid gap-6">
+      <BirthdayCard endpoint="/api/dashboard/birthdays" />
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Membros ativos" value={String(data.activeMembers)} detail="Cadastros ativos e nao deletados" />
         <StatCard label="Novos membros no mes" value={String(data.newMembersThisMonth)} detail="Com base na data de criacao" />

@@ -101,6 +101,10 @@ O app possui manifest, icones, service worker e uma pagina offline basica. Quand
 
 Notificacoes push ainda nao foram implementadas nesta fase.
 
+## Painel de aniversariantes
+
+O dashboard administrativo e o Portal do Membro exibem aniversariantes ativos dos proximos sete dias e do mes atual, usando a data do servidor no banco. Membros nascidos em 29/02 aparecem em 29/02 nos anos bissextos e em 28/02 nos demais anos. O portal recebe apenas nome, foto e ministerio principal; dados cadastrais e de contato nao sao expostos.
+
 ## Usuario administrador inicial
 
 O seed cria ou atualiza o administrador inicial usando variaveis de ambiente:

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MemberLinkRequired } from "@/components/portal/MemberLinkRequired";
+import { PortalBirthdayCard } from "@/components/portal/PortalBirthdayCard";
 import type { PortalDashboardData } from "@/types";
 import type { ApiResponseBody } from "@/types/api";
 
@@ -66,7 +67,7 @@ export function PortalDashboard() {
   }
 
   if (data.userWithoutMember) {
-    return <MemberLinkRequired />;
+    return <div className="grid gap-6"><MemberLinkRequired /><PortalBirthdayCard /></div>;
   }
 
   return (
@@ -125,6 +126,9 @@ export function PortalDashboard() {
             </div>
           ))}
         </div>
+      </section>
+      <section className="lg:col-span-3">
+        <PortalBirthdayCard />
       </section>
     </div>
   );
