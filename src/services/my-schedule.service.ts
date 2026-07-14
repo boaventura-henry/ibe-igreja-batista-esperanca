@@ -93,6 +93,13 @@ export const myScheduleService = {
     return serialize(scheduleMember);
   },
 
+  async getRepertoire(scheduleMemberId: string, user: MyScheduleSessionUser) {
+    const memberId = getSessionMemberId(user);
+    const record = await myScheduleRepository.findRepertoireForMember(scheduleMemberId, memberId);
+    if (!record) throw new AppError("Escala nao encontrada para este membro.", 404, "MY_SCHEDULE_NOT_FOUND");
+    return { songs: record.schedule.songs };
+  },
+
   async confirm(scheduleMemberId: string, user: MyScheduleSessionUser) {
     const current = await this.getById(scheduleMemberId, user);
     ensureCanSelfRespond(current, "confirm");

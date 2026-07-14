@@ -198,6 +198,10 @@ model User {
   updatedMemberMinistries        MemberMinistry[]       @relation("MemberMinistryUpdatedBy")
   createdSchedules               Schedule[]             @relation("ScheduleCreatedBy")
   updatedSchedules               Schedule[]             @relation("ScheduleUpdatedBy")
+  createdSongs                   Song[]                 @relation("SongCreatedBy")
+  updatedSongs                   Song[]                 @relation("SongUpdatedBy")
+  createdScheduleSongs           ScheduleSong[]         @relation("ScheduleSongCreatedBy")
+  updatedScheduleSongs           ScheduleSong[]         @relation("ScheduleSongUpdatedBy")
   createdScheduleMembers         ScheduleMember[]       @relation("ScheduleMemberCreatedBy")
   updatedScheduleMembers         ScheduleMember[]       @relation("ScheduleMemberUpdatedBy")
   createdEvents                  Event[]                @relation("EventCreatedBy")
@@ -301,6 +305,7 @@ model Member {
   memberMinistries       MemberMinistry[]
   scheduleMembers        ScheduleMember[]    @relation("ScheduleMemberMember")
   replacements           ScheduleMember[]    @relation("ScheduleMemberReplacement")
+  leadScheduleSongs      ScheduleSong[]      @relation("ScheduleSongLeadMember")
   responsibleEvents      Event[]             @relation("EventResponsibleMember")
   possibleAccessRequests UserAccessRequest[] @relation("UserAccessRequestPossibleMember")
   approvedAccessRequests UserAccessRequest[] @relation("UserAccessRequestApprovedMember")
@@ -401,6 +406,7 @@ model Schedule {
   deletedAt    DateTime?
   ministry     Ministry         @relation(fields: [ministryId], references: [id], onDelete: Restrict)
   members      ScheduleMember[]
+  songs        ScheduleSong[]
   createdBy    User?            @relation("ScheduleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy    User?            @relation("ScheduleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt    DateTime         @default(now())
@@ -444,6 +450,60 @@ model ScheduleMember {
   @@index([declinedAt])
   @@index([deletedAt])
   @@index([scheduleId, memberId, deletedAt])
+}
+
+model Song {
+  id                    String         @id @default(cuid())
+  title                 String
+  artist                String?
+  youtubeUrl            String?
+  referenceKey          String?
+  resourceUrl           String?
+  simplifiedResourceUrl String?
+  notes                 String?
+  isActive              Boolean        @default(true)
+  createdById           String?
+  updatedById           String?
+  deletedAt             DateTime?
+  createdBy             User?          @relation("SongCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy             User?          @relation("SongUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  scheduleSongs         ScheduleSong[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@index([title])
+  @@index([artist])
+  @@index([isActive])
+  @@index([deletedAt])
+}
+
+model ScheduleSong {
+  id                   String    @id @default(cuid())
+  scheduleId           String
+  songId               String
+  position             Int
+  referenceKey         String?
+  performanceKey       String?
+  leadMemberId         String?
+  youtubeUrlOverride   String?
+  resourceUrlOverride  String?
+  useSimplifiedVersion Boolean   @default(false)
+  notes                String?
+  createdById          String?
+  updatedById          String?
+  deletedAt            DateTime?
+  schedule             Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  song                 Song      @relation(fields: [songId], references: [id], onDelete: Restrict)
+  leadMember           Member?   @relation("ScheduleSongLeadMember", fields: [leadMemberId], references: [id], onDelete: SetNull)
+  createdBy            User?     @relation("ScheduleSongCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy            User?     @relation("ScheduleSongUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([scheduleId, position, deletedAt])
+  @@index([songId])
+  @@index([leadMemberId])
+  @@index([deletedAt])
 }
 
 model UserAccessRequest {

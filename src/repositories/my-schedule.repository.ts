@@ -86,6 +86,28 @@ export const myScheduleRepository = {
     });
   },
 
+  findRepertoireForMember(id: string, memberId: string) {
+    return prisma.scheduleMember.findFirst({
+      where: { id, memberId, deletedAt: null, schedule: { deletedAt: null } },
+      select: {
+        schedule: {
+          select: {
+            songs: {
+              where: { deletedAt: null, song: { deletedAt: null, isActive: true } },
+              select: {
+                id: true, position: true, referenceKey: true, performanceKey: true, useSimplifiedVersion: true,
+                youtubeUrlOverride: true, resourceUrlOverride: true, notes: true,
+                song: { select: { title: true, artist: true, youtubeUrl: true, resourceUrl: true, simplifiedResourceUrl: true } },
+                leadMember: { select: { id: true, name: true } }
+              },
+              orderBy: { position: "asc" }
+            }
+          }
+        }
+      }
+    });
+  },
+
   confirm(id: string, userId: string) {
     return prisma.scheduleMember.update({
       where: { id },

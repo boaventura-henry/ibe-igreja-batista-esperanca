@@ -18,4 +18,6 @@ export { myScheduleService } from "./my-schedule.service";
 export { passwordResetRequestService } from "./password-reset-request.service";
 export { reportService } from "./report.service";
 export { scheduleService } from "./schedule.service";
+export { songService } from "./song.service";
+export { scheduleSongService } from "./schedule-song.service";
 export { userService } from "./user.service";

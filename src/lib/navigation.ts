@@ -8,6 +8,7 @@ export const navigationItems = [
   { href: "/ministerios", label: "Ministerios", icon: "Servir", permission: "ministry.view" },
   { href: "/membros-ministerios", label: "Membros x Ministerios", icon: "Vinculos", permission: "memberMinistry.view" },
   { href: "/escalas", label: "Escalas", icon: "Agenda", permission: "schedule.view" },
+  { href: "/musicas", label: "Musicas", icon: "Agenda", permission: "song.view" },
   { href: "/minhas-escalas", label: "Minhas Escalas", icon: "Agenda", permission: "mySchedule.view" },
   { href: "/portal", label: "Portal do Membro", icon: "Inicio", permission: "memberPortal.view" },
   { href: "/eventos", label: "Eventos", icon: "Agenda", permission: "event.view" },

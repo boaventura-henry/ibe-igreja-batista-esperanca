@@ -57,3 +57,12 @@ export type MyScheduleSummary = {
 export type MyScheduleListResult = {
   schedules: MyScheduleSummary[];
 };
+
+export type PortalScheduleRepertoire = {
+  songs: Array<{
+    id: string; position: number; referenceKey: string | null; performanceKey: string | null; useSimplifiedVersion: boolean;
+    youtubeUrlOverride: string | null; resourceUrlOverride: string | null; notes: string | null;
+    song: { title: string; artist: string | null; youtubeUrl: string | null; resourceUrl: string | null; simplifiedResourceUrl: string | null };
+    leadMember: { id: string; name: string } | null;
+  }>;
+};

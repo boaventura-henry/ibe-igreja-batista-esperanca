@@ -90,6 +90,7 @@ export type {
   MyScheduleParticipant,
   MyScheduleSummary
 } from "./my-schedule.types";
+export type { PortalScheduleRepertoire } from "./my-schedule.types";
 export type {
   PasswordResetApprovalResult,
   PasswordResetRequestListResult,
@@ -118,4 +119,6 @@ export type {
   SchedulePerson,
   ScheduleSummary
 } from "./schedule.types";
+export type { SongFormValues, SongListResult, SongSummary } from "./song.types";
+export type { ScheduleRepertoireResult, ScheduleSongFormValues, ScheduleSongSummary } from "./schedule-song.types";
 export type { UserFormValues, UserListResult, UserStatusFilter, UserSummary } from "./user.types";

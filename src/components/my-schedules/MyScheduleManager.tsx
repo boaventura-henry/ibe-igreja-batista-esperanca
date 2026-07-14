@@ -3,6 +3,7 @@
 import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { useCallback, useEffect, useState } from "react";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
+import { PortalScheduleRepertoire } from "@/components/portal/PortalScheduleRepertoire";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -142,7 +143,7 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
                       <span className="font-semibold text-ink-900">{schedule.ministry.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-4 font-semibold text-hope-700">{schedule.title}</td>
+                  <td className="px-4 py-4 font-semibold text-hope-700">{schedule.title}<PortalScheduleRepertoire scheduleMemberId={schedule.id} /></td>
                   <td className="px-4 py-4 text-ink-700">{roleLabels[schedule.role]}</td>
                   <td className="px-4 py-4"><StatusBadge status={schedule.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{schedule.location || "-"}</td>

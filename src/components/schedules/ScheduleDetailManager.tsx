@@ -4,6 +4,7 @@ import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prism
 import { FormEvent, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { ScheduleRepertoireManager } from "@/components/schedules/ScheduleRepertoireManager";
 import type { ScheduleMemberFormValues, ScheduleSummary } from "@/types";
 
 type ApiResponse<T> =
@@ -306,6 +307,8 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
           </table>
         </div>
       </section>
+
+      <ScheduleRepertoireManager scheduleId={schedule.id} scheduleTitle={schedule.title} canUpdate={canUpdate} />
 
       {isFormOpen ? (
         <div className="fixed inset-0 z-40 overflow-y-auto bg-ink-900/45 px-4 py-6">
