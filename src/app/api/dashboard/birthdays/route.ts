@@ -11,6 +11,8 @@ export async function GET() {
     return apiSuccess(await birthdayService.getDashboard(), { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     const appError = error instanceof AppError ? error : toAppError(error);
-    return apiError(appError.message, appError.statusCode, appError.code);
+    const response = apiError(appError.message, appError.statusCode, appError.code);
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    return response;
   }
 }
