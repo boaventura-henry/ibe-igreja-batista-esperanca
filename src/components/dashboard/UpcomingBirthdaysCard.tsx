@@ -1,1 +1,0 @@
-export { UpcomingBirthdaysCard } from "./BirthdayCard";

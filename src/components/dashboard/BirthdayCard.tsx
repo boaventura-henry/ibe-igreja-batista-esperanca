@@ -117,7 +117,7 @@ export function BirthdayCard({ endpoint }: { endpoint: string }) {
     <div className="grid gap-6">
       <div className="grid gap-6 xl:grid-cols-2">
         <TodayBirthdayCard people={data.today} admin />
-        <UpcomingBirthdaysCard people={data.upcoming} admin />
+        <WeeklyBirthdaysCard people={data.weekly} admin />
       </div>
       <BirthdayMonthCard data={data} admin />
     </div>
@@ -138,13 +138,13 @@ export function TodayBirthdayCard({ people, admin = false }: { people: BirthdayP
   );
 }
 
-export function UpcomingBirthdaysCard({ people, admin = false }: { people: BirthdayPerson[]; admin?: boolean }) {
+export function WeeklyBirthdaysCard({ people, admin = false }: { people: BirthdayPerson[]; admin?: boolean }) {
   return (
     <section className="rounded-md border border-hope-100 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-bold text-ink-900">Próximos aniversários</h2>
-      <p className="mt-1 text-sm text-ink-500">Próximos sete dias</p>
+      <h2 className="text-lg font-bold text-ink-900">Aniversariantes da Semana</h2>
+      <p className="mt-1 text-sm text-ink-500">Segunda-feira a domingo</p>
       <div className="mt-4 grid gap-3">
-        {people.length === 0 ? <p className="text-sm font-semibold text-ink-500">Nenhum aniversário nos próximos sete dias.</p> : people.map((person) => <PersonRow key={person.id} person={person} admin={admin} showDate />)}
+        {people.length === 0 ? <p className="text-sm font-semibold text-ink-500">Nenhum aniversariante nesta semana.</p> : people.map((person) => <PersonRow key={person.id} person={person} admin={admin} showDate />)}
       </div>
     </section>
   );

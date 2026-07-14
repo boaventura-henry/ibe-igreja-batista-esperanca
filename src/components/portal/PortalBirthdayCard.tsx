@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BirthdayMonthCard, CopyBirthdayButton, TodayBirthdayCard, UpcomingBirthdaysCard } from "@/components/dashboard/BirthdayCard";
+import { BirthdayMonthCard, CopyBirthdayButton, TodayBirthdayCard, WeeklyBirthdaysCard } from "@/components/dashboard/BirthdayCard";
 import type { BirthdayDashboardData } from "@/types";
 import type { ApiResponseBody } from "@/types/api";
 
@@ -23,7 +23,7 @@ export function PortalBirthdayCard() {
     <div className="grid gap-6">
       <div className="grid gap-6 xl:grid-cols-2">
         <TodayBirthdayCard people={data.today} />
-        <UpcomingBirthdaysCard people={data.upcoming} />
+        <WeeklyBirthdaysCard people={data.weekly} />
       </div>
       <BirthdayMonthCard data={data} />
     </div>

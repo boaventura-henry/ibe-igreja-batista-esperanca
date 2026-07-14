@@ -9,9 +9,9 @@ function serialize(record: BirthdayRecord): BirthdayPerson {
     ministry: record.ministryId && record.ministryName && record.ministryColor
       ? { id: record.ministryId, name: record.ministryName, color: record.ministryColor }
       : null,
-    birthdayDate: record.nextBirthday.toISOString(),
-    birthdayMonth: record.nextBirthday.getUTCMonth() + 1,
-    birthdayDay: record.nextBirthday.getUTCDate(),
+    birthdayDate: record.weeklyBirthday.toISOString(),
+    birthdayMonth: record.weeklyBirthday.getUTCMonth() + 1,
+    birthdayDay: record.weeklyBirthday.getUTCDate(),
     isToday: record.isToday
   };
 }
@@ -29,16 +29,16 @@ export const birthdayService = {
       .filter((record) => record.isToday)
       .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"))
       .map(serialize);
-    const upcoming = records
-      .filter((record) => !record.isToday && record.nextBirthday > record.today)
-      .sort((left, right) => left.nextBirthday.getTime() - right.nextBirthday.getTime() || left.name.localeCompare(right.name, "pt-BR"))
+    const weekly = records
+      .filter((record) => record.isWeekly && !record.isToday)
+      .sort((left, right) => left.weeklyBirthday.getTime() - right.weeklyBirthday.getTime() || left.name.localeCompare(right.name, "pt-BR"))
       .map(serialize);
     const month = monthRecords.map(serialize);
     const monthDate = records[0]?.today ?? new Date();
 
     return {
       today,
-      upcoming,
+      weekly,
       month,
       monthLabel: new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" }).format(monthDate),
       monthCount: month.length

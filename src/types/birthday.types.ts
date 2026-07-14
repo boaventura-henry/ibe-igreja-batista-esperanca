@@ -15,7 +15,7 @@ export type BirthdayPerson = {
 
 export type BirthdayDashboardData = {
   today: BirthdayPerson[];
-  upcoming: BirthdayPerson[];
+  weekly: BirthdayPerson[];
   month: BirthdayPerson[];
   monthLabel: string;
   monthCount: number;

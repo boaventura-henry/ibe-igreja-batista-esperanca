@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     await requirePermission("dashboard.admin.view");
-    return apiSuccess(await birthdayService.getDashboard());
+    return apiSuccess(await birthdayService.getDashboard(), { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     const appError = error instanceof AppError ? error : toAppError(error);
     return apiError(appError.message, appError.statusCode, appError.code);
