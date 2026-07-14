@@ -4,7 +4,7 @@ import type { ScheduleSongCreateInput, ScheduleSongUpdateInput } from "@/validat
 
 const select = {
   id: true, position: true, referenceKey: true, performanceKey: true, youtubeUrlOverride: true, resourceUrlOverride: true, useSimplifiedVersion: true, notes: true, createdAt: true, updatedAt: true,
-  song: { select: { id: true, title: true, artist: true, youtubeUrl: true, referenceKey: true, resourceUrl: true, simplifiedResourceUrl: true } },
+  song: { select: { id: true, title: true, artist: true, youtubeUrl: true, referenceKey: true, resourceUrl: true, simplifiedResourceUrl: true, isActive: true, deletedAt: true } },
   leadMember: { select: { id: true, name: true, status: true } }
 } satisfies Prisma.ScheduleSongSelect;
 export type ScheduleSongRecord = Prisma.ScheduleSongGetPayload<{ select: typeof select }>;

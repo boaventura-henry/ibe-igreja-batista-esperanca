@@ -3,5 +3,6 @@ export type SongSummary = {
   resourceUrl: string | null; simplifiedResourceUrl: string | null; notes: string | null; isActive: boolean;
   usageCount: number; lastUsedAt: string | null; lastPerformanceKey: string | null; createdAt: string; updatedAt: string;
 };
+export type SongOption = { id: string; title: string; artist: string | null; referenceKey: string | null; isActive: boolean };
 export type SongFormValues = Omit<SongSummary, "id" | "usageCount" | "lastUsedAt" | "lastPerformanceKey" | "createdAt" | "updatedAt">;
 export type SongListResult = { songs: SongSummary[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } };

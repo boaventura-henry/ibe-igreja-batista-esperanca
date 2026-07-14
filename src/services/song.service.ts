@@ -5,6 +5,7 @@ import type { SongCreateInput, SongListQueryInput, SongUpdateInput } from "@/val
 
 function serialize<T extends { createdAt: Date; updatedAt: Date; lastUsedAt?: Date | null }>(value: T) { return { ...value, createdAt: value.createdAt.toISOString(), updatedAt: value.updatedAt.toISOString(), lastUsedAt: value.lastUsedAt?.toISOString() ?? null }; }
 export const songService = {
+  options(search?: string) { return songRepository.options(search); },
   async list(filters: SongListQueryInput) { const result = await songRepository.list(filters); return { songs: result.songs.map(serialize), pagination: { page: filters.page, pageSize: filters.pageSize, total: result.total, totalPages: Math.max(1, Math.ceil(result.total / filters.pageSize)) } }; },
   async getById(id: string) { const song = await songRepository.findById(id); if (!song) throw new AppError("Musica nao encontrada.", 404, "SONG_NOT_FOUND"); return serialize({ ...song, usageCount: 0, lastUsedAt: null, lastPerformanceKey: null }); },
   async create(input: SongCreateInput, userId: string) { if (await songRepository.findDuplicate(input.title, input.artist)) throw new AppError("Ja existe uma musica com este titulo e artista.", 409, "SONG_DUPLICATED"); return serialize(await songRepository.create({ ...input, youtubeUrl: normalizeYouTubeUrl(input.youtubeUrl) }, userId)); },

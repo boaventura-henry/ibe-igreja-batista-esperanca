@@ -105,6 +105,10 @@ Notificacoes push ainda nao foram implementadas nesta fase.
 
 O dashboard administrativo e o Portal do Membro exibem aniversariantes ativos dos proximos sete dias e do mes atual, usando a data do servidor no banco. Membros nascidos em 29/02 aparecem em 29/02 nos anos bissextos e em 28/02 nos demais anos. O portal recebe apenas nome, foto e ministerio principal; dados cadastrais e de contato nao sao expostos.
 
+## Seletor de musicas do repertorio
+
+O seletor de musicas carrega ate 500 musicas ativas, ordenadas por titulo e artista, e mantem a busca no frontend. Caso o catalogo ultrapasse aproximadamente 500 musicas, o autocomplete devera evoluir para busca server-side com parametro `q`, debounce e paginacao.
+
 ## Usuario administrador inicial
 
 O seed cria ou atualiza o administrador inicial usando variaveis de ambiente:

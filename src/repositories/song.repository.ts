@@ -17,6 +17,19 @@ function updateData(data: SongUpdateInput): Prisma.SongUncheckedUpdateInput {
 }
 
 export const songRepository = {
+  options(search?: string) {
+    const normalizedSearch = search?.trim();
+    return prisma.song.findMany({
+      where: {
+        deletedAt: null,
+        isActive: true,
+        ...(normalizedSearch ? { OR: [{ title: { contains: normalizedSearch, mode: "insensitive" } }, { artist: { contains: normalizedSearch, mode: "insensitive" } }] } : {})
+      },
+      select: { id: true, title: true, artist: true, referenceKey: true, isActive: true },
+      orderBy: [{ title: "asc" }, { artist: "asc" }],
+      take: 500
+    });
+  },
   async list(filters: SongListQueryInput) {
     const where: Prisma.SongWhereInput = { deletedAt: null, ...(filters.isActive === undefined ? {} : { isActive: filters.isActive }) };
     if (filters.search) where.OR = [{ title: { contains: filters.search, mode: "insensitive" } }, { artist: { contains: filters.search, mode: "insensitive" } }];
