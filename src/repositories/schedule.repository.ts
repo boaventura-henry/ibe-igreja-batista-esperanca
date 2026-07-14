@@ -293,7 +293,14 @@ export const scheduleRepository = {
 
   findActiveMemberMinistry(memberId: string, ministryId: string) {
     return prisma.memberMinistry.findFirst({
-      where: { memberId, ministryId, status: "ACTIVE", deletedAt: null },
+      where: {
+        memberId,
+        ministryId,
+        status: "ACTIVE",
+        exitDate: null,
+        deletedAt: null,
+        ministry: { isActive: true, deletedAt: null }
+      },
       select: { id: true }
     });
   },
@@ -368,7 +375,31 @@ export const scheduleRepository = {
 
   listMembers() {
     return prisma.member.findMany({
-      where: { deletedAt: null, status: { notIn: [MemberStatus.INACTIVE, MemberStatus.DECEASED] } },
+      where: { deletedAt: null, status: MemberStatus.ACTIVE },
+      select: { id: true, name: true, status: true },
+      orderBy: { name: "asc" }
+    });
+  },
+
+  listAvailableMembers(ministryId: string, allowMinistryException: boolean) {
+    return prisma.member.findMany({
+      where: {
+        deletedAt: null,
+        status: MemberStatus.ACTIVE,
+        ...(allowMinistryException
+          ? {}
+          : {
+              memberMinistries: {
+                some: {
+                  ministryId,
+                  status: "ACTIVE",
+                  exitDate: null,
+                  deletedAt: null,
+                  ministry: { isActive: true, deletedAt: null }
+                }
+              }
+            })
+      },
       select: { id: true, name: true, status: true },
       orderBy: { name: "asc" }
     });

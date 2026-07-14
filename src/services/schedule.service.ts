@@ -146,6 +146,22 @@ async function ensureNoExistingMembersTimeConflict(schedule: ScheduleRecord, dat
   }
 }
 
+async function ensureMemberHasMinistryLinkOrException(
+  memberId: string,
+  ministryId: string,
+  allowMinistryException: boolean | undefined
+) {
+  const ministryLink = await scheduleRepository.findActiveMemberMinistry(memberId, ministryId);
+
+  if (!ministryLink && !allowMinistryException) {
+    throw new AppError(
+      "Este membro n?o est? vinculado ao minist?rio da escala. Marque a op??o de exce??o para permitir.",
+      409,
+      "MINISTRY_EXCEPTION_REQUIRED"
+    );
+  }
+}
+
 async function ensureMemberRules(
   schedule: ScheduleSummary | ScheduleRecord,
   data: ScheduleMemberCreateInput | ScheduleMemberUpdateInput,
@@ -156,12 +172,15 @@ async function ensureMemberRules(
     currentReplacedByMemberId?: string | null;
   } = {},
 ) {
+  const isCreate = !options.currentId;
   const nextMemberId = data.memberId ?? options.currentMemberId;
   const nextStatus = data.status ?? options.currentStatus ?? ScheduleMemberStatus.PENDING;
   const nextReplacedByMemberId =
     data.replacedByMemberId === undefined ? options.currentReplacedByMemberId : data.replacedByMemberId;
+  const shouldValidatePrimaryMember = isCreate || data.memberId !== undefined;
+  const shouldValidateReplacement = data.replacedByMemberId !== undefined;
 
-  if (nextMemberId) {
+  if (nextMemberId && shouldValidatePrimaryMember) {
     await ensureActiveMember(nextMemberId);
 
     const duplicated = await scheduleRepository.findActiveScheduleMember(schedule.id, nextMemberId, options.currentId);
@@ -179,15 +198,7 @@ async function ensureMemberRules(
       ministry: schedule.ministry
     }, options.currentId);
 
-    const ministryLink = await scheduleRepository.findActiveMemberMinistry(nextMemberId, schedule.ministry.id);
-
-    if (!ministryLink && !data.allowMinistryException) {
-      throw new AppError(
-        "Membro nao participa deste ministerio. Confirme a excecao para continuar.",
-        409,
-        "MINISTRY_EXCEPTION_REQUIRED"
-      );
-    }
+    await ensureMemberHasMinistryLinkOrException(nextMemberId, schedule.ministry.id, data.allowMinistryException);
   }
 
   if (nextStatus === ScheduleMemberStatus.REPLACED && !nextReplacedByMemberId) {
@@ -202,7 +213,7 @@ async function ensureMemberRules(
     throw new AppError("O substituto nao pode ser o mesmo membro.", 400, "INVALID_REPLACEMENT");
   }
 
-  if (nextReplacedByMemberId) {
+  if (nextReplacedByMemberId && shouldValidateReplacement) {
     await ensureActiveMember(nextReplacedByMemberId);
     await ensureNoTimeConflict(nextReplacedByMemberId, {
       id: schedule.id,
@@ -212,9 +223,9 @@ async function ensureMemberRules(
       status: schedule.status,
       ministry: schedule.ministry
     });
+    await ensureMemberHasMinistryLinkOrException(nextReplacedByMemberId, schedule.ministry.id, data.allowMinistryException);
   }
 }
-
 export const scheduleService = {
   async list(filters: ScheduleListQueryInput): Promise<ScheduleListResult> {
     const [result, ministries, members] = await Promise.all([
@@ -297,6 +308,13 @@ export const scheduleService = {
 
   async listMembers(id: string) {
     return (await this.getById(id)).members;
+  },
+
+  async listAvailableMembers(id: string, allowMinistryException: boolean) {
+    const schedule = await this.getById(id);
+    const members = await scheduleRepository.listAvailableMembers(schedule.ministry.id, allowMinistryException);
+
+    return { members };
   },
 
   async addMember(scheduleId: string, data: ScheduleMemberCreateInput, userId: string) {

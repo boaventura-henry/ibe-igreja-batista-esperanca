@@ -1,7 +1,7 @@
 "use client";
 
 import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import type { ScheduleMemberFormValues, ScheduleSummary } from "@/types";
@@ -9,6 +9,8 @@ import type { ScheduleMemberFormValues, ScheduleSummary } from "@/types";
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
   | { success: false; error: { code: string; message: string } };
+
+type AvailableScheduleMember = { id: string; name: string; status: string };
 
 const roleOptions = [
   { value: ScheduleMemberRole.LEADER, label: "Lider" },
@@ -82,7 +84,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [memberForm, setMemberForm] = useState<ScheduleMemberFormValues>(emptyMemberForm);
-  const [availableMembers, setAvailableMembers] = useState<Array<{ id: string; name: string; status: string }>>([]);
+  const [availableMembers, setAvailableMembers] = useState<AvailableScheduleMember[]>([]);
 
   const permissionCodes = session?.user.permissionCodes ?? [];
   const canUpdate = permissionCodes.includes("schedule.update");
@@ -90,18 +92,43 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   const canDelete = permissionCodes.includes("schedule.delete");
   const isLocked = schedule.status === ScheduleStatus.COMPLETED || schedule.status === ScheduleStatus.CANCELED;
 
-  useEffect(() => {
-    async function loadFilters() {
-      const response = await fetch("/api/schedules?pageSize=5", { cache: "no-store" });
-      const payload = (await response.json()) as ApiResponse<{ filters: { members: Array<{ id: string; name: string; status: string }> } }>;
-
-      if (payload.success) {
-        setAvailableMembers(payload.data.filters.members);
-      }
+  const selectedScheduleMember = editingId ? schedule.members.find((member) => member.id === editingId) : null;
+  const selectableMembers = useMemo(() => {
+    if (!memberForm.memberId || availableMembers.some((member) => member.id === memberForm.memberId)) {
+      return availableMembers;
     }
 
-    loadFilters();
-  }, []);
+    const selectedMember = selectedScheduleMember?.member;
+
+    return selectedMember ? [selectedMember, ...availableMembers] : availableMembers;
+  }, [availableMembers, memberForm.memberId, selectedScheduleMember]);
+
+  async function loadAvailableMembers(allowMinistryException: boolean, selectedMember?: AvailableScheduleMember) {
+    try {
+      const response = await fetch(
+        `/api/schedules/${schedule.id}/available-members?allowMinistryException=${allowMinistryException}`,
+        { cache: "no-store" }
+      );
+      const payload = (await response.json()) as ApiResponse<{ members: AvailableScheduleMember[] }>;
+
+      if (!payload.success) {
+        throw new Error(payload.error.message);
+      }
+
+      setAvailableMembers(payload.data.members);
+
+      if (selectedMember && !allowMinistryException && !payload.data.members.some((member) => member.id === selectedMember.id)) {
+        setFormMessage("Este participante nao pertence ao ministerio da escala. Remova-o ou mantenha a opcao de excecao habilitada.");
+      }
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel carregar os membros disponiveis.");
+    }
+  }
+
+  function updateAllowMinistryException(value: boolean) {
+    updateForm("allowMinistryException", value);
+    void loadAvailableMembers(value, selectedScheduleMember?.member);
+  }
 
   async function reloadSchedule() {
     const response = await fetch(`/api/schedules/${schedule.id}`, { cache: "no-store" });
@@ -125,9 +152,11 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   function openCreateForm() {
     setEditingId(null);
     setMemberForm(emptyMemberForm);
+    setAvailableMembers([]);
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
+    void loadAvailableMembers(false);
   }
 
   function openEditForm(memberId: string) {
@@ -145,11 +174,13 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
       confirmedAt: item.confirmedAt ?? "",
       replacedByMemberId: item.replacedByMember?.id ?? "",
       observations: item.observations ?? "",
-      allowMinistryException: true
+      allowMinistryException: false
     });
+    setAvailableMembers([]);
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
+    void loadAvailableMembers(false, item.member);
   }
 
   async function handleMemberSubmit(event: FormEvent<HTMLFormElement>) {
@@ -182,8 +213,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   async function updateMemberStatus(memberScheduleId: string, status: ScheduleMemberStatus) {
     const body = {
       status,
-      confirmedAt: status === ScheduleMemberStatus.CONFIRMED ? new Date().toISOString() : undefined,
-      allowMinistryException: true
+      confirmedAt: status === ScheduleMemberStatus.CONFIRMED ? new Date().toISOString() : undefined
     };
     const response = await fetch(`/api/schedules/${schedule.id}/members/${memberScheduleId}`, {
       method: "PUT",
@@ -295,8 +325,11 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                 <Field label="Membro">
                   <select required value={memberForm.memberId} onChange={(event) => updateForm("memberId", event.target.value)} className={inputClass}>
                     <option value="">Selecione</option>
-                    {availableMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    {selectableMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
                   </select>
+                  {!memberForm.allowMinistryException && availableMembers.length === 0 ? (
+                    <span className="text-xs font-semibold normal-case tracking-normal text-ink-500">Nao ha membros ativos vinculados a este ministerio.</span>
+                  ) : null}
                 </Field>
                 <Field label="Funcao">
                   <select value={memberForm.role} onChange={(event) => updateForm("role", event.target.value as ScheduleMemberRole)} className={inputClass}>
@@ -311,14 +344,14 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                 <Field label="Substituto">
                   <select value={memberForm.replacedByMemberId ?? ""} onChange={(event) => updateForm("replacedByMemberId", event.target.value)} className={inputClass}>
                     <option value="">Nenhum</option>
-                    {availableMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    {selectableMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
                   </select>
                 </Field>
                 <Field label="Confirmado em" className="md:col-span-2">
                   <input type="datetime-local" value={memberForm.confirmedAt?.slice(0, 16) ?? ""} onChange={(event) => updateForm("confirmedAt", event.target.value ? new Date(event.target.value).toISOString() : "")} className={inputClass} />
                 </Field>
                 <label className="flex items-center gap-2 text-sm font-semibold text-ink-700 md:col-span-2">
-                  <input type="checkbox" checked={memberForm.allowMinistryException} onChange={(event) => updateForm("allowMinistryException", event.target.checked)} />
+                  <input type="checkbox" checked={memberForm.allowMinistryException} onChange={(event) => updateAllowMinistryException(event.target.checked)} />
                   Permitir excecao para membro fora do ministerio
                 </label>
                 <Field label="Observacoes" className="md:col-span-2">

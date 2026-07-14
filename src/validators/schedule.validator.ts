@@ -59,17 +59,23 @@ export const scheduleListQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(5).max(50).default(10)
 });
 
-export const scheduleMemberCreateSchema = z.object({
+const scheduleMemberBaseSchema = z.object({
   memberId: z.string().cuid("Informe um membro valido."),
-  role: z.enum(ScheduleMemberRole).default(ScheduleMemberRole.OTHER),
-  status: z.enum(ScheduleMemberStatus).default(ScheduleMemberStatus.PENDING),
+  role: z.enum(ScheduleMemberRole),
+  status: z.enum(ScheduleMemberStatus),
   confirmedAt: optionalDateTime,
   replacedByMemberId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   observations: optionalText,
+  allowMinistryException: z.boolean()
+});
+
+export const scheduleMemberCreateSchema = scheduleMemberBaseSchema.extend({
+  role: z.enum(ScheduleMemberRole).default(ScheduleMemberRole.OTHER),
+  status: z.enum(ScheduleMemberStatus).default(ScheduleMemberStatus.PENDING),
   allowMinistryException: z.boolean().default(false)
 });
 
-export const scheduleMemberUpdateSchema = scheduleMemberCreateSchema.partial();
+export const scheduleMemberUpdateSchema = scheduleMemberBaseSchema.partial();
 
 export type ScheduleCreateInput = z.infer<typeof scheduleCreateSchema>;
 export type ScheduleUpdateInput = z.infer<typeof scheduleUpdateSchema>;
