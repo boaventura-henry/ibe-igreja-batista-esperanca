@@ -2,7 +2,7 @@ import { UserRole } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { userRepository, type SafeUser } from "@/repositories";
 import type { UserListResult, UserSummary } from "@/types";
-import { hashPassword, verifyPassword } from "@/utils";
+import { getMemberDisplayName, hashPassword, verifyPassword } from "@/utils";
 import type {
   UserChangePasswordInput,
   UserCreateInput,
@@ -24,7 +24,7 @@ function serializeUser(user: SafeUser): UserSummary {
     username: user.username,
     email: user.email,
     role: user.role,
-    member: user.member,
+    member: user.member ? { ...user.member, displayName: getMemberDisplayName(user.member) } : null,
     accessRole: user.accessRole ? { id: user.accessRole.id, name: user.accessRole.name } : null,
     isActive: user.isActive,
     mustChangePassword: user.mustChangePassword,
@@ -104,7 +104,7 @@ export const userService = {
       },
       filters: {
         accessRoles,
-        members
+        members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) }))
       }
     };
   },

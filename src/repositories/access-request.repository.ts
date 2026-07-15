@@ -5,6 +5,7 @@ import type { AccessRequestListQueryInput } from "@/validators";
 const memberSummarySelect = {
   id: true,
   name: true,
+  nickname: true,
   email: true,
   cpf: true,
   rg: true,
@@ -217,7 +218,8 @@ export const accessRequestRepository = {
           { whatsapp: data.phone },
           ...(data.email ? [{ email: data.email }] : []),
           { birthDate: data.birthDate },
-          { name: { contains: data.name.split(" ")[0] ?? data.name, mode: "insensitive" } }
+          { name: { contains: data.name.split(" ")[0] ?? data.name, mode: "insensitive" } },
+          { nickname: { contains: data.name.split(" ")[0] ?? data.name, mode: "insensitive" } }
         ]
       },
       select: {

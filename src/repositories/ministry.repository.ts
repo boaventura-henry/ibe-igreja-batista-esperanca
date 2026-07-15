@@ -23,6 +23,7 @@ const ministrySelect = {
     select: {
       id: true,
       name: true,
+      nickname: true,
       email: true,
       cpf: true
     }
@@ -31,6 +32,7 @@ const ministrySelect = {
     select: {
       id: true,
       name: true,
+      nickname: true,
       email: true,
       cpf: true
     }
@@ -75,7 +77,8 @@ function buildWhere(filters: MinistryListQueryInput): Prisma.MinistryWhereInput 
         { name: { contains: filters.search, mode: "insensitive" } },
         { description: { contains: filters.search, mode: "insensitive" } },
         { location: { contains: filters.search, mode: "insensitive" } },
-        { leaderMember: { name: { contains: filters.search, mode: "insensitive" } } }
+        { leaderMember: { name: { contains: filters.search, mode: "insensitive" } } },
+        { leaderMember: { nickname: { contains: filters.search, mode: "insensitive" } } }
       ]
     });
   }
@@ -245,6 +248,7 @@ export const ministryRepository = {
       select: {
         id: true,
         name: true,
+        nickname: true,
         email: true,
         cpf: true
       },

@@ -8,7 +8,7 @@ export type UserSummary = {
   username: string;
   email: string;
   role: UserRole;
-  member: { id: string; name: string; email: string | null; cpf: string | null } | null;
+  member: { id: string; name: string; nickname: string | null; displayName: string; email: string | null; cpf: string | null } | null;
   accessRole: { id: string; name: string } | null;
   isActive: boolean;
   mustChangePassword: boolean;
@@ -29,7 +29,7 @@ export type UserListResult = {
   };
   filters: {
     accessRoles: Array<{ id: string; name: string }>;
-    members: Array<{ id: string; name: string; email: string | null; cpf: string | null }>;
+    members: Array<{ id: string; name: string; nickname: string | null; displayName: string; email: string | null; cpf: string | null }>;
   };
 };
 

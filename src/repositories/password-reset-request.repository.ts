@@ -21,6 +21,7 @@ const passwordResetRequestSelect = {
         select: {
           id: true,
           name: true,
+          nickname: true,
           cpf: true
         }
       }

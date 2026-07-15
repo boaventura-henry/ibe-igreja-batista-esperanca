@@ -38,6 +38,7 @@ const optionalCep = z.preprocess(
 );
 
 export const memberPortalUpdateProfileSchema = z.object({
+  nickname: z.preprocess(emptyToNull, z.string().trim().max(80, "O apelido deve ter no maximo 80 caracteres.").nullable().optional()),
   phone: optionalPhone,
   mobilePhone: optionalPhone,
   whatsapp: optionalPhone,

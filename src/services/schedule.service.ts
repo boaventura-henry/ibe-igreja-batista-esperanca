@@ -9,6 +9,7 @@ import type {
   ScheduleMemberUpdateInput,
   ScheduleUpdateInput
 } from "@/validators";
+import { getMemberDisplayName } from "@/utils";
 
 type ScheduleWindow = {
   id: string;
@@ -32,8 +33,8 @@ function serializeMember(member: ScheduleMemberRecord): ScheduleMemberSummary {
     declinedAt: serializeDate(member.declinedAt),
     declineReason: member.declineReason,
     observations: member.observations,
-    member: member.member,
-    replacedByMember: member.replacedByMember,
+    member: { ...member.member, displayName: getMemberDisplayName(member.member) },
+    replacedByMember: member.replacedByMember ? { ...member.replacedByMember, displayName: getMemberDisplayName(member.replacedByMember) } : null,
     createdAt: member.createdAt.toISOString(),
     updatedAt: member.updatedAt.toISOString()
   };
@@ -242,7 +243,7 @@ export const scheduleService = {
         total: result.total,
         totalPages: Math.max(1, Math.ceil(result.total / filters.pageSize))
       },
-      filters: { ministries, members }
+      filters: { ministries, members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })) }
     };
   },
 
@@ -314,7 +315,7 @@ export const scheduleService = {
     const schedule = await this.getById(id);
     const members = await scheduleRepository.listAvailableMembers(schedule.ministry.id, allowMinistryException);
 
-    return { members };
+    return { members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })) };
   },
 
   async addMember(scheduleId: string, data: ScheduleMemberCreateInput, userId: string) {

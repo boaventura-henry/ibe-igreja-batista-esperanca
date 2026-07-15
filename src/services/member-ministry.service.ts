@@ -7,6 +7,7 @@ import type {
   MemberMinistryListQueryInput,
   MemberMinistryUpdateInput
 } from "@/validators";
+import { getMemberDisplayName } from "@/utils";
 
 function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
@@ -20,7 +21,7 @@ function serialize(record: MemberMinistryRecord): MemberMinistrySummary {
     entryDate: record.entryDate.toISOString(),
     exitDate: serializeDate(record.exitDate),
     observations: record.observations,
-    member: record.member,
+    member: { ...record.member, displayName: getMemberDisplayName(record.member) },
     ministry: record.ministry,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
@@ -109,7 +110,7 @@ export const memberMinistryService = {
         totalPages: Math.max(1, Math.ceil(result.total / filters.pageSize))
       },
       filters: {
-        members,
+        members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })),
         ministries
       }
     };

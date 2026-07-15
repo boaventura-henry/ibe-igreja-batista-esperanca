@@ -407,7 +407,7 @@ export function EventManager() {
                     <p className="text-xs text-ink-500">{[event.startTime, event.endTime].filter(Boolean).join(" - ") || "Horario nao informado"}</p>
                   </td>
                   <td className="px-4 py-4 text-ink-700">{event.ministry?.name ?? "-"}</td>
-                  <td className="px-4 py-4 text-ink-700">{event.responsibleMember?.name ?? "-"}</td>
+                  <td className="px-4 py-4 text-ink-700">{event.responsibleMember?.displayName ?? "-"}</td>
                   <td className="px-4 py-4">
                     <span className="rounded-md bg-hope-50 px-2 py-1 text-xs font-bold text-hope-700">{statusLabels[event.status]}</span>
                     <p className="mt-1 text-xs text-ink-500">{event.isPublic ? "Publico" : "Interno"}</p>
@@ -504,7 +504,7 @@ function EventForm({
             <Field label="Status"><select value={form.status} onChange={(event) => updateForm("status", event.target.value as EventStatus)} className={inputClass}>{Object.values(EventStatus).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></Field>
             <Field label="Descricao" className="md:col-span-4"><textarea value={form.description} onChange={(event) => updateForm("description", event.target.value)} className={`${inputClass} min-h-20`} /></Field>
             <Field label="Ministerio" className="md:col-span-2"><select value={form.ministryId} onChange={(event) => updateForm("ministryId", event.target.value)} className={inputClass}><option value="">Sem ministerio</option>{data?.filters.ministries.map((ministry) => <option key={ministry.id} value={ministry.id}>{ministry.name}</option>)}</select></Field>
-            <Field label="Responsavel" className="md:col-span-2"><select value={form.responsibleMemberId} onChange={(event) => updateForm("responsibleMemberId", event.target.value)} className={inputClass}><option value="">Sem responsavel</option>{data?.filters.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></Field>
+          <Field label="Responsavel" className="md:col-span-2"><select value={form.responsibleMemberId} onChange={(event) => updateForm("responsibleMemberId", event.target.value)} className={inputClass}><option value="">Sem responsavel</option>{data?.filters.members.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}</select></Field>
             <Field label="Data inicial"><input required type="date" value={form.startDate} onChange={(event) => updateForm("startDate", event.target.value)} className={inputClass} /></Field>
             <Field label="Data final"><input type="date" value={form.endDate} onChange={(event) => updateForm("endDate", event.target.value)} className={inputClass} /></Field>
             <Field label="Inicio"><input type="time" value={form.startTime} onChange={(event) => updateForm("startTime", event.target.value)} className={inputClass} /></Field>
@@ -562,7 +562,7 @@ function EventDetails({ event, onClose }: { event: EventSummary; onClose: () => 
           <Info label="Data" value={`${formatDate(event.startDate)}${event.endDate ? ` - ${formatDate(event.endDate)}` : ""}`} />
           <Info label="Horario" value={[event.startTime, event.endTime].filter(Boolean).join(" - ") || "-"} />
           <Info label="Ministerio" value={event.ministry?.name ?? "-"} />
-          <Info label="Responsavel" value={event.responsibleMember?.name ?? "-"} />
+          <Info label="Responsavel" value={event.responsibleMember?.displayName ?? "-"} />
           <Info label="Local" value={event.location ?? "-"} />
           <Info label="Endereco" value={event.address ?? "-"} />
           <Info label="Capacidade" value={event.capacity ? String(event.capacity) : "-"} />

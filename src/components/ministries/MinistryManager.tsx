@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { MinistryIcon, WeekDay } from "@prisma/client";
 import type { MinistryFormValues, MinistryListResult, MinistrySummary } from "@/types";
-import { formatPhone, onlyDigits } from "@/utils";
+import { formatPhone, getMemberOptionLabel, onlyDigits } from "@/utils";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -374,7 +374,7 @@ export function MinistryManager() {
           <select value={filters.leaderMemberId} onChange={(event) => updateFilter("leaderMemberId", event.target.value)} className={filterInputClass}>
             <option value="">Todos</option>
             {data?.filters.members.map((member) => (
-              <option key={member.id} value={member.id}>{member.name}</option>
+              <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>
             ))}
           </select>
         </label>
@@ -459,8 +459,8 @@ export function MinistryManager() {
                     </div>
                   </td>
                   <td className="px-4 py-4 text-ink-700">
-                    <p>{ministry.leaderMember?.name ?? "-"}</p>
-                    <p className="text-xs text-ink-500">{ministry.viceLeaderMember?.name ? `Vice: ${ministry.viceLeaderMember.name}` : ""}</p>
+                    <p>{ministry.leaderMember?.displayName ?? "-"}</p>
+                    <p className="text-xs text-ink-500">{ministry.viceLeaderMember?.displayName ? `Vice: ${ministry.viceLeaderMember.displayName}` : ""}</p>
                   </td>
                   <td className="px-4 py-4 text-ink-700">
                     {[ministry.meetingDay, ministry.meetingTime].filter(Boolean).join(" - ") || "-"}
@@ -616,13 +616,13 @@ export function MinistryManager() {
                 <Field label="Lider" className="md:col-span-2">
                   <select value={form.leaderMemberId} onChange={(event) => updateForm("leaderMemberId", event.target.value)} className={inputClass}>
                     <option value="">Sem lider</option>
-                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
                   </select>
                 </Field>
                 <Field label="Vice-lider" className="md:col-span-2">
                   <select value={form.viceLeaderMemberId} onChange={(event) => updateForm("viceLeaderMemberId", event.target.value)} className={inputClass}>
                     <option value="">Sem vice-lider</option>
-                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
                   </select>
                 </Field>
                 <Field label="Observacoes" className="md:col-span-4">
@@ -658,8 +658,8 @@ export function MinistryManager() {
             <div className="grid gap-4 p-5 text-sm text-ink-700 sm:grid-cols-2">
               <Info label="Descricao" value={viewingMinistry.description ?? "-"} />
               <Info label="Status" value={statusLabel(viewingMinistry)} />
-              <Info label="Lider" value={viewingMinistry.leaderMember?.name ?? "-"} />
-              <Info label="Vice-lider" value={viewingMinistry.viceLeaderMember?.name ?? "-"} />
+              <Info label="Lider" value={viewingMinistry.leaderMember?.displayName ?? "-"} />
+              <Info label="Vice-lider" value={viewingMinistry.viceLeaderMember?.displayName ?? "-"} />
               <Info label="Reuniao" value={[viewingMinistry.meetingDay, viewingMinistry.meetingTime].filter(Boolean).join(" - ") || "-"} />
               <Info label="Local" value={viewingMinistry.location ?? "-"} />
               <Info label="E-mail" value={viewingMinistry.email ?? "-"} />

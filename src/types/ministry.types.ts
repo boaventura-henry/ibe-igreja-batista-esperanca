@@ -3,6 +3,8 @@ export type MinistryStatusFilter = "ACTIVE" | "INACTIVE";
 export type MinistryPerson = {
   id: string;
   name: string;
+  nickname: string | null;
+  displayName: string;
   email: string | null;
   cpf: string | null;
 };

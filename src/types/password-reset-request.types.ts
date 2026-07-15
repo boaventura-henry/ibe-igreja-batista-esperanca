@@ -5,7 +5,7 @@ export type PasswordResetRequestUserSummary = {
   name: string;
   username: string;
   email: string;
-  member: { id: string; name: string; cpf: string | null } | null;
+  member: { id: string; name: string; nickname: string | null; displayName: string; cpf: string | null } | null;
 };
 
 export type PasswordResetRequestSummary = {

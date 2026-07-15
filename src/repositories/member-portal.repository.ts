@@ -5,6 +5,7 @@ import type { MemberPortalUpdateProfileInput } from "@/validators";
 const portalProfileSelect = {
   id: true,
   name: true,
+  nickname: true,
   cpf: true,
   rg: true,
   birthDate: true,
@@ -92,6 +93,7 @@ export const memberPortalRepository = {
     return prisma.member.update({
       where: { id: memberId },
       data: {
+        nickname: data.nickname,
         phone: data.phone,
         mobilePhone: data.mobilePhone,
         whatsapp: data.whatsapp,

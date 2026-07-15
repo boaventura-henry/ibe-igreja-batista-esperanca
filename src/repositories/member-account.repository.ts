@@ -22,6 +22,7 @@ const memberAccountSelect = {
     select: {
       id: true,
       name: true,
+      nickname: true,
       cpf: true,
       email: true,
       phone: true,

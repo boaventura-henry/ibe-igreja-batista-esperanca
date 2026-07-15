@@ -4,6 +4,7 @@ import { prisma } from "@/prisma/client";
 export type BirthdayRecord = {
   id: string;
   name: string;
+  nickname: string | null;
   photoUrl: string | null;
   ministryId: string | null;
   ministryName: string | null;
@@ -24,7 +25,7 @@ export const birthdayRepository = {
           (date_trunc('week', CURRENT_DATE) + INTERVAL '6 days')::date AS week_end,
           EXTRACT(YEAR FROM CURRENT_DATE)::int AS current_year
       ), eligible AS (
-        SELECT m.id, m.name, m."photoUrl" AS "photoUrl",
+        SELECT m.id, m.name, m.nickname, m."photoUrl" AS "photoUrl",
           principal.id AS "ministryId",
           principal.name AS "ministryName",
           principal.color AS "ministryColor",

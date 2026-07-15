@@ -119,7 +119,7 @@ export function MemberAccountManager({ account }: { account: MemberAccountData }
         ) : null}
 
         <dl className="grid gap-4 md:grid-cols-3">
-          <Info label="Nome" value={currentAccount.member?.name ?? currentAccount.name} />
+          <Info label="Nome" value={currentAccount.member?.displayName ?? currentAccount.name} />
           <Info label="CPF" value={currentAccount.member?.cpf ?? "-"} />
           <Info label="Login atual" value={currentAccount.maskedLogin} />
           <Info label="Perfil de acesso" value={currentAccount.accessRole?.name ?? "-"} />

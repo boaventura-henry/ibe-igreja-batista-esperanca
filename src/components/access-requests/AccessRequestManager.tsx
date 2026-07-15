@@ -4,6 +4,7 @@ import { UserAccessRequestStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import type { AccessRequestDetailResult, AccessRequestListResult, AccessRequestSummary } from "@/types";
+import { getMemberOptionLabel } from "@/utils";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -288,7 +289,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
                       {statusLabels[request.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-ink-700">{request.possibleMember?.name ?? "-"}</td>
+                  <td className="px-4 py-4 text-ink-700">{request.possibleMember?.displayName ?? "-"}</td>
                   <td className="px-4 py-4 text-ink-700">{formatDate(request.createdAt)}</td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
@@ -355,7 +356,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
               <Info label="RG" value={selected.request.rg ?? "-"} />
               <Info label="Nascimento" value={selected.request.birthDate ? formatDate(selected.request.birthDate) : "-"} />
               <Info label="Status" value={statusLabels[selected.request.status]} />
-              <Info label="Possivel membro" value={selected.request.possibleMember?.name ?? "-"} className="md:col-span-2" />
+                <Info label="Possivel membro" value={selected.request.possibleMember?.displayName ?? "-"} className="md:col-span-2" />
             </div>
 
             <div className="border-t border-hope-100 p-5">
@@ -369,7 +370,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
                 {selected.matches.map((match) => (
                   <div key={match.member.id} className="rounded-md border border-hope-100 p-3 text-sm">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="font-bold text-ink-900">{match.member.name}</p>
+                      <p className="font-bold text-ink-900">{match.member.displayName}</p>
                       <span className="rounded-md bg-hope-50 px-2 py-1 text-xs font-bold text-hope-700">
                         {match.score}% - {match.confidence}
                       </span>
@@ -394,7 +395,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
                       <option value="">Selecione</option>
                       {selected.members.map((member) => (
                         <option key={member.id} value={member.id}>
-                          {member.name} {member.email ? `- ${member.email}` : ""}
+                          {getMemberOptionLabel(member)} {member.email ? `- ${member.email}` : ""}
                         </option>
                       ))}
                     </select>

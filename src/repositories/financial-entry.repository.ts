@@ -6,7 +6,7 @@ const financialEntrySelect = {
   id: true,
   entryNumber: true,
   type: true,
-  member: { select: { id: true, name: true } },
+  member: { select: { id: true, name: true, nickname: true } },
   category: {
     select: {
       id: true,
@@ -52,6 +52,7 @@ function buildWhere(filters: FinancialEntryListQueryInput): Prisma.FinancialEntr
         { observation: { contains: filters.search, mode: "insensitive" } },
         { category: { name: { contains: filters.search, mode: "insensitive" } } },
         { member: { name: { contains: filters.search, mode: "insensitive" } } },
+        { member: { nickname: { contains: filters.search, mode: "insensitive" } } },
         { ministry: { name: { contains: filters.search, mode: "insensitive" } } },
         { event: { title: { contains: filters.search, mode: "insensitive" } } }
       ]
@@ -163,7 +164,7 @@ export const financialEntryRepository = {
   },
 
   listMembers() {
-    return prisma.member.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+    return prisma.member.findMany({ where: { deletedAt: null }, select: { id: true, name: true, nickname: true }, orderBy: { name: "asc" } });
   },
 
   listEvents() {

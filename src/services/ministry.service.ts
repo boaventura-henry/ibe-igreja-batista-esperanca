@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { ministryRepository, type MinistryRecord } from "@/repositories";
 import type { MinistryListResult, MinistrySummary } from "@/types";
-import { createSlug } from "@/utils";
+import { createSlug, getMemberDisplayName } from "@/utils";
 import type { MinistryCreateInput, MinistryListQueryInput, MinistryUpdateInput } from "@/validators";
 
 function serialize(ministry: MinistryRecord): MinistrySummary {
@@ -23,8 +23,8 @@ function serialize(ministry: MinistryRecord): MinistrySummary {
     notes: ministry.notes,
     isActive: ministry.isActive,
     isSystem: ministry.isSystem,
-    leaderMember: ministry.leaderMember,
-    viceLeaderMember: ministry.viceLeaderMember,
+    leaderMember: ministry.leaderMember ? { ...ministry.leaderMember, displayName: getMemberDisplayName(ministry.leaderMember) } : null,
+    viceLeaderMember: ministry.viceLeaderMember ? { ...ministry.viceLeaderMember, displayName: getMemberDisplayName(ministry.viceLeaderMember) } : null,
     membersCount: ministry._count.memberMinistries,
     eventsCount: ministry._count.events,
     createdAt: ministry.createdAt.toISOString(),
@@ -115,7 +115,7 @@ export const ministryService = {
         totalPages: Math.max(1, Math.ceil(result.total / filters.pageSize))
       },
       filters: {
-        members
+        members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) }))
       }
     };
   },

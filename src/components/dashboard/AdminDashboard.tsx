@@ -164,7 +164,7 @@ export function AdminDashboard() {
             {data.latestContributions.map((contribution) => (
               <div key={contribution.id} className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-semibold text-ink-900">{contribution.member?.name ?? "Contribuinte anonimo"}</p>
+                  <p className="font-semibold text-ink-900">{contribution.member?.displayName ?? "Contribuinte anonimo"}</p>
                   <p className="text-sm text-ink-500">{contribution.category.name} - #{contribution.entryNumber}</p>
                 </div>
                 <span className="text-sm font-semibold text-hope-700">{formatCurrency(contribution.amount)}</span>

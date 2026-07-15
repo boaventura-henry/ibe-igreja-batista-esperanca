@@ -34,6 +34,8 @@ export type AdminDashboardContribution = {
   member: {
     id: string;
     name: string;
+    nickname: string | null;
+    displayName: string;
   } | null;
   category: {
     id: string;

@@ -9,6 +9,7 @@ import type {
   PortalDashboardNotice,
   PortalDashboardSchedule
 } from "@/types";
+import { getMemberDisplayName } from "@/utils";
 
 function decimalToString(value: { toString(): string } | null | undefined) {
   return value?.toString() ?? "0";
@@ -55,7 +56,7 @@ function serializeContribution(contribution: {
   entryNumber: number;
   amount: { toString(): string };
   launchDate: Date;
-  member: { id: string; name: string } | null;
+  member: { id: string; name: string; nickname: string | null } | null;
   category: { id: string; name: string };
 }): AdminDashboardContribution {
   return {
@@ -63,7 +64,7 @@ function serializeContribution(contribution: {
     entryNumber: contribution.entryNumber,
     amount: contribution.amount.toString(),
     launchDate: contribution.launchDate.toISOString(),
-    member: contribution.member,
+    member: contribution.member ? { ...contribution.member, displayName: getMemberDisplayName(contribution.member) } : null,
     category: contribution.category
   };
 }

@@ -3,6 +3,8 @@ import type { MemberMinistryRole, MemberMinistryStatus } from "@prisma/client";
 export type MemberMinistryPerson = {
   id: string;
   name: string;
+  nickname: string | null;
+  displayName: string;
   cpf: string | null;
   email: string | null;
   status?: string;

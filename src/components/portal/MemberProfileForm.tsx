@@ -10,6 +10,7 @@ type ApiResponse<T> =
 const inputClass = "w-full rounded-md border border-hope-100 px-3 py-2 text-sm font-semibold text-ink-800 outline-none transition focus:border-hope-500 focus:ring-2 focus:ring-hope-100";
 
 type FormState = {
+  nickname: string;
   phone: string;
   mobilePhone: string;
   whatsapp: string;
@@ -25,6 +26,7 @@ type FormState = {
 
 function initialForm(profile: MemberPortalProfile): FormState {
   return {
+    nickname: profile.nickname ?? "",
     phone: profile.phone ?? "",
     mobilePhone: profile.mobilePhone ?? "",
     whatsapp: profile.whatsapp ?? "",
@@ -76,7 +78,8 @@ export function MemberProfileForm({ profile }: { profile: MemberPortalProfile })
 
       <section className="rounded-md border border-hope-100 bg-white p-4 shadow-sm">
         <div className="grid gap-4 md:grid-cols-3">
-          <Info label="Nome" value={profile.name} />
+          <Info label="Nome" value={profile.displayName} />
+          <Info label="Apelido" value={profile.nickname ?? "-"} />
           <Info label="CPF" value={profile.cpf ?? "-"} />
           <Info label="RG" value={profile.rg ?? "-"} />
           <Info label="Nascimento" value={profile.birthDate ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(profile.birthDate)) : "-"} />
@@ -86,6 +89,7 @@ export function MemberProfileForm({ profile }: { profile: MemberPortalProfile })
 
       <section className="rounded-md border border-hope-100 bg-white p-4 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Apelido"><input maxLength={80} value={form.nickname} onChange={(event) => updateField("nickname", event.target.value)} className={inputClass} /></Field>
           <Field label="Telefone"><input value={form.phone} onChange={(event) => updateField("phone", event.target.value)} className={inputClass} /></Field>
           <Field label="Celular"><input value={form.mobilePhone} onChange={(event) => updateField("mobilePhone", event.target.value)} className={inputClass} /></Field>
           <Field label="WhatsApp"><input value={form.whatsapp} onChange={(event) => updateField("whatsapp", event.target.value)} className={inputClass} /></Field>

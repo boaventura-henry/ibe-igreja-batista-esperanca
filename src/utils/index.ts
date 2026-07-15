@@ -10,3 +10,4 @@ export {
 export { createSlug, normalizeUsername } from "./identity";
 export { formatCep, formatCpf, formatDateForInput, formatPhone, onlyDigits } from "./member-format";
 export { generateTemporaryPassword, hashPassword, verifyPassword } from "./password";
+export { getMemberDisplayName, getMemberOptionLabel } from "./member-display-name";

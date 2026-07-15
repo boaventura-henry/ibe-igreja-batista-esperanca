@@ -3,6 +3,7 @@ import { AppError } from "@/lib/errors";
 import { memberRepository, type MemberDetail, type MemberListItem } from "@/repositories";
 import type { MemberListResult, MemberSummary } from "@/types";
 import type { MemberCreateInput, MemberListQueryInput, MemberUpdateInput } from "@/validators";
+import { getMemberDisplayName } from "@/utils";
 
 function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
@@ -11,6 +12,7 @@ function serializeDate(value: Date | null) {
 function serializeListItem(member: MemberListItem): MemberSummary {
   return {
     ...member,
+    displayName: getMemberDisplayName(member),
     ministries: member.memberMinistries.map((link) => link.ministry),
     updatedAt: member.updatedAt.toISOString()
   };
@@ -19,6 +21,7 @@ function serializeListItem(member: MemberListItem): MemberSummary {
 function serializeDetail(member: MemberDetail) {
   return {
     ...member,
+    displayName: getMemberDisplayName(member),
     birthDate: serializeDate(member.birthDate),
     baptismDate: serializeDate(member.baptismDate),
     joinedAt: serializeDate(member.joinedAt),

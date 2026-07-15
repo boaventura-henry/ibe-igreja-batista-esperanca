@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { PasswordInput } from "@/components/PasswordInput";
 import { FormMessage } from "@/components/ui/FormMessage";
 import type { UserFormValues, UserListResult, UserSummary } from "@/types";
+import { getMemberOptionLabel } from "@/utils";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -381,7 +382,7 @@ export function UserManager() {
                       <p className="text-xs font-semibold text-hope-700">{user.username}</p>
                       <p className="text-xs text-ink-500">{user.email}</p>
                     </td>
-                    <td className="px-4 py-4 text-ink-700">{user.member?.name ?? "-"}</td>
+                    <td className="px-4 py-4 text-ink-700">{user.member?.displayName ?? "-"}</td>
                     <td className="px-4 py-4 text-ink-700">{user.accessRole?.name ?? "-"}</td>
                     <td className="px-4 py-4">
                       <span className="rounded-md bg-hope-50 px-2 py-1 text-xs font-bold text-hope-700">
@@ -515,7 +516,7 @@ export function UserManager() {
                     <option value="">Sem membro</option>
                     {assignableMembers.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.name} {member.email ? `- ${member.email}` : ""}
+                        {getMemberOptionLabel(member)} {member.email ? `- ${member.email}` : ""}
                       </option>
                     ))}
                   </select>

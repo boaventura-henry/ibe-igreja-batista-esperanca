@@ -1,10 +1,12 @@
 import { birthdayRepository, type BirthdayRecord } from "@/repositories";
 import type { BirthdayDashboardData, BirthdayPerson } from "@/types";
+import { getMemberDisplayName } from "@/utils";
 
 function serialize(record: BirthdayRecord): BirthdayPerson {
   return {
     id: record.id,
     name: record.name,
+    displayName: getMemberDisplayName(record),
     photoUrl: record.photoUrl,
     ministry: record.ministryId && record.ministryName && record.ministryColor
       ? { id: record.ministryId, name: record.ministryName, color: record.ministryColor }

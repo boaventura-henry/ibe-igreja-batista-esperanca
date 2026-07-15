@@ -3,6 +3,7 @@ import { AppError } from "@/lib/errors";
 import { myScheduleRepository, type MyScheduleRecord } from "@/repositories";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
 import type { MyScheduleDeclineInput } from "@/validators";
+import { getMemberDisplayName } from "@/utils";
 
 type MyScheduleSessionUser = {
   id: string;
@@ -14,6 +15,11 @@ function serializeDate(value: Date | null) {
 }
 
 function serialize(record: MyScheduleRecord): MyScheduleSummary {
+  const participants = record.schedule.members.map((participant) => ({
+    ...participant,
+    member: { ...participant.member, displayName: getMemberDisplayName(participant.member) },
+    replacedByMember: participant.replacedByMember ? { ...participant.replacedByMember, displayName: getMemberDisplayName(participant.replacedByMember) } : null
+  }));
   return {
     id: record.id,
     scheduleId: record.schedule.id,
@@ -37,8 +43,8 @@ function serialize(record: MyScheduleRecord): MyScheduleSummary {
     confirmedAt: serializeDate(record.confirmedAt),
     declinedAt: serializeDate(record.declinedAt),
     declineReason: record.declineReason,
-    replacedByMember: record.replacedByMember,
-    participants: record.schedule.members,
+    replacedByMember: record.replacedByMember ? { ...record.replacedByMember, displayName: getMemberDisplayName(record.replacedByMember) } : null,
+    participants,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };
@@ -97,7 +103,7 @@ export const myScheduleService = {
     const memberId = getSessionMemberId(user);
     const record = await myScheduleRepository.findRepertoireForMember(scheduleMemberId, memberId);
     if (!record) throw new AppError("Escala nao encontrada para este membro.", 404, "MY_SCHEDULE_NOT_FOUND");
-    return { songs: record.schedule.songs };
+    return { songs: record.schedule.songs.map((song) => ({ ...song, leadMember: song.leadMember ? { ...song.leadMember, displayName: getMemberDisplayName(song.leadMember) } : null })) };
   },
 
   async confirm(scheduleMemberId: string, user: MyScheduleSessionUser) {

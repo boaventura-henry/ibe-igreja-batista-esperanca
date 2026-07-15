@@ -3,6 +3,8 @@ import type { UserAccessRequestStatus } from "@prisma/client";
 export type AccessRequestMemberSummary = {
   id: string;
   name: string;
+  nickname: string | null;
+  displayName: string;
   email: string | null;
   cpf: string | null;
   rg: string | null;

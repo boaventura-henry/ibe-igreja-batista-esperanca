@@ -19,6 +19,7 @@ const userSelect = {
     select: {
       id: true,
       name: true,
+      nickname: true,
       email: true,
       cpf: true
     }
@@ -62,7 +63,8 @@ function buildWhere(filters: UserListQueryInput): Prisma.UserWhereInput {
         { name: { contains: filters.search, mode: "insensitive" } },
         { username: { contains: filters.search, mode: "insensitive" } },
         { email: { contains: filters.search, mode: "insensitive" } },
-        { member: { name: { contains: filters.search, mode: "insensitive" } } }
+        { member: { name: { contains: filters.search, mode: "insensitive" } } },
+        { member: { nickname: { contains: filters.search, mode: "insensitive" } } }
       ]
     });
   }
@@ -372,6 +374,7 @@ export const userRepository = {
       select: {
         id: true,
         name: true,
+        nickname: true,
         email: true,
         cpf: true
       },

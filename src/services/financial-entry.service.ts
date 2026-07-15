@@ -4,10 +4,12 @@ import { financialCategoryService } from "@/services/financial-category.service"
 import { financialEntryRepository, type FinancialEntryRecord } from "@/repositories/financial-entry.repository";
 import type { FinancialEntryListResult, FinancialEntrySummary } from "@/types";
 import type { FinancialEntryCreateInput, FinancialEntryListQueryInput, FinancialEntryUpdateInput } from "@/validators";
+import { getMemberDisplayName } from "@/utils";
 
 function serialize(entry: FinancialEntryRecord): FinancialEntrySummary {
   return {
     ...entry,
+    member: entry.member ? { ...entry.member, displayName: getMemberDisplayName(entry.member) } : null,
     amount: entry.amount.toString(),
     category: {
       ...entry.category,

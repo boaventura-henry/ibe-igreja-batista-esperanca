@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import type { FinancialEntryFormValues, FinancialEntryListResult, FinancialEntrySummary } from "@/types";
+import { getMemberOptionLabel } from "@/utils";
 
 type ApiResponse<T> = ({ success: true; data: T } & T) | { success: false; error: { code: string; message: string } };
 
@@ -171,7 +172,7 @@ export function FinancialEntryManager() {
             <select value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value as FinancialPaymentMethod })} className="rounded-md border-hope-100">{Object.values(FinancialPaymentMethod).map((method) => <option key={method} value={method}>{method}</option>)}</select>
             <input required type="date" value={form.launchDate} onChange={(event) => setForm({ ...form, launchDate: event.target.value })} className="rounded-md border-hope-100" />
             <input required type="date" value={form.referenceDate} onChange={(event) => setForm({ ...form, referenceDate: event.target.value })} className="rounded-md border-hope-100" />
-            <select value={form.memberId} disabled={form.anonymous} onChange={(event) => setForm({ ...form, memberId: event.target.value })} className="rounded-md border-hope-100"><option value="">Sem membro</option>{data?.filters.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select>
+            <select value={form.memberId} disabled={form.anonymous} onChange={(event) => setForm({ ...form, memberId: event.target.value })} className="rounded-md border-hope-100"><option value="">Sem membro</option>{data?.filters.members.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}</select>
             <select value={form.ministryId} onChange={(event) => setForm({ ...form, ministryId: event.target.value })} className="rounded-md border-hope-100"><option value="">Sem ministerio</option>{data?.filters.ministries.map((ministry) => <option key={ministry.id} value={ministry.id}>{ministry.name}</option>)}</select>
             <select value={form.eventId} onChange={(event) => setForm({ ...form, eventId: event.target.value })} className="rounded-md border-hope-100"><option value="">Sem evento</option>{data?.filters.events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}</select>
             <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as FinancialEntryStatus })} className="rounded-md border-hope-100">{Object.values(FinancialEntryStatus).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select>

@@ -3,6 +3,8 @@ import type { EventStatus, EventType } from "@prisma/client";
 export type EventPerson = {
   id: string;
   name: string;
+  nickname: string | null;
+  displayName: string;
   email: string | null;
   cpf: string | null;
 };

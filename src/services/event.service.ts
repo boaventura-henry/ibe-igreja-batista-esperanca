@@ -4,6 +4,7 @@ import { eventRepository, type EventRecord } from "@/repositories";
 import type { EventListResult, EventSummary } from "@/types";
 import { createSlug } from "@/utils";
 import type { EventCreateInput, EventListQueryInput, EventUpdateInput } from "@/validators";
+import { getMemberDisplayName } from "@/utils";
 
 function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
@@ -18,7 +19,7 @@ function serialize(event: EventRecord): EventSummary {
     type: event.type,
     status: event.status,
     ministry: event.ministry,
-    responsibleMember: event.responsibleMember,
+    responsibleMember: event.responsibleMember ? { ...event.responsibleMember, displayName: getMemberDisplayName(event.responsibleMember) } : null,
     startDate: event.startDate.toISOString(),
     endDate: serializeDate(event.endDate),
     startTime: event.startTime,
@@ -123,7 +124,7 @@ export const eventService = {
         total: result.total,
         totalPages: Math.max(1, Math.ceil(result.total / filters.pageSize))
       },
-      filters: { ministries, members }
+      filters: { ministries, members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })) }
     };
   },
 

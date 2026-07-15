@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { MemberFormValues, MemberListResult } from "@/types";
-import { formatCep, formatCpf, formatDateForInput, formatPhone, onlyDigits } from "@/utils";
+import { formatCep, formatCpf, formatDateForInput, formatPhone, getMemberDisplayName, onlyDigits } from "@/utils";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -43,6 +43,7 @@ const sortOptions = [
 
 const emptyForm: MemberFormValues = {
   name: "",
+  nickname: "",
   cpf: "",
   rg: "",
   birthDate: "",
@@ -185,6 +186,7 @@ export function MemberManager() {
       setEditingId(id);
       setForm({
         name: member.name ?? "",
+        nickname: member.nickname ?? "",
         cpf: formatCpf(member.cpf),
         rg: member.rg ?? "",
         birthDate: formatDateForInput(member.birthDate),
@@ -469,7 +471,7 @@ export function MemberManager() {
                       <MemberAvatar name={member.name} photoUrl={member.photoUrl} />
                       <div>
                         <Link href={`/membros/${member.id}`} className="font-semibold text-ink-900 hover:text-hope-700">
-                          {member.name}
+                          {getMemberDisplayName(member)}
                         </Link>
                         <p className="text-xs text-ink-500">{member.email || "Sem e-mail"}</p>
                       </div>
@@ -568,6 +570,9 @@ export function MemberManager() {
                 <section className="grid gap-3 md:grid-cols-4">
                   <Field label="Nome completo" className="md:col-span-2">
                     <input required value={form.name} onChange={(event) => updateForm("name", event.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Apelido">
+                    <input maxLength={80} value={form.nickname ?? ""} onChange={(event) => updateForm("nickname", event.target.value)} className={inputClass} />
                   </Field>
                   <Field label="CPF opcional">
                     <input value={form.cpf} onChange={(event) => updateForm("cpf", formatCpf(event.target.value))} className={inputClass} />

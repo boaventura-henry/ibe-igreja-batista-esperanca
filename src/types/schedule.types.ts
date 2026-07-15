@@ -10,6 +10,8 @@ export type ScheduleMinistry = {
 export type SchedulePerson = {
   id: string;
   name: string;
+  nickname: string | null;
+  displayName: string;
   status: string;
 };
 
@@ -53,7 +55,7 @@ export type ScheduleListResult = {
   };
   filters: {
     ministries: Array<{ id: string; name: string; color: string }>;
-    members: Array<{ id: string; name: string; status: string }>;
+    members: Array<{ id: string; name: string; nickname: string | null; displayName: string; status: string }>;
   };
 };
 

@@ -12,6 +12,12 @@ const emptyToUndefined = (value: unknown) => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const emptyToNull = (value: unknown) => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const optionalText = z.preprocess(emptyToUndefined, z.string().trim().optional());
 const optionalEmail = z.preprocess(
   emptyToUndefined,
@@ -72,6 +78,7 @@ const cepSchema = z.preprocess(
 
 export const memberCreateSchema = z.object({
   name: z.string().trim().min(3, "Informe o nome completo."),
+  nickname: z.preprocess(emptyToNull, z.string().trim().max(80, "O apelido deve ter no maximo 80 caracteres.").nullable().optional()),
   cpf: cpfSchema,
   rg: optionalText,
   birthDate: optionalDate,

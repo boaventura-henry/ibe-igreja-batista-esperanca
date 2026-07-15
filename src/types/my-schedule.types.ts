@@ -7,11 +7,15 @@ export type MyScheduleParticipant = {
   member: {
     id: string;
     name: string;
+    nickname: string | null;
+    displayName: string;
     status: string;
   };
   replacedByMember: {
     id: string;
     name: string;
+    nickname: string | null;
+    displayName: string;
     status: string;
   } | null;
 };
@@ -47,6 +51,8 @@ export type MyScheduleSummary = {
   replacedByMember: {
     id: string;
     name: string;
+    nickname: string | null;
+    displayName: string;
     status: string;
   } | null;
   participants: MyScheduleParticipant[];
@@ -63,6 +69,6 @@ export type PortalScheduleRepertoire = {
     id: string; position: number; referenceKey: string | null; performanceKey: string | null; useSimplifiedVersion: boolean;
     youtubeUrlOverride: string | null; resourceUrlOverride: string | null; notes: string | null;
     song: { title: string; artist: string | null; youtubeUrl: string | null; resourceUrl: string | null; simplifiedResourceUrl: string | null };
-    leadMember: { id: string; name: string } | null;
+    leadMember: { id: string; name: string; nickname: string | null; displayName: string } | null;
   }>;
 };

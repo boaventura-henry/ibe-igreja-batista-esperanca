@@ -40,6 +40,8 @@ export type FinancialCategoryFormValues = {
 export type FinancialRelationSummary = {
   id: string;
   name: string;
+  nickname?: string | null;
+  displayName?: string;
 };
 
 export type FinancialEventSummary = {

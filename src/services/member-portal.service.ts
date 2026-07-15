@@ -13,6 +13,7 @@ import type {
   MemberPortalSchedulePreview
 } from "@/types";
 import type { MemberPortalUpdateProfileInput } from "@/validators";
+import { getMemberDisplayName } from "@/utils";
 
 type PortalSessionUser = {
   id: string;
@@ -26,6 +27,7 @@ function serializeDate(value: Date | null) {
 function serializeProfile(member: MemberPortalProfileRecord): MemberPortalProfile {
   return {
     ...member,
+    displayName: getMemberDisplayName(member),
     birthDate: serializeDate(member.birthDate)
   };
 }

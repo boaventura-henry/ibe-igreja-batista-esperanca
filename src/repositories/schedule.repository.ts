@@ -19,10 +19,10 @@ const scheduleMemberSelect = {
   createdAt: true,
   updatedAt: true,
   member: {
-    select: { id: true, name: true, status: true }
+    select: { id: true, name: true, nickname: true, status: true }
   },
   replacedByMember: {
-    select: { id: true, name: true, status: true }
+    select: { id: true, name: true, nickname: true, status: true }
   }
 } satisfies Prisma.ScheduleMemberSelect;
 
@@ -376,7 +376,7 @@ export const scheduleRepository = {
   listMembers() {
     return prisma.member.findMany({
       where: { deletedAt: null, status: MemberStatus.ACTIVE },
-      select: { id: true, name: true, status: true },
+      select: { id: true, name: true, nickname: true, status: true },
       orderBy: { name: "asc" }
     });
   },
@@ -400,7 +400,7 @@ export const scheduleRepository = {
               }
             })
       },
-      select: { id: true, name: true, status: true },
+      select: { id: true, name: true, nickname: true, status: true },
       orderBy: { name: "asc" }
     });
   },

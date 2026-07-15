@@ -12,7 +12,7 @@ const myScheduleMemberSelect = {
   createdAt: true,
   updatedAt: true,
   replacedByMember: {
-    select: { id: true, name: true, status: true }
+    select: { id: true, name: true, nickname: true, status: true }
   },
   schedule: {
     select: {
@@ -47,10 +47,10 @@ const myScheduleMemberSelect = {
           role: true,
           status: true,
           member: {
-            select: { id: true, name: true, status: true }
+            select: { id: true, name: true, nickname: true, status: true }
           },
           replacedByMember: {
-            select: { id: true, name: true, status: true }
+            select: { id: true, name: true, nickname: true, status: true }
           }
         },
         orderBy: [{ role: "asc" }, { member: { name: "asc" } }]
@@ -98,7 +98,7 @@ export const myScheduleRepository = {
                 id: true, position: true, referenceKey: true, performanceKey: true, useSimplifiedVersion: true,
                 youtubeUrlOverride: true, resourceUrlOverride: true, notes: true,
                 song: { select: { title: true, artist: true, youtubeUrl: true, resourceUrl: true, simplifiedResourceUrl: true } },
-                leadMember: { select: { id: true, name: true } }
+            leadMember: { select: { id: true, name: true, nickname: true } }
               },
               orderBy: { position: "asc" }
             }

@@ -19,6 +19,7 @@ const memberMinistrySelect = {
     select: {
       id: true,
       name: true,
+      nickname: true,
       cpf: true,
       email: true,
       status: true
@@ -96,6 +97,7 @@ function buildWhere(filters: MemberMinistryListQueryInput): Prisma.MemberMinistr
     and.push({
       OR: [
         { member: { name: { contains: filters.search, mode: "insensitive" } } },
+        { member: { nickname: { contains: filters.search, mode: "insensitive" } } },
         { member: { cpf: { contains: filters.search } } },
         { ministry: { name: { contains: filters.search, mode: "insensitive" } } },
         { observations: { contains: filters.search, mode: "insensitive" } }
@@ -148,7 +150,7 @@ export const memberMinistryRepository = {
   findMemberById(id: string) {
     return prisma.member.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true, name: true, status: true }
+      select: { id: true, name: true, nickname: true, status: true }
     });
   },
 
@@ -214,6 +216,7 @@ export const memberMinistryRepository = {
       select: {
         id: true,
         name: true,
+        nickname: true,
         cpf: true,
         email: true,
         status: true

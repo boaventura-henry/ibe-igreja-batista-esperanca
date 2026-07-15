@@ -6,7 +6,7 @@ import type {
   PasswordResetRequestListResult,
   PasswordResetRequestSummary
 } from "@/types";
-import { generateTemporaryPassword, hashPassword, normalizeOptionalDigits } from "@/utils";
+import { generateTemporaryPassword, getMemberDisplayName, hashPassword, normalizeOptionalDigits } from "@/utils";
 import type {
   PasswordResetRequestCreateInput,
   PasswordResetRequestListQueryInput,
@@ -36,6 +36,8 @@ function serializeRequest(request: SafePasswordResetRequest): PasswordResetReque
             ? {
                 id: request.user.member.id,
                 name: request.user.member.name,
+                nickname: request.user.member.nickname,
+                displayName: getMemberDisplayName(request.user.member),
                 cpf: request.user.member.cpf
               }
             : null

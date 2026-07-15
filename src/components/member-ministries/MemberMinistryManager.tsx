@@ -9,7 +9,7 @@ import type {
   MemberMinistryListResult,
   MemberMinistrySummary
 } from "@/types";
-import { formatCpf, formatDateForInput } from "@/utils";
+import { formatCpf, formatDateForInput, getMemberOptionLabel } from "@/utils";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -268,7 +268,7 @@ export function MemberMinistryManager() {
           <select value={filters.memberId} onChange={(event) => updateFilter("memberId", event.target.value)} className={filterInputClass}>
             <option value="">Todos</option>
             {data?.filters.members.map((member) => (
-              <option key={member.id} value={member.id}>{member.name}</option>
+              <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>
             ))}
           </select>
         </label>
@@ -364,7 +364,7 @@ export function MemberMinistryManager() {
               {data?.memberMinistries.map((link) => (
                 <tr key={link.id} className="align-top">
                   <td className="px-4 py-4">
-                    <p className="font-semibold text-ink-900">{link.member.name}</p>
+                    <p className="font-semibold text-ink-900">{link.member.displayName}</p>
                     <p className="text-xs text-ink-500">{formatCpf(link.member.cpf) || link.member.email || "-"}</p>
                   </td>
                   <td className="px-4 py-4">
@@ -434,7 +434,7 @@ export function MemberMinistryManager() {
                 <Field label="Membro">
                   <select required value={form.memberId} onChange={(event) => updateForm("memberId", event.target.value)} className={inputClass}>
                     <option value="">Selecione</option>
-                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
                   </select>
                 </Field>
                 <Field label="Ministerio">

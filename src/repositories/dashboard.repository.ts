@@ -39,9 +39,10 @@ const latestContributionSelect = {
   amount: true,
   launchDate: true,
   member: {
-    select: {
+      select: {
       id: true,
-      name: true
+      name: true,
+      nickname: true
     }
   },
   category: {

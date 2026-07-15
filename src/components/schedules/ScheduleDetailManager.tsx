@@ -3,6 +3,7 @@
 import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { FormEvent, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { getMemberOptionLabel } from "@/utils";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleRepertoireManager } from "@/components/schedules/ScheduleRepertoireManager";
 import type { ScheduleMemberFormValues, ScheduleSummary } from "@/types";
@@ -11,7 +12,7 @@ type ApiResponse<T> =
   | ({ success: true; data: T } & T)
   | { success: false; error: { code: string; message: string } };
 
-type AvailableScheduleMember = { id: string; name: string; status: string };
+type AvailableScheduleMember = { id: string; name: string; nickname: string | null; displayName: string; status: string };
 
 const roleOptions = [
   { value: ScheduleMemberRole.LEADER, label: "Lider" },
@@ -289,10 +290,10 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
               ) : null}
               {schedule.members.map((item) => (
                 <tr key={item.id}>
-                  <td className="px-4 py-4 font-semibold text-ink-900">{item.member.name}</td>
+                  <td className="px-4 py-4 font-semibold text-ink-900">{item.member.displayName}</td>
                   <td className="px-4 py-4 text-ink-700">{roleLabel(item.role)}</td>
                   <td className="px-4 py-4 text-ink-700">{statusLabel(item.status)}</td>
-                  <td className="px-4 py-4 text-ink-700">{item.replacedByMember?.name ?? "-"}</td>
+                  <td className="px-4 py-4 text-ink-700">{item.replacedByMember?.displayName ?? "-"}</td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
                       {canUpdate && !isLocked ? <ActionButton onClick={() => openEditForm(item.id)}>Editar</ActionButton> : null}
@@ -328,7 +329,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                 <Field label="Membro">
                   <select required value={memberForm.memberId} onChange={(event) => updateForm("memberId", event.target.value)} className={inputClass}>
                     <option value="">Selecione</option>
-                    {selectableMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    {selectableMembers.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
                   </select>
                   {!memberForm.allowMinistryException && availableMembers.length === 0 ? (
                     <span className="text-xs font-semibold normal-case tracking-normal text-ink-500">Nao ha membros ativos vinculados a este ministerio.</span>
@@ -347,7 +348,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                 <Field label="Substituto">
                   <select value={memberForm.replacedByMemberId ?? ""} onChange={(event) => updateForm("replacedByMemberId", event.target.value)} className={inputClass}>
                     <option value="">Nenhum</option>
-                    {selectableMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    {selectableMembers.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
                   </select>
                 </Field>
                 <Field label="Confirmado em" className="md:col-span-2">

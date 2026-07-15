@@ -15,6 +15,8 @@ export type MemberAccountData = {
   member: {
     id: string;
     name: string;
+    nickname: string | null;
+    displayName: string;
     cpf: string | null;
     email: string | null;
     phone: string | null;

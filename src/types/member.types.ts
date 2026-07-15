@@ -18,6 +18,7 @@ export type MemberListFilters = {
 
 export type MemberFormValues = {
   name: string;
+  nickname?: string;
   cpf: string;
   rg?: string;
   birthDate?: string;
@@ -45,6 +46,8 @@ export type MemberFormValues = {
 export type MemberSummary = {
   id: string;
   name: string;
+  nickname: string | null;
+  displayName: string;
   cpf: string | null;
   email: string | null;
   phone: string | null;

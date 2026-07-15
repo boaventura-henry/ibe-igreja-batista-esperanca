@@ -2,7 +2,7 @@
 import { AppError } from "@/lib/errors";
 import { memberAccountRepository, type MemberAccountRecord } from "@/repositories";
 import type { MemberAccountData } from "@/types";
-import { hashPassword, onlyDigits, verifyPassword } from "@/utils";
+import { getMemberDisplayName, hashPassword, onlyDigits, verifyPassword } from "@/utils";
 import type { MemberAccountChangePasswordInput, MemberAccountUpdateInput } from "@/validators";
 
 type SessionUser = {
@@ -50,6 +50,8 @@ function serializeAccount(user: MemberAccountRecord): MemberAccountData {
     lastLoginAt: serializeDate(user.lastLoginAt),
     accessRole: user.accessRole,
     member: user.member
+      ? { ...user.member, displayName: getMemberDisplayName(user.member) }
+      : null
   };
 }
 

@@ -5,6 +5,7 @@ import type { MemberCreateInput, MemberListQueryInput, MemberUpdateInput } from 
 const memberListSelect = {
   id: true,
   name: true,
+  nickname: true,
   cpf: true,
   email: true,
   phone: true,
@@ -38,6 +39,7 @@ const memberListSelect = {
 const memberDetailSelect = {
   id: true,
   name: true,
+  nickname: true,
   cpf: true,
   rg: true,
   birthDate: true,
@@ -178,6 +180,7 @@ function dateOrNull(value?: string) {
 function baseMemberData(data: MemberCreateInput | MemberUpdateInput) {
   return {
     name: data.name,
+    nickname: data.nickname,
     cpf: data.cpf,
     rg: data.rg,
     birthDate: dateOrNull(data.birthDate),
@@ -223,6 +226,7 @@ function buildWhere(filters: MemberListQueryInput): Prisma.MemberWhereInput {
     and.push({
       OR: [
         { name: { contains: filters.search, mode: "insensitive" } },
+        { nickname: { contains: filters.search, mode: "insensitive" } },
         { cpf: { contains: filters.search } },
         { email: { contains: filters.search, mode: "insensitive" } },
         { city: { contains: filters.search, mode: "insensitive" } }
@@ -231,7 +235,7 @@ function buildWhere(filters: MemberListQueryInput): Prisma.MemberWhereInput {
   }
 
   if (filters.name) {
-    and.push({ name: { contains: filters.name, mode: "insensitive" } });
+    and.push({ OR: [{ name: { contains: filters.name, mode: "insensitive" } }, { nickname: { contains: filters.name, mode: "insensitive" } }] });
   }
 
   if (filters.cpf) {

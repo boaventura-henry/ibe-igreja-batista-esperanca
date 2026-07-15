@@ -20,6 +20,7 @@ const eventSelect = {
     select: {
       id: true,
       name: true,
+      nickname: true,
       email: true,
       cpf: true
     }
@@ -56,7 +57,8 @@ function buildWhere(filters: EventListQueryInput): Prisma.EventWhereInput {
         { location: { contains: filters.search, mode: "insensitive" } },
         { address: { contains: filters.search, mode: "insensitive" } },
         { ministry: { name: { contains: filters.search, mode: "insensitive" } } },
-        { responsibleMember: { name: { contains: filters.search, mode: "insensitive" } } }
+        { responsibleMember: { name: { contains: filters.search, mode: "insensitive" } } },
+        { responsibleMember: { nickname: { contains: filters.search, mode: "insensitive" } } }
       ]
     });
   }
@@ -250,7 +252,7 @@ export const eventRepository = {
   listMembers() {
     return prisma.member.findMany({
       where: { deletedAt: null, status: "ACTIVE" },
-      select: { id: true, name: true, email: true, cpf: true },
+      select: { id: true, name: true, nickname: true, email: true, cpf: true },
       orderBy: { name: "asc" }
     });
   }

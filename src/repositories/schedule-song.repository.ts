@@ -5,7 +5,7 @@ import type { ScheduleSongCreateInput, ScheduleSongUpdateInput } from "@/validat
 const select = {
   id: true, position: true, referenceKey: true, performanceKey: true, youtubeUrlOverride: true, resourceUrlOverride: true, useSimplifiedVersion: true, notes: true, createdAt: true, updatedAt: true,
   song: { select: { id: true, title: true, artist: true, youtubeUrl: true, referenceKey: true, resourceUrl: true, simplifiedResourceUrl: true, isActive: true, deletedAt: true } },
-  leadMember: { select: { id: true, name: true, status: true } }
+  leadMember: { select: { id: true, name: true, nickname: true, status: true } }
 } satisfies Prisma.ScheduleSongSelect;
 export type ScheduleSongRecord = Prisma.ScheduleSongGetPayload<{ select: typeof select }>;
 const copySelect = {
@@ -30,7 +30,7 @@ export const scheduleSongRepository = {
   findActiveSong(id: string) { return prisma.song.findFirst({ where: { id, deletedAt: null, isActive: true }, select: { id: true } }); },
   findActivePosition(scheduleId: string, position: number, ignoreId?: string) { return prisma.scheduleSong.findFirst({ where: { scheduleId, position, deletedAt: null, ...(ignoreId ? { id: { not: ignoreId } } : {}) }, select: { id: true } }); },
   maxPosition(scheduleId: string) { return prisma.scheduleSong.aggregate({ where: { scheduleId, deletedAt: null }, _max: { position: true } }); },
-  listScheduleMembers(scheduleId: string) { return prisma.scheduleMember.findMany({ where: { scheduleId, deletedAt: null, status: { in: ["PENDING", "CONFIRMED"] }, member: { deletedAt: null, status: "ACTIVE" } }, select: { member: { select: { id: true, name: true, status: true } } }, orderBy: { member: { name: "asc" } } }); },
+  listScheduleMembers(scheduleId: string) { return prisma.scheduleMember.findMany({ where: { scheduleId, deletedAt: null, status: { in: ["PENDING", "CONFIRMED"] }, member: { deletedAt: null, status: "ACTIVE" } }, select: { member: { select: { id: true, name: true, nickname: true, status: true } } }, orderBy: { member: { name: "asc" } } }); },
   listSourceSchedules(scheduleId: string, ministryId: string) { return prisma.schedule.findMany({ where: { id: { not: scheduleId }, ministryId, deletedAt: null }, select: { id: true, title: true, date: true, _count: { select: { songs: true } } }, orderBy: { date: "desc" }, take: 30 }); },
   create(scheduleId: string, input: ScheduleSongCreateInput, userId: string) { return prisma.scheduleSong.create({ data: { ...createData(input), scheduleId, createdById: userId, updatedById: userId }, select }); },
   update(id: string, input: ScheduleSongUpdateInput, userId: string) { return prisma.scheduleSong.update({ where: { id }, data: { ...updateData(input), updatedById: userId }, select }); },

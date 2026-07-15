@@ -3,6 +3,8 @@ import type { MemberMinistryRole, MemberMinistryStatus, MemberStatus, ScheduleMe
 export type MemberPortalProfile = {
   id: string;
   name: string;
+  nickname: string | null;
+  displayName: string;
   cpf: string | null;
   rg: string | null;
   birthDate: string | null;
@@ -63,6 +65,7 @@ export type MemberPortalDashboard = {
 };
 
 export type MemberPortalUpdateProfileInput = {
+  nickname?: string | null;
   phone?: string | null;
   mobilePhone?: string | null;
   whatsapp?: string | null;

@@ -7,7 +7,7 @@ import type {
   AccessRequestMemberMatch,
   AccessRequestSummary
 } from "@/types";
-import { buildFallbackEmail, hashPassword, normalizeNameForMatch } from "@/utils";
+import { buildFallbackEmail, getMemberDisplayName, hashPassword, normalizeNameForMatch } from "@/utils";
 import type {
   AccessRequestApproveInput,
   AccessRequestCreateInput,
@@ -38,6 +38,8 @@ function serializeMember(
   return {
     id: member.id,
     name: member.name,
+    nickname: member.nickname,
+    displayName: getMemberDisplayName(member),
     email: member.email,
     cpf: member.cpf,
     rg: member.rg,
@@ -78,6 +80,8 @@ function serializeMembers(
   return members.map((member) => ({
     id: member.id,
     name: member.name,
+    nickname: member.nickname,
+    displayName: getMemberDisplayName(member),
     email: member.email,
     cpf: member.cpf,
     rg: member.rg,

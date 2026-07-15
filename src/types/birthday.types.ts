@@ -1,6 +1,7 @@
 export type BirthdayPerson = {
   id: string;
   name: string;
+  displayName: string;
   photoUrl: string | null;
   ministry: {
     id: string;

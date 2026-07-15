@@ -271,6 +271,7 @@ model Permission {
 model Member {
   id                     String              @id @default(cuid())
   name                   String
+  nickname               String?
   cpf                    String?             @unique
   rg                     String?
   birthDate              DateTime?
