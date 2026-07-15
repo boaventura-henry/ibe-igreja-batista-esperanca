@@ -30,7 +30,7 @@ export const birthdayService = {
       .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"))
       .map(serialize);
     const weekly = records
-      .filter((record) => record.isWeekly && !record.isToday)
+      .filter((record) => record.isWeekly)
       .sort((left, right) => left.weeklyBirthday.getTime() - right.weeklyBirthday.getTime() || left.name.localeCompare(right.name, "pt-BR"))
       .map(serialize);
     const month = monthRecords.map(serialize);
