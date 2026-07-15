@@ -101,6 +101,10 @@ O app possui manifest, icones, service worker e uma pagina offline basica. Quand
 
 Notificacoes push ainda nao foram implementadas nesta fase.
 
+## Central de Ajuda
+
+A Central de Ajuda esta disponivel em `/ajuda`, no login e nos menus administrativo e do Portal. O conteudo e tipado em `src/content/help/help-content.ts`, funciona sem tabela no banco e mostra artigos administrativos somente quando as permissoes da sessao permitem. Artigos podem ser compartilhados usando `/ajuda?artigo=<id>`.
+
 ## Painel de aniversariantes
 
 O dashboard administrativo e o Portal do Membro exibem aniversariantes ativos dos proximos sete dias e do mes atual, usando a data do servidor no banco. Membros nascidos em 29/02 aparecem em 29/02 nos anos bissextos e em 28/02 nos demais anos. O portal recebe apenas nome, foto e ministerio principal; dados cadastrais e de contato nao sao expostos.

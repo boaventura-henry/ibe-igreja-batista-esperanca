@@ -15,7 +15,8 @@ const portalNavigation = [
   { href: "/portal/meu-usuario", label: "Meu Usuario", permission: "memberAccount.view" },
   { href: "/portal/meus-ministerios", label: "Meus Ministerios" },
   { href: "/portal/eventos", label: "Eventos" },
-  { href: "/portal/avisos", label: "Avisos" }
+  { href: "/portal/avisos", label: "Avisos" },
+  { href: "/ajuda", label: "Ajuda" }
 ] as const;
 
 const adminPermissions = [

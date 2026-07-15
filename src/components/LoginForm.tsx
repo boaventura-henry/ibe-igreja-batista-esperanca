@@ -79,6 +79,9 @@ export function LoginForm() {
         <Link href="/solicitar-acesso" className="underline">
           Solicitar acesso
         </Link>
+        <Link href="/ajuda" className="underline">
+          Ajuda
+        </Link>
       </div>
     </form>
   );
