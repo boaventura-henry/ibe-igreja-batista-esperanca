@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useMobileMenu } from "@/hooks";
 import { isRouteActive } from "@/utils";
+import { getFirstAllowedAdministrativeRoute } from "@/lib/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 
 const portalNavigation = [
@@ -19,45 +20,12 @@ const portalNavigation = [
   { href: "/ajuda", label: "Ajuda" }
 ] as const;
 
-const adminPermissions = [
-  "dashboard.admin.view",
-  "member.create",
-  "member.update",
-  "member.delete",
-  "user.view",
-  "accessRole.view",
-  "ministry.create",
-  "ministry.update",
-  "ministry.delete",
-  "memberMinistry.create",
-  "memberMinistry.update",
-  "memberMinistry.delete",
-  "schedule.create",
-  "schedule.update",
-  "schedule.delete",
-  "schedule.publish",
-  "schedule.cancel",
-  "schedule.complete",
-  "event.create",
-  "event.update",
-  "event.delete",
-  "event.publish",
-  "event.cancel",
-  "event.complete",
-  "financialCategory.view",
-  "financialEntry.view",
-  "financialClosing.view",
-  "accessRequest.view",
-  "accessRequest.approve",
-  "accessRequest.reject"
-];
-
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const mobileMenu = useMobileMenu();
   const permissionCodes = session?.user.permissionCodes ?? [];
-  const canAccessAdmin = adminPermissions.some((permission) => permissionCodes.includes(permission));
+  const adminRoute = getFirstAllowedAdministrativeRoute(permissionCodes);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f7faf8] text-ink-900">
@@ -67,8 +35,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         </div>
         <Navigation pathname={pathname} />
         <div className="grid shrink-0 gap-2 border-t border-hope-100 px-5 py-4">
-          {canAccessAdmin ? (
-            <Link href="/dashboard" className="rounded-md border border-hope-100 px-3 py-3 text-center text-sm font-bold text-ink-700 transition hover:bg-hope-50 hover:text-hope-700">
+          {adminRoute ? (
+            <Link href={adminRoute} className="rounded-md border border-hope-100 px-3 py-3 text-center text-sm font-bold text-ink-700 transition hover:bg-hope-50 hover:text-hope-700">
               Area Administrativa
             </Link>
           ) : null}
@@ -91,8 +59,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       {mobileMenu.isOpen ? (
         <div className="fixed inset-x-0 bottom-0 top-[69px] z-20 overflow-y-auto border-b border-hope-100 bg-white px-4 py-4 shadow-soft lg:hidden">
           <Navigation pathname={pathname} onNavigate={mobileMenu.close} />
-          {canAccessAdmin ? (
-            <Link href="/dashboard" onClick={mobileMenu.close} className="mt-2 block rounded-md border border-hope-100 px-3 py-3 text-center text-sm font-bold text-ink-700">
+          {adminRoute ? (
+            <Link href={adminRoute} onClick={mobileMenu.close} className="mt-2 block rounded-md border border-hope-100 px-3 py-3 text-center text-sm font-bold text-ink-700">
               Area Administrativa
             </Link>
           ) : null}

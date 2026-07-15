@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useMobileMenu } from "@/hooks";
-import { navigationItems } from "@/lib/navigation";
+import { getAllowedNavigationItems, navigationItems } from "@/lib/navigation";
 import { isRouteActive } from "@/utils";
 import { LogoutButton } from "./LogoutButton";
 
@@ -100,9 +100,7 @@ function Navigation({
 }) {
   return (
     <nav className="grid flex-1 gap-2 overflow-y-auto px-5 pb-4 lg:pt-2">
-      {navigationItems
-        .filter((item) => !("permission" in item) || permissionCodes.includes(item.permission))
-        .map((item) => {
+      {getAllowedNavigationItems(permissionCodes).map((item) => {
           const active = isRouteActive(pathname, item.href);
 
           return (
