@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BirthdayMonthCard, CopyBirthdayButton, TodayBirthdayCard, WeeklyBirthdaysCard } from "@/components/dashboard/BirthdayCard";
+import { BirthdayMonthCard, TodayBirthdayCard, WeeklyBirthdaysCard } from "@/components/dashboard/BirthdayCard";
 import type { BirthdayDashboardData } from "@/types";
 import type { ApiResponseBody } from "@/types/api";
 
@@ -29,5 +29,3 @@ export function PortalBirthdayCard() {
     </div>
   );
 }
-
-export { CopyBirthdayButton };

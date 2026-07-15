@@ -40,7 +40,7 @@ export function CopyBirthdayButton({ name }: { name: string }) {
   );
 }
 
-function PersonRow({ person, admin = false, showDate = false }: { person: BirthdayPerson; admin?: boolean; showDate?: boolean }) {
+function PersonRow({ person, admin = false, showDate = false, showCopy = false }: { person: BirthdayPerson; admin?: boolean; showDate?: boolean; showCopy?: boolean }) {
   const content = (
     <div className="flex min-w-0 items-center gap-3">
       {person.photoUrl ? <img src={person.photoUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" /> : <div aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-hope-100 text-lg">🎂</div>}
@@ -57,7 +57,7 @@ function PersonRow({ person, admin = false, showDate = false }: { person: Birthd
       <div className="flex flex-wrap items-center gap-3">
         {person.isToday ? <TodayBadge /> : null}
         {showDate ? <span className="text-sm font-bold text-hope-700">{String(person.birthdayDay).padStart(2, "0")}/{String(person.birthdayMonth).padStart(2, "0")}</span> : null}
-        <CopyBirthdayButton name={person.displayName} />
+        {showCopy ? <CopyBirthdayButton name={person.displayName} /> : null}
       </div>
     </div>
   );
@@ -132,7 +132,7 @@ export function TodayBirthdayCard({ people, admin = false }: { people: BirthdayP
         <TodayBadge />
       </div>
       <div className="mt-4 grid gap-3">
-        {people.length === 0 ? <p className="text-sm font-semibold text-ink-600">Nenhum aniversariante hoje.</p> : people.map((person) => <PersonRow key={person.id} person={person} admin={admin} />)}
+        {people.length === 0 ? <p className="text-sm font-semibold text-ink-600">Nenhum aniversariante hoje.</p> : people.map((person) => <PersonRow key={person.id} person={person} admin={admin} showCopy />)}
       </div>
     </section>
   );
