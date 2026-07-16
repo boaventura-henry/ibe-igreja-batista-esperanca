@@ -25,6 +25,12 @@ export const pushUnsubscribeSchema = z.object({
 
 export const pushPreferencesSchema = z.object({ pushEnabled: z.boolean() }).strict();
 
+export const pushTestFeedbackSchema = z.object({
+  endpoint: endpointSchema,
+  received: z.boolean()
+}).strict();
+
 export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
 export type PushUnsubscribeInput = z.infer<typeof pushUnsubscribeSchema>;
 export type PushPreferencesInput = z.infer<typeof pushPreferencesSchema>;
+export type PushTestFeedbackInput = z.infer<typeof pushTestFeedbackSchema>;

@@ -232,23 +232,27 @@ model User {
 }
 
 model PushSubscription {
-  id             String    @id @default(cuid())
-  userId         String
-  endpoint       String    @unique
-  p256dh         String
-  auth           String
-  expirationTime DateTime?
-  deviceName     String?
-  userAgent      String?
-  isActive       Boolean   @default(true)
-  lastUsedAt     DateTime?
-  lastSuccessAt  DateTime?
-  lastFailureAt  DateTime?
-  failureCount   Int       @default(0)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  revokedAt      DateTime?
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String    @id @default(cuid())
+  userId           String
+  endpoint         String    @unique
+  p256dh           String
+  auth             String
+  expirationTime   DateTime?
+  deviceName       String?
+  userAgent        String?
+  isActive         Boolean   @default(true)
+  lastUsedAt       DateTime?
+  lastSuccessAt    DateTime?
+  lastFailureAt    DateTime?
+  failureCount     Int       @default(0)
+  testSentAt       DateTime?
+  testConfirmedAt  DateTime?
+  testFailedAt     DateTime?
+  setupCompletedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  revokedAt        DateTime?
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, isActive])

@@ -145,8 +145,8 @@ export {
   userResetPasswordSchema,
   userUpdateSchema
 } from "./user.validator";
-export { pushPreferencesSchema, pushSubscribeSchema, pushUnsubscribeSchema } from "./push-notification.validator";
-export type { PushPreferencesInput, PushSubscribeInput, PushUnsubscribeInput } from "./push-notification.validator";
+export { pushPreferencesSchema, pushSubscribeSchema, pushTestFeedbackSchema, pushUnsubscribeSchema } from "./push-notification.validator";
+export type { PushPreferencesInput, PushSubscribeInput, PushTestFeedbackInput, PushUnsubscribeInput } from "./push-notification.validator";
 export type {
   UserChangePasswordInput,
   UserCreateInput,

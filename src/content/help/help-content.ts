@@ -668,5 +668,111 @@ export const helpArticles: HelpArticle[] = [
       { description: "Escolha o formato de exportação permitido para sua conta." }
     ],
     notes: ["Documentos oficiais usam o nome completo cadastrado."]
+  },
+  {
+    id: "notificacoes-assistente",
+    title: "Como configurar notificacoes passo a passo",
+    description: "Siga as quatro etapas em Meu Usuario para registrar seu dispositivo e confirmar um teste.",
+    category: "Notificacoes",
+    audience: "MEMBER",
+    keywords: ["notificacoes", "push", "permissao", "dispositivo", "teste"],
+    steps: [
+      { description: "Abra Portal > Meu Usuario e encontre a secao Notificacoes." },
+      { description: "Clique em Ativar notificacoes e permita o navegador quando solicitado." },
+      { description: "Envie uma notificacao de teste e confirme se ela apareceu no dispositivo." },
+      { description: "Se voce nao receber, abra as instrucoes do seu ambiente e tente novamente." }
+    ],
+    notes: ["Nesta fase, o envio automatico de escalas, comunicados e eventos ainda nao esta ativo."]
+  },
+  {
+    id: "notificacoes-nao-recebida",
+    title: "Permissao concedida, mas nao recebi",
+    description: "Confira as configuracoes de notificacao do navegador e do dispositivo antes de testar novamente.",
+    category: "Notificacoes",
+    audience: "MEMBER",
+    keywords: ["notificacoes", "nao apareceu", "teste", "bloqueio", "permissao"],
+    steps: [
+      { description: "Confirme que a permissao do site esta liberada no navegador." },
+      { description: "Confira se as notificacoes gerais do sistema estao ativas." },
+      { description: "Volte a Meu Usuario e clique em Testar novamente." }
+    ]
+  },
+  {
+    id: "notificacoes-windows",
+    title: "Como liberar notificacoes no Windows",
+    description: "Veja onde liberar notificacoes para o navegador usado no Windows.",
+    category: "Notificacoes",
+    audience: "MEMBER",
+    keywords: ["notificacoes", "windows", "chrome", "edge"],
+    steps: [
+      { description: "Abra Configuracoes do Windows > Sistema > Notificacoes." },
+      { description: "Permita notificacoes para o Chrome ou Edge." },
+      { description: "Confira tambem a permissao deste site no navegador." }
+    ]
+  },
+  {
+    id: "notificacoes-android",
+    title: "Como liberar notificacoes no Android",
+    description: "Veja onde liberar notificacoes no Chrome, Edge ou aplicativo instalado.",
+    category: "Notificacoes",
+    audience: "MEMBER",
+    keywords: ["notificacoes", "android", "chrome", "edge", "pwa"],
+    steps: [
+      { description: "Abra Configuracoes > Aplicativos." },
+      { description: "Selecione o navegador ou aplicativo instalado do IBE." },
+      { description: "Abra Notificacoes e permita o recebimento." }
+    ]
+  },
+  {
+    id: "notificacoes-iphone",
+    title: "Como liberar notificacoes no iPhone",
+    description: "No iPhone, as notificacoes do PWA dependem da instalacao na Tela de Inicio.",
+    category: "Notificacoes",
+    audience: "MEMBER",
+    keywords: ["notificacoes", "iphone", "ipad", "pwa", "safari"],
+    steps: [
+      { description: "Confirme que o IBE foi adicionado a Tela de Inicio." },
+      { description: "Abra o IBE pelo icone instalado." },
+      { description: "Em Ajustes > Notificacoes, permita as notificacoes do aplicativo." }
+    ]
+  },
+  {
+    id: "notificacoes-macos",
+    title: "Como liberar notificacoes no macOS",
+    description: "Permita notificacoes para o navegador usado no Mac.",
+    category: "Notificacoes",
+    audience: "MEMBER",
+    keywords: ["notificacoes", "macos", "mac", "safari", "chrome"],
+    steps: [
+      { description: "Abra Ajustes do Sistema > Notificacoes." },
+      { description: "Selecione o navegador usado para acessar o IBE." },
+      { description: "Permita notificacoes e tente o teste novamente." }
+    ]
+  },
+  {
+    id: "notificacoes-desativar-dispositivo",
+    title: "Como desativar neste dispositivo",
+    description: "Remova somente o dispositivo atual sem afetar os demais dispositivos da conta.",
+    category: "Notificacoes",
+    audience: "MEMBER",
+    keywords: ["notificacoes", "desativar", "dispositivo", "remover"],
+    steps: [
+      { description: "Abra Portal > Meu Usuario > Notificacoes." },
+      { description: "Clique em Desativar neste dispositivo." },
+      { description: "Para pausar todos os dispositivos, desative a preferencia geral da conta." }
+    ]
+  },
+  {
+    id: "notificacoes-pausar-conta",
+    title: "Diferenca entre desativar o dispositivo e pausar a conta",
+    description: "Entenda as duas acoes disponiveis para controlar suas notificacoes.",
+    category: "Notificacoes",
+    audience: "MEMBER",
+    keywords: ["notificacoes", "pausar", "conta", "dispositivo", "preferencia"],
+    steps: [
+      { description: "Desativar neste dispositivo remove somente o navegador atual." },
+      { description: "Pausar a conta interrompe os envios para todos os dispositivos, sem remove-los." },
+      { description: "Ao reativar a conta, dispositivos ainda validos podem voltar a receber notificacoes." }
+    ]
   }
 ];

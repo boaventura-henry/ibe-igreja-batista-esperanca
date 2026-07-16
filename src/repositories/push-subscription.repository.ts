@@ -6,7 +6,12 @@ const deviceSelect = {
   userAgent: true,
   isActive: true,
   createdAt: true,
-  lastSuccessAt: true
+  lastSuccessAt: true,
+  testSentAt: true,
+  testConfirmedAt: true,
+  testFailedAt: true,
+  setupCompletedAt: true,
+  failureCount: true
 } as const;
 
 export const pushSubscriptionRepository = {
@@ -25,6 +30,9 @@ export const pushSubscriptionRepository = {
   },
   findByIdForUser(id: string, userId: string) {
     return prisma.pushSubscription.findFirst({ where: { id, userId } });
+  },
+  findByEndpointForUser(endpoint: string, userId: string) {
+    return prisma.pushSubscription.findFirst({ where: { endpoint, userId, isActive: true, revokedAt: null }, select: { id: true } });
   },
   async upsert(userId: string, input: { endpoint: string; p256dh: string; auth: string; expirationTime?: Date | null; deviceName?: string | null; userAgent?: string | null }) {
     return prisma.$transaction(async (tx) => {
@@ -50,6 +58,17 @@ export const pushSubscriptionRepository = {
   },
   markSuccess(id: string) {
     return prisma.pushSubscription.update({ where: { id }, data: { lastUsedAt: new Date(), lastSuccessAt: new Date(), lastFailureAt: null, failureCount: 0 } });
+  },
+  markTestSent(id: string) {
+    return prisma.pushSubscription.update({ where: { id }, data: { testSentAt: new Date(), testConfirmedAt: null, testFailedAt: null, setupCompletedAt: null } });
+  },
+  recordTestFeedback(id: string, received: boolean) {
+    return prisma.pushSubscription.update({
+      where: { id },
+      data: received
+        ? { testConfirmedAt: new Date(), setupCompletedAt: new Date(), testFailedAt: null }
+        : { testFailedAt: new Date(), testConfirmedAt: null, setupCompletedAt: null }
+    });
   },
   markFailure(id: string, permanent: boolean) {
     return prisma.pushSubscription.update({ where: { id }, data: { lastUsedAt: new Date(), lastFailureAt: new Date(), failureCount: { increment: 1 }, ...(permanent ? { isActive: false, revokedAt: new Date() } : {}) } });

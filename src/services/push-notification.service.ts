@@ -1,7 +1,7 @@
 import webpush from "web-push";
 import { AppError } from "@/lib/errors";
 import { pushSubscriptionRepository } from "@/repositories";
-import type { PushPreferencesInput, PushSubscribeInput, PushUnsubscribeInput } from "@/validators/push-notification.validator";
+import type { PushPreferencesInput, PushSubscribeInput, PushTestFeedbackInput, PushUnsubscribeInput } from "@/validators/push-notification.validator";
 import type { PushNotificationPayload, PushStatus } from "@/types/push-notification.types";
 
 function publicKey() {
@@ -27,8 +27,16 @@ function configureVapid() {
   }
 }
 
-function serializeDevice(device: { id: string; deviceName: string | null; userAgent: string | null; isActive: boolean; createdAt: Date; lastSuccessAt: Date | null }) {
-  return { ...device, createdAt: device.createdAt.toISOString(), lastSuccessAt: device.lastSuccessAt?.toISOString() ?? null };
+function serializeDevice(device: { id: string; deviceName: string | null; userAgent: string | null; isActive: boolean; createdAt: Date; lastSuccessAt: Date | null; testSentAt: Date | null; testConfirmedAt: Date | null; testFailedAt: Date | null; setupCompletedAt: Date | null; failureCount: number }) {
+  return {
+    ...device,
+    createdAt: device.createdAt.toISOString(),
+    lastSuccessAt: device.lastSuccessAt?.toISOString() ?? null,
+    testSentAt: device.testSentAt?.toISOString() ?? null,
+    testConfirmedAt: device.testConfirmedAt?.toISOString() ?? null,
+    testFailedAt: device.testFailedAt?.toISOString() ?? null,
+    setupCompletedAt: device.setupCompletedAt?.toISOString() ?? null
+  };
 }
 
 export const pushNotificationService = {
@@ -75,6 +83,7 @@ export const pushNotificationService = {
     let sent = 0;
     for (const device of devices) {
       try {
+        await pushSubscriptionRepository.markTestSent(device.id);
         await webpush.sendNotification({ endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth }, expirationTime: device.expirationTime?.getTime() ?? null }, JSON.stringify(payload));
         await pushSubscriptionRepository.markSuccess(device.id);
         sent += 1;
@@ -84,5 +93,11 @@ export const pushNotificationService = {
       }
     }
     return { attempted: devices.length, sent };
+  },
+  async recordTestFeedback(userId: string, input: PushTestFeedbackInput) {
+    const device = await pushSubscriptionRepository.findByEndpointForUser(input.endpoint, userId);
+    if (!device) throw new AppError("Dispositivo nÃ£o encontrado ou jÃ¡ desativado.", 404, "PUSH_DEVICE_NOT_FOUND");
+    await pushSubscriptionRepository.recordTestFeedback(device.id, input.received);
+    return { recorded: true };
   }
 };

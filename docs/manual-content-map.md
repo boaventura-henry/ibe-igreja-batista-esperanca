@@ -57,6 +57,15 @@ Cada linha abaixo corresponde a um `id` real em `src/content/help/help-content.t
 | Relatórios | `relatorios-admin` | Como consultar relatórios | ADMIN | `report.view` | `/relatorios` |
 | Relatórios | `exportar-relatorios` | Como exportar relatórios | ADMIN | `report.view`, `report.export` | `/relatorios` |
 
+| Notificacoes | `notificacoes-assistente` | Como configurar notificacoes passo a passo | MEMBER | - | `/portal/meu-usuario` |
+| Notificacoes | `notificacoes-nao-recebida` | Permissao concedida, mas nao recebi | MEMBER | - | `/portal/meu-usuario` |
+| Notificacoes | `notificacoes-windows` | Como liberar notificacoes no Windows | MEMBER | - | `/portal/meu-usuario` |
+| Notificacoes | `notificacoes-android` | Como liberar notificacoes no Android | MEMBER | - | `/portal/meu-usuario` |
+| Notificacoes | `notificacoes-iphone` | Como liberar notificacoes no iPhone | MEMBER | - | `/portal/meu-usuario` |
+| Notificacoes | `notificacoes-macos` | Como liberar notificacoes no macOS | MEMBER | - | `/portal/meu-usuario` |
+| Notificacoes | `notificacoes-desativar-dispositivo` | Como desativar neste dispositivo | MEMBER | - | `/portal/meu-usuario` |
+| Notificacoes | `notificacoes-pausar-conta` | Diferenca entre desativar o dispositivo e pausar a conta | MEMBER | - | `/portal/meu-usuario` |
+
 ## Rotas
 
 - Central pública e autenticada: `/ajuda`.
