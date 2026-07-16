@@ -32,6 +32,7 @@ Cada linha abaixo corresponde a um `id` real em `src/content/help/help-content.t
 | Portal do Membro | `aniversariantes-portal` | Como visualizar aniversariantes | MEMBER | `memberPortal.view` | `/portal` |
 | Meu cadastro | `portal-cadastro` | Como alterar meus dados | MEMBER | `memberPortal.updateProfile` | `/portal/meu-cadastro` |
 | Meu cadastro | `portal-usuario` | Como alterar meus dados de usuário | MEMBER | `memberAccount.view` | `/portal/meu-usuario` |
+| Notificações | `notificacoes-o-que-sao`; `notificacoes-ativar`; `notificacoes-android`; `notificacoes-iphone`; `notificacoes-teste`; `notificacoes-desativar`; `notificacoes-permissao-negada`; `notificacoes-nao-recebida` | Ativação, teste e desativação de notificações | MEMBER | `memberAccount.view` | `/portal/meu-usuario` |
 | Escalas | `minhas-escalas` | Como visualizar minhas escalas | MEMBER | `mySchedule.view` | `/portal/minhas-escalas` |
 | Escalas | `repertorio-portal` | Como visualizar o repertório | MEMBER | `mySchedule.view` | `/portal/minhas-escalas` |
 | Escalas | `escalas-admin` | Como consultar escalas | ADMIN | `schedule.view` | `/escalas` |

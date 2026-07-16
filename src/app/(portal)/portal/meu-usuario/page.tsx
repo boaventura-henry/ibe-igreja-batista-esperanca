@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/PageHeader";
 import { MemberAccountManager } from "@/components/portal/MemberAccountManager";
+import { PushNotificationManager } from "@/components/portal/PushNotificationManager";
 import { requirePermission } from "@/lib/session";
 import { memberAccountService } from "@/services";
 
@@ -17,6 +18,7 @@ export default async function PortalAccountPage() {
         description="Consulte seus dados de acesso e altere telefone, e-mail ou senha com seguranca."
       />
       <MemberAccountManager account={account} />
+      <PushNotificationManager />
     </>
   );
 }

@@ -215,6 +215,119 @@ export const helpArticles: HelpArticle[] = [
     relatedArticleIds: ["problemas-login"]
   },
   {
+    id: "notificacoes-o-que-sao",
+    title: "O que são notificações",
+    description: "Notificações ajudam a avisar sobre atualizações importantes do sistema no dispositivo autorizado.",
+    category: "Notificações",
+    audience: "MEMBER",
+    permissionCodes: ["memberAccount.view"],
+    keywords: ["notificacoes", "push", "avisos", "celular"],
+    steps: [
+      { description: "Nesta primeira versão, a tela permite ativar o dispositivo e testar o recebimento." },
+      { description: "O sistema não armazena o conteúdo detalhado das notificações nesta fase." }
+    ]
+  },
+  {
+    id: "notificacoes-ativar",
+    title: "Como ativar notificações",
+    description: "Ative as notificações somente depois de clicar no botão de ativação.",
+    category: "Notificações",
+    audience: "MEMBER",
+    permissionCodes: ["memberAccount.view"],
+    keywords: ["notificacoes", "ativar", "permitir", "meu usuario"],
+    steps: [
+      { description: "Abra Meu Usuário no Portal." },
+      { description: "Na seção Notificações, clique em Ativar notificações." },
+      { description: "Leia a explicação e permita as notificações no navegador." }
+    ]
+  },
+  {
+    id: "notificacoes-android",
+    title: "Como ativar notificações no Android",
+    description: "No Android, use o Chrome ou o aplicativo instalado pelo PWA.",
+    category: "Notificações",
+    audience: "MEMBER",
+    permissionCodes: ["memberAccount.view"],
+    keywords: ["notificacoes", "android", "chrome", "pwa"],
+    steps: [
+      { description: "Abra o IBE no Chrome ou pelo ícone instalado na tela inicial." },
+      { description: "Acesse Meu Usuário e toque em Ativar notificações." },
+      { description: "Permita o acesso quando o navegador solicitar." }
+    ]
+  },
+  {
+    id: "notificacoes-iphone",
+    title: "Como ativar notificações no iPhone",
+    description: "No iPhone ou iPad, a disponibilidade depende do suporte do navegador e do PWA instalado.",
+    category: "Notificações",
+    audience: "MEMBER",
+    permissionCodes: ["memberAccount.view"],
+    keywords: ["notificacoes", "iphone", "ipad", "ios", "pwa"],
+    steps: [
+      { description: "Adicione o IBE à Tela de Início pelo Safari quando essa opção estiver disponível." },
+      { description: "Abra o IBE pelo ícone instalado, acesse Meu Usuário e toque em Ativar notificações." },
+      { description: "Permita o acesso quando o dispositivo solicitar." }
+    ],
+    notes: ["O suporte pode variar entre versões do iOS e navegadores."]
+  },
+  {
+    id: "notificacoes-teste",
+    title: "Como enviar uma notificação de teste",
+    description: "Envie um teste somente para os seus próprios dispositivos inscritos.",
+    category: "Notificações",
+    audience: "MEMBER",
+    permissionCodes: ["memberAccount.view"],
+    keywords: ["notificacoes", "teste", "enviar", "portal"],
+    steps: [
+      { description: "Abra Meu Usuário e confirme que as notificações estão ativadas." },
+      { description: "Clique em Enviar notificação de teste." },
+      { description: "Confira a notificação e toque nela para abrir o Portal." }
+    ]
+  },
+  {
+    id: "notificacoes-desativar",
+    title: "Como desativar neste dispositivo",
+    description: "Você pode remover a inscrição técnica do dispositivo atual sem remover outros dispositivos.",
+    category: "Notificações",
+    audience: "MEMBER",
+    permissionCodes: ["memberAccount.view"],
+    keywords: ["notificacoes", "desativar", "remover", "dispositivo"],
+    steps: [
+      { description: "Abra Meu Usuário no dispositivo que deseja desativar." },
+      { description: "Clique em Desativar neste dispositivo." },
+      { description: "A preferência geral pode ser desligada separadamente para impedir novos envios." }
+    ]
+  },
+  {
+    id: "notificacoes-permissao-negada",
+    title: "O que fazer quando a permissão foi negada",
+    description: "Quando a permissão foi negada, o navegador precisa ser ajustado manualmente.",
+    category: "Notificações",
+    audience: "MEMBER",
+    permissionCodes: ["memberAccount.view"],
+    keywords: ["notificacoes", "negada", "permissao", "configuracoes"],
+    steps: [
+      { description: "Abra as configurações de notificações do navegador para o site do IBE." },
+      { description: "Libere a permissão e volte a Meu Usuário." },
+      { description: "Clique em Ativar notificações novamente quando o navegador permitir." }
+    ]
+  },
+  {
+    id: "notificacoes-nao-recebida",
+    title: "Por que não recebi uma notificação",
+    description: "Confira o dispositivo, a permissão e a preferência geral antes de tentar novamente.",
+    category: "Notificações",
+    audience: "MEMBER",
+    permissionCodes: ["memberAccount.view"],
+    keywords: ["notificacoes", "nao recebi", "teste", "dispositivo"],
+    steps: [
+      { description: "Confirme que o dispositivo aparece como inscrito em Meu Usuário." },
+      { description: "Verifique se a permissão do navegador está concedida e se Receber notificações push está ativo." },
+      { description: "Envie um novo teste com o aplicativo aberto ou instalado no dispositivo compatível." }
+    ],
+    notes: ["Nesta primeira versão, não existem disparos automáticos de escalas ou comunicados."]
+  },
+  {
     id: "minhas-escalas",
     title: "Como visualizar minhas escalas",
     description: "Veja as escalas em que você participa e responda quando permitido.",

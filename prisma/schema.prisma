@@ -177,56 +177,92 @@ enum AnnouncementAudience {
 }
 
 model User {
-  id                             String                 @id @default(cuid())
+  id                             String                  @id @default(cuid())
   name                           String
-  username                       String                 @unique
-  email                          String                 @unique
+  username                       String                  @unique
+  email                          String                  @unique
   passwordHash                   String
-  role                           UserRole               @default(LEADER)
-  memberId                       String?                @unique
+  role                           UserRole                @default(LEADER)
+  memberId                       String?                 @unique
   accessRoleId                   String?
-  isActive                       Boolean                @default(true)
-  mustChangePassword             Boolean                @default(false)
+  isActive                       Boolean                 @default(true)
+  mustChangePassword             Boolean                 @default(false)
   lastLoginAt                    DateTime?
-  failedLoginAttempts            Int                    @default(0)
+  failedLoginAttempts            Int                     @default(0)
   lockedUntil                    DateTime?
-  member                         Member?                @relation("MemberUser", fields: [memberId], references: [id], onDelete: SetNull)
-  accessRole                     AccessRole?            @relation("UserAccessRole", fields: [accessRoleId], references: [id], onDelete: SetNull)
-  createdMembers                 Member[]               @relation("MemberCreatedBy")
-  updatedMembers                 Member[]               @relation("MemberUpdatedBy")
-  createdMemberMinistries        MemberMinistry[]       @relation("MemberMinistryCreatedBy")
-  updatedMemberMinistries        MemberMinistry[]       @relation("MemberMinistryUpdatedBy")
-  createdSchedules               Schedule[]             @relation("ScheduleCreatedBy")
-  updatedSchedules               Schedule[]             @relation("ScheduleUpdatedBy")
-  createdSongs                   Song[]                 @relation("SongCreatedBy")
-  updatedSongs                   Song[]                 @relation("SongUpdatedBy")
-  createdScheduleSongs           ScheduleSong[]         @relation("ScheduleSongCreatedBy")
-  updatedScheduleSongs           ScheduleSong[]         @relation("ScheduleSongUpdatedBy")
-  createdScheduleMembers         ScheduleMember[]       @relation("ScheduleMemberCreatedBy")
-  updatedScheduleMembers         ScheduleMember[]       @relation("ScheduleMemberUpdatedBy")
-  createdEvents                  Event[]                @relation("EventCreatedBy")
-  updatedEvents                  Event[]                @relation("EventUpdatedBy")
-  createdFinancialCategories     FinancialCategory[]    @relation("FinancialCategoryCreatedBy")
-  updatedFinancialCategories     FinancialCategory[]    @relation("FinancialCategoryUpdatedBy")
-  createdFinancialEntries        FinancialEntry[]       @relation("FinancialEntryCreatedBy")
-  updatedFinancialEntries        FinancialEntry[]       @relation("FinancialEntryUpdatedBy")
-  openedFinancialClosings        FinancialClosing[]     @relation("FinancialClosingOpenedBy")
-  closedFinancialClosings        FinancialClosing[]     @relation("FinancialClosingClosedBy")
-  createdAnnouncements           Announcement[]         @relation("AnnouncementCreatedBy")
-  updatedAnnouncements           Announcement[]         @relation("AnnouncementUpdatedBy")
+  member                         Member?                 @relation("MemberUser", fields: [memberId], references: [id], onDelete: SetNull)
+  accessRole                     AccessRole?             @relation("UserAccessRole", fields: [accessRoleId], references: [id], onDelete: SetNull)
+  createdMembers                 Member[]                @relation("MemberCreatedBy")
+  updatedMembers                 Member[]                @relation("MemberUpdatedBy")
+  createdMemberMinistries        MemberMinistry[]        @relation("MemberMinistryCreatedBy")
+  updatedMemberMinistries        MemberMinistry[]        @relation("MemberMinistryUpdatedBy")
+  createdSchedules               Schedule[]              @relation("ScheduleCreatedBy")
+  updatedSchedules               Schedule[]              @relation("ScheduleUpdatedBy")
+  createdSongs                   Song[]                  @relation("SongCreatedBy")
+  updatedSongs                   Song[]                  @relation("SongUpdatedBy")
+  createdScheduleSongs           ScheduleSong[]          @relation("ScheduleSongCreatedBy")
+  updatedScheduleSongs           ScheduleSong[]          @relation("ScheduleSongUpdatedBy")
+  createdScheduleMembers         ScheduleMember[]        @relation("ScheduleMemberCreatedBy")
+  updatedScheduleMembers         ScheduleMember[]        @relation("ScheduleMemberUpdatedBy")
+  createdEvents                  Event[]                 @relation("EventCreatedBy")
+  updatedEvents                  Event[]                 @relation("EventUpdatedBy")
+  createdFinancialCategories     FinancialCategory[]     @relation("FinancialCategoryCreatedBy")
+  updatedFinancialCategories     FinancialCategory[]     @relation("FinancialCategoryUpdatedBy")
+  createdFinancialEntries        FinancialEntry[]        @relation("FinancialEntryCreatedBy")
+  updatedFinancialEntries        FinancialEntry[]        @relation("FinancialEntryUpdatedBy")
+  openedFinancialClosings        FinancialClosing[]      @relation("FinancialClosingOpenedBy")
+  closedFinancialClosings        FinancialClosing[]      @relation("FinancialClosingClosedBy")
+  createdAnnouncements           Announcement[]          @relation("AnnouncementCreatedBy")
+  updatedAnnouncements           Announcement[]          @relation("AnnouncementUpdatedBy")
   announcementReads              AnnouncementRead[]
-  approvedAccessRequests         UserAccessRequest[]    @relation("UserAccessRequestApprovedBy")
-  rejectedAccessRequests         UserAccessRequest[]    @relation("UserAccessRequestRejectedBy")
-  passwordResetRequests          PasswordResetRequest[] @relation("PasswordResetRequestUser")
-  processedPasswordResetRequests PasswordResetRequest[] @relation("PasswordResetRequestProcessedBy")
-  createdMinistries              Ministry[]             @relation("MinistryCreatedBy")
-  updatedMinistries              Ministry[]             @relation("MinistryUpdatedBy")
-  createdAccessRoles             AccessRole[]           @relation("AccessRoleCreatedBy")
-  updatedAccessRoles             AccessRole[]           @relation("AccessRoleUpdatedBy")
-  createdAt                      DateTime               @default(now())
-  updatedAt                      DateTime               @updatedAt
+  approvedAccessRequests         UserAccessRequest[]     @relation("UserAccessRequestApprovedBy")
+  rejectedAccessRequests         UserAccessRequest[]     @relation("UserAccessRequestRejectedBy")
+  passwordResetRequests          PasswordResetRequest[]  @relation("PasswordResetRequestUser")
+  processedPasswordResetRequests PasswordResetRequest[]  @relation("PasswordResetRequestProcessedBy")
+  pushSubscriptions              PushSubscription[]
+  notificationPreference         NotificationPreference?
+  createdMinistries              Ministry[]              @relation("MinistryCreatedBy")
+  updatedMinistries              Ministry[]              @relation("MinistryUpdatedBy")
+  createdAccessRoles             AccessRole[]            @relation("AccessRoleCreatedBy")
+  updatedAccessRoles             AccessRole[]            @relation("AccessRoleUpdatedBy")
+  createdAt                      DateTime                @default(now())
+  updatedAt                      DateTime                @updatedAt
 
   @@index([accessRoleId])
+}
+
+model PushSubscription {
+  id             String    @id @default(cuid())
+  userId         String
+  endpoint       String    @unique
+  p256dh         String
+  auth           String
+  expirationTime DateTime?
+  deviceName     String?
+  userAgent      String?
+  isActive       Boolean   @default(true)
+  lastUsedAt     DateTime?
+  lastSuccessAt  DateTime?
+  lastFailureAt  DateTime?
+  failureCount   Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  revokedAt      DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([isActive])
+  @@index([revokedAt])
+}
+
+model NotificationPreference {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  pushEnabled Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AccessRole {

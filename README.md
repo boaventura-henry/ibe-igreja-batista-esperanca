@@ -99,7 +99,19 @@ No Android, abra a URL de producao no Chrome e use a opcao **Instalar app** ou *
 
 O app possui manifest, icones, service worker e uma pagina offline basica. Quando estiver sem conexao, rotas publicas essenciais e assets estaticos podem continuar disponiveis; paginas administrativas e APIs autenticadas nao sao cacheadas para evitar exposicao de dados sensiveis.
 
-Notificacoes push ainda nao foram implementadas nesta fase.
+## Notificações push
+
+A fundação de Web Push usa a Push API, Notifications API, Service Worker e VAPID. Não há Firebase nesta fase e ainda não existem disparos automáticos de escalas, repertórios, comunicados, aniversários, eventos, financeiro ou recuperação de senha.
+
+Gere um par VAPID em ambiente seguro com uma ferramenta compatível com `web-push` e configure somente nos ambientes locais e da Vercel:
+
+```env
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:administracao@dominio-da-igreja
+```
+
+Somente `NEXT_PUBLIC_VAPID_PUBLIC_KEY` chega ao navegador. Nunca versione a chave privada, não use `NEXT_PUBLIC_` nela e não coloque valores reais no `.env.example`. O usuário ativa a inscrição em **Meu Usuário**, pode desativar um dispositivo e enviar uma notificação de teste para si mesmo. A inscrição técnica é protegida e não armazena payloads de notificações.
 
 ## Central de Ajuda
 
