@@ -1,4 +1,4 @@
-const APP_VERSION = "2026.07.16";
+const APP_VERSION = "2026.07.17-push-diagnostics";
 const CACHE_NAME = `ibe-pwa-${APP_VERSION}`;
 const STATIC_ASSETS = [
   "/offline",

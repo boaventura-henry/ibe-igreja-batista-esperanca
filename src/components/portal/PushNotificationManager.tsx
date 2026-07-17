@@ -8,6 +8,61 @@ import { PUSH_FAILURE_WARNING_THRESHOLD, type PushDevice, type PushSetupStatus, 
 const buttonClass = "min-h-11 rounded-md border border-hope-100 px-4 py-2 text-sm font-bold transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60";
 
 const vapidConfigurationError = "Nao foi possivel configurar as notificacoes neste momento. Tente novamente mais tarde.";
+type PushRegistrationStep = "service-worker" | "existing-subscription" | "vapid-key" | "browser-subscribe" | "api-request" | "api-response" | "state-update";
+
+type PushDiagnostic = {
+  occurredAt: string;
+  step: PushRegistrationStep;
+  name: string;
+  message: string;
+  status?: number;
+  code?: string;
+};
+
+type ApiError = Error & { status?: number; code?: string };
+
+function localDateTime(value: Date) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" }).format(value);
+}
+
+function safeErrorName(error: unknown) {
+  if (error instanceof DOMException && error.name) return error.name.slice(0, 80);
+  if (error instanceof Error && error.name) return error.name.slice(0, 80);
+  return "Error";
+}
+
+function safeErrorMessage(error: unknown) {
+  if (error instanceof DOMException && error.message) return error.message.slice(0, 180);
+  if (error instanceof Error && error.message) return error.message.slice(0, 180);
+  return "Falha inesperada no registro de notificacoes.";
+}
+
+function createDiagnostic(step: PushRegistrationStep, error: unknown): PushDiagnostic {
+  const apiError = error as ApiError;
+  return {
+    occurredAt: localDateTime(new Date()),
+    step,
+    name: safeErrorName(error),
+    message: safeErrorMessage(error),
+    ...(typeof apiError.status === "number" ? { status: apiError.status } : {}),
+    ...(typeof apiError.code === "string" ? { code: apiError.code.slice(0, 80) } : {})
+  };
+}
+
+function diagnosticText(diagnostic: PushDiagnostic) {
+  return [
+    `Data: ${diagnostic.occurredAt}`,
+    `Etapa: ${diagnostic.step}`,
+    `Erro: ${diagnostic.name}`,
+    diagnostic.status ? `Status HTTP: ${diagnostic.status}` : null,
+    diagnostic.code ? `Codigo: ${diagnostic.code}` : null,
+    `Mensagem: ${diagnostic.message}`
+  ].filter(Boolean).join("\n");
+}
+
+function logPushDiagnostic(diagnostic: PushDiagnostic) {
+  console.error("[Push Registration]", diagnostic);
+}
 
 function normalizeVapidPublicKey(value: string | undefined) {
   const normalized = value?.trim().replace(/^['"]|['"]$/g, "") ?? "";
@@ -94,8 +149,20 @@ function deviceStatus(device: PushDevice, pushEnabled = true) {
 }
 
 async function readJSON<T>(response: Response) {
-  const payload = await response.json() as { success: boolean; data?: T; error?: { message: string } };
-  if (!response.ok || !payload.success) throw new Error(payload.error?.message ?? "Nao foi possivel concluir esta etapa.");
+  let payload: { success?: boolean; data?: T; error?: { message?: string; code?: string } } | null = null;
+  try {
+    payload = await response.json() as { success?: boolean; data?: T; error?: { message?: string; code?: string } };
+  } catch {
+    const error = new Error(response.ok ? "A API retornou uma resposta invalida." : "Falha ao registrar o dispositivo na API.") as ApiError;
+    error.status = response.status;
+    throw error;
+  }
+  if (!response.ok || !payload?.success) {
+    const error = new Error(payload?.error?.message?.slice(0, 180) || "Falha ao registrar o dispositivo na API.") as ApiError;
+    error.status = response.status;
+    error.code = payload?.error?.code;
+    throw error;
+  }
   return payload.data;
 }
 
@@ -108,6 +175,8 @@ export function PushNotificationManager() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; tone: "error" | "success" | "warning" | "info" } | null>(null);
+  const [diagnostic, setDiagnostic] = useState<PushDiagnostic | null>(null);
+  const [copiedDiagnostic, setCopiedDiagnostic] = useState(false);
 
   const currentDevice = status?.devices.find((device) => device.id === deviceId) ?? null;
   const setupStatus = useMemo<PushSetupStatus>(() => {
@@ -139,15 +208,19 @@ export function PushNotificationManager() {
     if (payload) setStatus(payload);
   }, []);
 
-  const syncSubscription = useCallback(async (subscription: PushSubscription) => {
+  const syncSubscription = useCallback(async (subscription: PushSubscription, setStep?: (step: PushRegistrationStep) => void) => {
+    setStep?.("api-request");
     const json = subscription.toJSON();
     if (!subscription.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error("O navegador nao forneceu uma inscricao valida.");
-    const data = await readJSON<{ id: string }>(await fetch("/api/push/subscribe", {
+    const response = await fetch("/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint: subscription.endpoint, keys: json.keys, expirationTime: subscription.expirationTime, deviceName: currentEnvironmentLabel(getNotificationEnvironment()) })
-    }));
+    });
+    setStep?.("api-response");
+    const data = await readJSON<{ id: string }>(response);
     if (!data?.id) throw new Error("Nao foi possivel registrar este dispositivo.");
+    setStep?.("state-update");
     setDeviceId(data.id);
     setDeviceSubscription(subscription);
   }, []);
@@ -167,10 +240,10 @@ export function PushNotificationManager() {
 
   async function enable() {
     if (!browserSupported()) return setMessage({ text: "Este navegador nao oferece suporte a notificacoes push.", tone: "warning" });
-    const publicKey = normalizeVapidPublicKey(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
-    if (!publicKey) return setMessage({ text: vapidConfigurationError, tone: "warning" });
     if (!window.confirm("Para receber avisos, permita que este navegador mostre notificacoes. Deseja continuar?")) return;
-    setBusy(true); setMessage(null);
+    let registrationStep: PushRegistrationStep = "service-worker";
+    const setRegistrationStep = (step: PushRegistrationStep) => { registrationStep = step; };
+    setBusy(true); setMessage(null); setDiagnostic(null); setCopiedDiagnostic(false);
     try {
       const nextPermission = await Notification.requestPermission();
       setPermission(nextPermission);
@@ -178,14 +251,39 @@ export function PushNotificationManager() {
         setMessage({ text: "As notificacoes estao bloqueadas neste navegador ou dispositivo.", tone: "warning" });
         return;
       }
+      setRegistrationStep("service-worker");
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
-      await syncSubscription(subscription);
+      setRegistrationStep("existing-subscription");
+      const existingSubscription = await registration.pushManager.getSubscription();
+      let subscription = existingSubscription;
+      if (!subscription) {
+        setRegistrationStep("vapid-key");
+        const publicKey = normalizeVapidPublicKey(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+        if (!publicKey) throw new Error(vapidConfigurationError);
+        const applicationServerKey = urlBase64ToUint8Array(publicKey);
+        setRegistrationStep("browser-subscribe");
+        subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+      }
+      await syncSubscription(subscription, setRegistrationStep);
       await loadStatus();
       setMessage({ text: "Este dispositivo esta registrado para receber notificacoes.", tone: "success" });
     } catch (error) {
+      const nextDiagnostic = createDiagnostic(registrationStep, error);
+      setDiagnostic(nextDiagnostic);
+      logPushDiagnostic(nextDiagnostic);
       setMessage({ text: pushErrorMessage(error), tone: "error" });
     } finally { setBusy(false); }
+  }
+
+
+  async function copyDiagnostic() {
+    if (!diagnostic) return;
+    try {
+      await navigator.clipboard.writeText(diagnosticText(diagnostic));
+      setCopiedDiagnostic(true);
+    } catch {
+      setCopiedDiagnostic(false);
+    }
   }
 
   async function sendTest() {
@@ -252,6 +350,7 @@ export function PushNotificationManager() {
       </div>
       <ol className="mt-5 grid gap-2 sm:grid-cols-4" aria-label="Progresso da configuracao">{steps.map(([label, complete], index) => <li key={label} className="flex items-center gap-2 rounded-md border border-hope-100 px-3 py-3 text-sm font-semibold"><span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hope-50 text-hope-700">{complete ? "OK" : index + 1}</span><span>{label}</span><span className="sr-only">{complete ? " concluida" : " pendente"}</span></li>)}</ol>
       {message ? <div className="mt-4"><FormMessage tone={message.tone}>{message.text}</FormMessage></div> : null}
+      {diagnostic ? <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4" aria-live="polite"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0 flex-1"><h3 className="text-sm font-bold text-amber-950">Detalhes para suporte</h3><pre className="mt-2 max-w-full select-text whitespace-pre-wrap break-words rounded-md bg-white p-3 text-xs leading-relaxed text-ink-800">{diagnosticText(diagnostic)}</pre></div><button type="button" onClick={copyDiagnostic} className={`${buttonClass} bg-white`}>{copiedDiagnostic ? "Detalhes copiados" : "Copiar detalhes"}</button></div></div> : null}
       {setupStatus === "PERMISSION_DENIED" ? <div className="mt-4 space-y-3"><p className="text-sm font-semibold text-ink-800">As notificacoes estao bloqueadas neste navegador ou dispositivo.</p><ol className="list-decimal space-y-1 pl-5 text-sm leading-relaxed text-ink-600">{instructions.map((item) => <li key={item}>{item}</li>)}</ol><a href="/ajuda?artigo=notificacoes-nao-recebida" className={`${buttonClass} inline-flex items-center bg-white`}>Ver instrucoes completas</a></div> : null}
       {setupStatus === "TEST_SENT" && testFailed ? <div className="mt-4 space-y-3 rounded-md border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-semibold text-amber-900">Revise estas configuracoes e tente novamente:</p><ol className="list-decimal space-y-1 pl-5 text-sm leading-relaxed text-amber-900">{instructions.map((item) => <li key={item}>{item}</li>)}</ol><a href="/ajuda?artigo=notificacoes-nao-recebida" className={`${buttonClass} inline-flex items-center bg-white`}>Ver instrucoes completas</a></div> : null}
       {setupStatus === "PERMISSION_REQUIRED" ? <div className="mt-4"><p className="text-sm text-ink-700">Para receber avisos, permita que este navegador mostre notificacoes.</p><button type="button" onClick={enable} disabled={busy} className={`${buttonClass} mt-3 bg-hope-600 text-white`}>Ativar notificacoes</button></div> : null}
