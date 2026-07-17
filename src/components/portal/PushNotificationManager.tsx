@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { getNotificationEnvironment, notificationInstructions, type NotificationEnvironment } from "@/utils/notification-environment";
+import { diagnoseVapidPublicKey, type VapidPublicKeyDiagnostics } from "@/utils/vapid-diagnostics";
 import { PUSH_FAILURE_WARNING_THRESHOLD, type PushDevice, type PushSetupStatus, type PushStatus } from "@/types";
 
 const buttonClass = "min-h-11 rounded-md border border-hope-100 px-4 py-2 text-sm font-bold transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60";
@@ -17,6 +18,7 @@ type PushDiagnostic = {
   message: string;
   status?: number;
   code?: string;
+  vapidPublicKey?: VapidPublicKeyDiagnostics;
 };
 
 type ApiError = Error & { status?: number; code?: string };
@@ -37,6 +39,14 @@ function safeErrorMessage(error: unknown) {
   return "Falha inesperada no registro de notificacoes.";
 }
 
+function yesNo(value: boolean) {
+  return value ? "sim" : "nao";
+}
+
+function validInvalid(value: boolean) {
+  return value ? "valido" : "invalido";
+}
+
 function createDiagnostic(step: PushRegistrationStep, error: unknown): PushDiagnostic {
   const apiError = error as ApiError;
   return {
@@ -45,7 +55,8 @@ function createDiagnostic(step: PushRegistrationStep, error: unknown): PushDiagn
     name: safeErrorName(error),
     message: safeErrorMessage(error),
     ...(typeof apiError.status === "number" ? { status: apiError.status } : {}),
-    ...(typeof apiError.code === "string" ? { code: apiError.code.slice(0, 80) } : {})
+    ...(typeof apiError.code === "string" ? { code: apiError.code.slice(0, 80) } : {}),
+    ...(step === "vapid-key" ? { vapidPublicKey: diagnoseVapidPublicKey(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) } : {})
   };
 }
 
@@ -56,7 +67,14 @@ function diagnosticText(diagnostic: PushDiagnostic) {
     `Erro: ${diagnostic.name}`,
     diagnostic.status ? `Status HTTP: ${diagnostic.status}` : null,
     diagnostic.code ? `Codigo: ${diagnostic.code}` : null,
-    `Mensagem: ${diagnostic.message}`
+    `Mensagem: ${diagnostic.message}`,
+    diagnostic.vapidPublicKey ? `Chave publica presente: ${yesNo(diagnostic.vapidPublicKey.publicKeyExists)}` : null,
+    diagnostic.vapidPublicKey ? `Comprimento: ${diagnostic.vapidPublicKey.publicKeyLength}` : null,
+    diagnostic.vapidPublicKey ? `Comeca com B: ${yesNo(diagnostic.vapidPublicKey.publicKeyStartsWithB)}` : null,
+    diagnostic.vapidPublicKey ? `Formato Base64URL: ${validInvalid(diagnostic.vapidPublicKey.publicKeyFormatValid)}` : null,
+    diagnostic.vapidPublicKey ? `Contem espacos: ${yesNo(diagnostic.vapidPublicKey.publicKeyContainsWhitespace)}` : null,
+    diagnostic.vapidPublicKey ? `Contem aspas: ${yesNo(diagnostic.vapidPublicKey.publicKeyContainsQuotes)}` : null,
+    diagnostic.vapidPublicKey ? `Parece URL: ${yesNo(diagnostic.vapidPublicKey.publicKeyLooksLikeUrl)}` : null
   ].filter(Boolean).join("\n");
 }
 
