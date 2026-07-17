@@ -22,11 +22,49 @@ function formatDate(value: string | null, withTime = false) {
   return new Intl.DateTimeFormat("pt-BR", withTime ? { dateStyle: "short", timeStyle: "short" } : { dateStyle: "short" }).format(new Date(value));
 }
 
-function deviceStatus(device: PushDevice) {
-  if (device.setupCompletedAt) return "Configurado";
-  if (device.failureCount >= PUSH_FAILURE_WARNING_THRESHOLD) return "Precisa de atencao";
-  if (device.testSentAt) return "Teste pendente";
-  return "Aguardando teste";
+function latestDeviceActivity(device: PushDevice) {
+  return [device.lastSuccessAt, device.testConfirmedAt, device.testSentAt, device.createdAt]
+    .map((value) => value ? new Date(value).getTime() : 0)
+    .reduce((largest, value) => Math.max(largest, value), 0);
+}
+
+function parseDeviceEnvironment(device: PushDevice) {
+  const source = `${device.userAgent ?? ""} ${device.deviceName ?? ""}`.toLowerCase();
+  const operatingSystem = /iphone|ipad|ipod/.test(source) ? "iPhone" : /android/.test(source) ? "Android" : /windows|win32|win64|wow64/.test(source) ? "Windows" : /mac os|macintosh|macintel/.test(source) ? "macOS" : /linux/.test(source) ? "Linux" : "";
+  const browser = /edg\//.test(source) ? "Edge" : /chrome\//.test(source) ? "Chrome" : /safari\//.test(source) && !/chrome\//.test(source) ? "Safari" : /firefox\//.test(source) ? "Firefox" : "";
+  if (operatingSystem && browser) return `${operatingSystem} â€¢ ${browser}`;
+  if (operatingSystem) return operatingSystem;
+  if (browser) return browser;
+  return "Dispositivo";
+}
+
+function currentEnvironmentLabel(environment: NotificationEnvironment) {
+  const operatingSystems: Record<NotificationEnvironment["operatingSystem"], string> = {
+    WINDOWS: "Windows",
+    ANDROID: "Android",
+    IOS: "iPhone",
+    MACOS: "macOS",
+    LINUX: "Linux",
+    UNKNOWN: "Dispositivo"
+  };
+  const browsers: Record<NotificationEnvironment["browser"], string> = {
+    CHROME: "Chrome",
+    EDGE: "Edge",
+    SAFARI: "Safari",
+    FIREFOX: "Firefox",
+    OTHER: "navegador"
+  };
+  return `${operatingSystems[environment.operatingSystem]} â€¢ ${browsers[environment.browser]}`;
+}
+
+function deviceStatus(device: PushDevice, pushEnabled = true) {
+  if (!device.isActive) return { label: "Revogado", rank: 4, className: "border-slate-200 bg-slate-50 text-slate-700" };
+  if (!pushEnabled) return { label: "Notificacoes pausadas", rank: 5, className: "border-amber-200 bg-amber-50 text-amber-900" };
+  const hasFailedAfterConfirmation = Boolean(device.testFailedAt && (!device.testConfirmedAt || new Date(device.testFailedAt) > new Date(device.testConfirmedAt)));
+  if (device.failureCount >= PUSH_FAILURE_WARNING_THRESHOLD || hasFailedAfterConfirmation) return { label: "Precisa de atencao", rank: 3, className: "border-amber-200 bg-amber-50 text-amber-900" };
+  if (device.setupCompletedAt && device.testConfirmedAt) return { label: "Configurado", rank: 1, className: "border-emerald-200 bg-emerald-50 text-emerald-800" };
+  if (device.testSentAt) return { label: "Teste pendente", rank: 2, className: "border-sky-200 bg-sky-50 text-sky-800" };
+  return { label: "Teste pendente", rank: 2, className: "border-sky-200 bg-sky-50 text-sky-800" };
 }
 
 async function readJSON<T>(response: Response) {
@@ -58,6 +96,17 @@ export function PushNotificationManager() {
 
   const instructions = notificationInstructions(environment);
   const testFailed = Boolean(currentDevice?.testFailedAt);
+  const sortedDevices = useMemo(() => {
+    return [...(status?.devices ?? [])].sort((left, right) => {
+      const leftStatus = deviceStatus(left, status?.pushEnabled ?? true);
+      const rightStatus = deviceStatus(right, status?.pushEnabled ?? true);
+      const leftCurrent = left.id === deviceId ? 0 : 1;
+      const rightCurrent = right.id === deviceId ? 0 : 1;
+      if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent;
+      if (leftStatus.rank !== rightStatus.rank) return leftStatus.rank - rightStatus.rank;
+      return latestDeviceActivity(right) - latestDeviceActivity(left);
+    });
+  }, [deviceId, status?.devices, status?.pushEnabled]);
 
   const loadStatus = useCallback(async () => {
     const payload = await readJSON<PushStatus>(await fetch("/api/push/status", { cache: "no-store" }));
@@ -172,7 +221,7 @@ export function PushNotificationManager() {
   return (
     <section className="rounded-md border border-hope-100 bg-white p-4 shadow-sm" aria-labelledby="push-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div><h2 id="push-title" className="text-lg font-bold text-ink-900">Notificacoes</h2><p className="mt-1 text-sm leading-relaxed text-ink-500">Receba avisos importantes sobre escalas, comunicados e atividades da igreja.</p></div>
+        <div><h2 id="push-title" className="text-lg font-bold text-ink-900">Notificacoes</h2><p className="mt-1 text-sm leading-relaxed text-ink-500">Prepare este dispositivo para receber notificacoes da Igreja Batista Esperanca.</p></div>
         <span className="rounded-full bg-hope-50 px-3 py-1 text-xs font-bold text-hope-700">{setupStatus === "CONFIRMED" ? "Tudo pronto" : setupStatus === "PERMISSION_DENIED" ? "Permissao bloqueada" : setupStatus === "UNSUPPORTED" ? "Navegador incompativel" : setupStatus === "TEST_SENT" ? "Aguardando confirmacao" : "Configuracao em andamento"}</span>
       </div>
       <ol className="mt-5 grid gap-2 sm:grid-cols-4" aria-label="Progresso da configuracao">{steps.map(([label, complete], index) => <li key={label} className="flex items-center gap-2 rounded-md border border-hope-100 px-3 py-3 text-sm font-semibold"><span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hope-50 text-hope-700">{complete ? "OK" : index + 1}</span><span>{label}</span><span className="sr-only">{complete ? " concluida" : " pendente"}</span></li>)}</ol>
@@ -182,13 +231,14 @@ export function PushNotificationManager() {
       {setupStatus === "PERMISSION_REQUIRED" ? <div className="mt-4"><p className="text-sm text-ink-700">Para receber avisos, permita que este navegador mostre notificacoes.</p><button type="button" onClick={enable} disabled={busy} className={`${buttonClass} mt-3 bg-hope-600 text-white`}>Ativar notificacoes</button></div> : null}
       {setupStatus === "UNSUPPORTED" ? <p className="mt-4 text-sm text-ink-700">Este navegador nao oferece suporte seguro a notificacoes push. Use Chrome, Edge ou Safari em HTTPS.</p> : null}
       {setupStatus === "SUBSCRIPTION_REQUIRED" ? <div className="mt-4"><p className="text-sm text-ink-700">Permissao concedida. Agora registre este dispositivo para continuar.</p><button type="button" onClick={enable} disabled={busy} className={`${buttonClass} mt-3 bg-hope-600 text-white`}>Registrar este dispositivo</button></div> : null}
-      {(setupStatus === "READY_FOR_TEST" || setupStatus === "TEST_SENT" || setupStatus === "CONFIRMED") ? <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={sendTest} disabled={busy || !status?.pushEnabled} className={`${buttonClass} bg-hope-600 text-white`}>{busy ? "Enviando teste..." : setupStatus === "CONFIRMED" ? "Enviar novo teste" : "Testar novamente"}</button><button type="button" onClick={disableThisDevice} disabled={busy} className={`${buttonClass} bg-white`}>Desativar neste dispositivo</button></div> : null}
-      {feedbackOpen ? <div className="mt-4 rounded-md border border-hope-100 bg-hope-50 p-4"><p className="text-sm font-bold text-ink-900">Enviamos uma notificacao. Ela apareceu no seu dispositivo?</p><div className="mt-3 flex flex-wrap gap-3"><button type="button" onClick={() => recordFeedback(true)} disabled={busy} className={`${buttonClass} bg-hope-600 text-white`}>Sim, recebi</button><button type="button" onClick={() => recordFeedback(false)} disabled={busy} className={`${buttonClass} bg-white`}>Nao apareceu</button><button type="button" onClick={() => setFeedbackOpen(false)} disabled={busy} className={`${buttonClass} bg-transparent`}>Testar depois</button></div></div> : null}
-      {setupStatus === "TEST_SENT" && !feedbackOpen ? <button type="button" onClick={() => setFeedbackOpen(true)} disabled={busy} className={`${buttonClass} mt-3 bg-white`}>Responder ao teste</button> : null}
-      {environment.operatingSystem !== "UNKNOWN" ? <p className="mt-4 text-xs text-ink-500">Ambiente detectado para orientar as instrucoes: {environment.operatingSystem} / {environment.browser}{environment.isStandalone ? " / aplicativo instalado" : ""}.</p> : null}
-      <label className="mt-4 flex items-center gap-3 border-t border-hope-100 pt-4 text-sm font-semibold text-ink-800"><input type="checkbox" checked={status?.pushEnabled ?? false} onChange={(event) => setPreference(event.target.checked)} disabled={busy || !status?.activeDeviceCount} /> Receber notificacoes push nesta conta</label>
-      {status?.devices.length ? <ul className="mt-5 grid gap-2" aria-label="Dispositivos cadastrados">{status.devices.map((device) => <li key={device.id} className="rounded-md border border-hope-100 px-3 py-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{device.deviceName || "Dispositivo"}{device.id === deviceId ? " - Este dispositivo" : ""}</strong><span className="font-semibold text-hope-700">{deviceStatus(device)}</span></div><span className="mt-1 block text-ink-500">Cadastrado em {formatDate(device.createdAt)}. Ultimo teste: {formatDate(device.testSentAt, true)}.</span></li>)}</ul> : <p className="mt-5 text-sm text-ink-500">Nenhum dispositivo esta inscrito.</p>}
-      <p className="mt-4 text-xs leading-relaxed text-ink-500">Voce pode pausar as notificacoes da conta sem remover os dispositivos. Os avisos automaticos serao disponibilizados gradualmente.</p>
+      {setupStatus === "CONFIRMED" ? <p className="mt-3 text-sm leading-relaxed text-ink-600">Voce ja pode receber notificacoes de teste. Os avisos automaticos serao disponibilizados gradualmente nas proximas atualizacoes.</p> : null}
+      {(setupStatus === "READY_FOR_TEST" || setupStatus === "CONFIRMED") ? <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={sendTest} disabled={busy || !status?.pushEnabled} className={`${buttonClass} bg-hope-600 text-white`}>{busy ? "Enviando teste..." : setupStatus === "CONFIRMED" ? "Enviar novo teste" : "Enviar teste"}</button><button type="button" onClick={disableThisDevice} disabled={busy} className={`${buttonClass} bg-white`}>Desativar neste dispositivo</button></div> : null}
+      {setupStatus === "TEST_SENT" ? <div className="mt-4 rounded-md border border-hope-100 bg-hope-50 p-4" aria-live="polite"><p className="text-sm font-bold text-ink-900">Enviamos uma notificacao. Ela apareceu no seu dispositivo?</p><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={() => recordFeedback(true)} disabled={busy} className={`${buttonClass} bg-hope-600 text-white`}>Sim, recebi</button><button type="button" onClick={() => recordFeedback(false)} disabled={busy} className={`${buttonClass} bg-white`}>Nao apareceu</button><button type="button" onClick={sendTest} disabled={busy || !status?.pushEnabled} className={`${buttonClass} bg-white`}>Reenviar teste</button></div></div> : null}
+      {feedbackOpen && setupStatus !== "TEST_SENT" ? <div className="mt-4 rounded-md border border-hope-100 bg-hope-50 p-4" aria-live="polite"><p className="text-sm font-bold text-ink-900">Enviamos uma notificacao. Ela apareceu no seu dispositivo?</p><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={() => recordFeedback(true)} disabled={busy} className={`${buttonClass} bg-hope-600 text-white`}>Sim, recebi</button><button type="button" onClick={() => recordFeedback(false)} disabled={busy} className={`${buttonClass} bg-white`}>Nao apareceu</button><button type="button" onClick={() => setFeedbackOpen(false)} disabled={busy} className={`${buttonClass} bg-transparent`}>Testar depois</button></div></div> : null}
+      {environment.operatingSystem !== "UNKNOWN" ? <p className="mt-4 text-xs text-ink-500">Ambiente detectado para orientar as instrucoes: {currentEnvironmentLabel(environment)}{environment.isStandalone ? " â€¢ aplicativo instalado" : ""}.</p> : null}
+      <div className="mt-4 border-t border-hope-100 pt-4"><label className="flex items-center gap-3 text-sm font-semibold text-ink-800"><input type="checkbox" checked={status?.pushEnabled ?? false} onChange={(event) => setPreference(event.target.checked)} disabled={busy || !status?.activeDeviceCount} /> Receber notificacoes push nesta conta</label>{status?.pushEnabled === false && status.activeDeviceCount > 0 ? <div className="mt-2 space-y-3"><p className="text-xs leading-relaxed text-amber-800">As notificacoes estao pausadas para a conta. Nenhum dispositivo recebera avisos ate voce reativar.</p><button type="button" onClick={() => setPreference(true)} disabled={busy} className={`${buttonClass} bg-white`}>Reativar notificacoes da conta</button></div> : null}</div>
+      {sortedDevices.length ? <ul className="mt-5 grid gap-3" aria-label="Dispositivos cadastrados">{sortedDevices.map((device) => { const statusInfo = deviceStatus(device, status?.pushEnabled ?? true); const isCurrent = device.id === deviceId; return <li key={device.id} className="rounded-md border border-hope-100 px-3 py-3 text-sm"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="break-words text-ink-900">{parseDeviceEnvironment(device)}</strong>{isCurrent ? <span className="rounded-full border border-hope-200 bg-hope-50 px-2 py-0.5 text-xs font-bold text-hope-700" aria-label="Este dispositivo">Este dispositivo</span> : null}</div><span className="mt-1 block break-words text-ink-500">Cadastrado em {formatDate(device.createdAt)}</span><span className="mt-1 block break-words text-ink-500">Ultimo teste em {formatDate(device.testSentAt, true)}</span></div><span className={`inline-flex w-fit rounded-full border px-2 py-1 text-xs font-bold ${statusInfo.className}`}>Status: {statusInfo.label}</span></div></li>; })}</ul> : <p className="mt-5 text-sm text-ink-500">Nenhum dispositivo esta inscrito.</p>}
+      <p className="mt-4 text-xs leading-relaxed text-ink-500">Voce pode pausar as notificacoes da conta sem remover os dispositivos. Os avisos automaticos serao disponibilizados gradualmente nas proximas atualizacoes.</p>
     </section>
   );
 }
