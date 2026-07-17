@@ -67,8 +67,8 @@ self.addEventListener("push", (event) => {
     payload = {};
   }
 
-  const title = typeof payload.title === "string" && payload.title.trim() ? payload.title.slice(0, 80) : "Igreja Batista Esperança";
-  const body = typeof payload.body === "string" && payload.body.trim() ? payload.body.slice(0, 180) : "Você tem uma nova atualização no IBE.";
+  const title = typeof payload.title === "string" && payload.title.trim() ? payload.title.slice(0, 80) : "Igreja Batista Esperanca";
+  const body = typeof payload.body === "string" && payload.body.trim() ? payload.body.slice(0, 180) : "Voce tem uma nova atualizacao no IBE.";
   const url = safeNotificationUrl(payload.url || payload.data?.url) || "/portal";
 
   event.waitUntil(self.registration.showNotification(title, {

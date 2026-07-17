@@ -7,10 +7,36 @@ import { PUSH_FAILURE_WARNING_THRESHOLD, type PushDevice, type PushSetupStatus, 
 
 const buttonClass = "min-h-11 rounded-md border border-hope-100 px-4 py-2 text-sm font-bold transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60";
 
+const vapidConfigurationError = "Nao foi possivel configurar as notificacoes neste momento. Tente novamente mais tarde.";
+
+function normalizeVapidPublicKey(value: string | undefined) {
+  const normalized = value?.trim().replace(/^['"]|['"]$/g, "") ?? "";
+  if (!normalized || /\s/.test(normalized) || !/^[A-Za-z0-9_-]+={0,2}$/.test(normalized) || normalized.length % 4 === 1) {
+    return null;
+  }
+  return normalized.replace(/=+$/g, "");
+}
+
 function urlBase64ToUint8Array(value: string) {
-  const padding = "=".repeat((4 - (value.length % 4)) % 4);
-  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
-  return Uint8Array.from(window.atob(base64), (character) => character.charCodeAt(0));
+  const normalized = normalizeVapidPublicKey(value);
+  if (!normalized) throw new Error(vapidConfigurationError);
+  const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
+  const base64 = `${normalized}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  try {
+    return Uint8Array.from(window.atob(base64), (character) => character.charCodeAt(0));
+  } catch {
+    throw new Error(vapidConfigurationError);
+  }
+}
+
+function pushErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message === vapidConfigurationError) return vapidConfigurationError;
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError") return "As notificacoes estao bloqueadas neste navegador ou dispositivo.";
+    if (["AbortError", "InvalidCharacterError", "NotSupportedError"].includes(error.name)) return vapidConfigurationError;
+  }
+  if (error instanceof TypeError) return vapidConfigurationError;
+  return "Nao foi possivel ativar as notificacoes. Tente novamente mais tarde.";
 }
 
 function browserSupported() {
@@ -32,7 +58,7 @@ function parseDeviceEnvironment(device: PushDevice) {
   const source = `${device.userAgent ?? ""} ${device.deviceName ?? ""}`.toLowerCase();
   const operatingSystem = /iphone|ipad|ipod/.test(source) ? "iPhone" : /android/.test(source) ? "Android" : /windows|win32|win64|wow64/.test(source) ? "Windows" : /mac os|macintosh|macintel/.test(source) ? "macOS" : /linux/.test(source) ? "Linux" : "";
   const browser = /edg\//.test(source) ? "Edge" : /chrome\//.test(source) ? "Chrome" : /safari\//.test(source) && !/chrome\//.test(source) ? "Safari" : /firefox\//.test(source) ? "Firefox" : "";
-  if (operatingSystem && browser) return `${operatingSystem} â€¢ ${browser}`;
+  if (operatingSystem && browser) return `${operatingSystem} - ${browser}`;
   if (operatingSystem) return operatingSystem;
   if (browser) return browser;
   return "Dispositivo";
@@ -54,7 +80,7 @@ function currentEnvironmentLabel(environment: NotificationEnvironment) {
     FIREFOX: "Firefox",
     OTHER: "navegador"
   };
-  return `${operatingSystems[environment.operatingSystem]} â€¢ ${browsers[environment.browser]}`;
+  return `${operatingSystems[environment.operatingSystem]} - ${browsers[environment.browser]}`;
 }
 
 function deviceStatus(device: PushDevice, pushEnabled = true) {
@@ -119,7 +145,7 @@ export function PushNotificationManager() {
     const data = await readJSON<{ id: string }>(await fetch("/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint: subscription.endpoint, keys: json.keys, expirationTime: subscription.expirationTime, deviceName: navigator.platform })
+      body: JSON.stringify({ endpoint: subscription.endpoint, keys: json.keys, expirationTime: subscription.expirationTime, deviceName: currentEnvironmentLabel(getNotificationEnvironment()) })
     }));
     if (!data?.id) throw new Error("Nao foi possivel registrar este dispositivo.");
     setDeviceId(data.id);
@@ -141,8 +167,8 @@ export function PushNotificationManager() {
 
   async function enable() {
     if (!browserSupported()) return setMessage({ text: "Este navegador nao oferece suporte a notificacoes push.", tone: "warning" });
-    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!publicKey) return setMessage({ text: "As notificacoes ainda nao estao configuradas neste ambiente.", tone: "warning" });
+    const publicKey = normalizeVapidPublicKey(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+    if (!publicKey) return setMessage({ text: vapidConfigurationError, tone: "warning" });
     if (!window.confirm("Para receber avisos, permita que este navegador mostre notificacoes. Deseja continuar?")) return;
     setBusy(true); setMessage(null);
     try {
@@ -158,7 +184,7 @@ export function PushNotificationManager() {
       await loadStatus();
       setMessage({ text: "Este dispositivo esta registrado para receber notificacoes.", tone: "success" });
     } catch (error) {
-      setMessage({ text: error instanceof Error ? error.message : "Nao foi possivel ativar as notificacoes.", tone: "error" });
+      setMessage({ text: pushErrorMessage(error), tone: "error" });
     } finally { setBusy(false); }
   }
 
@@ -235,7 +261,7 @@ export function PushNotificationManager() {
       {(setupStatus === "READY_FOR_TEST" || setupStatus === "CONFIRMED") ? <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={sendTest} disabled={busy || !status?.pushEnabled} className={`${buttonClass} bg-hope-600 text-white`}>{busy ? "Enviando teste..." : setupStatus === "CONFIRMED" ? "Enviar novo teste" : "Enviar teste"}</button><button type="button" onClick={disableThisDevice} disabled={busy} className={`${buttonClass} bg-white`}>Desativar neste dispositivo</button></div> : null}
       {setupStatus === "TEST_SENT" ? <div className="mt-4 rounded-md border border-hope-100 bg-hope-50 p-4" aria-live="polite"><p className="text-sm font-bold text-ink-900">Enviamos uma notificacao. Ela apareceu no seu dispositivo?</p><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={() => recordFeedback(true)} disabled={busy} className={`${buttonClass} bg-hope-600 text-white`}>Sim, recebi</button><button type="button" onClick={() => recordFeedback(false)} disabled={busy} className={`${buttonClass} bg-white`}>Nao apareceu</button><button type="button" onClick={sendTest} disabled={busy || !status?.pushEnabled} className={`${buttonClass} bg-white`}>Reenviar teste</button></div></div> : null}
       {feedbackOpen && setupStatus !== "TEST_SENT" ? <div className="mt-4 rounded-md border border-hope-100 bg-hope-50 p-4" aria-live="polite"><p className="text-sm font-bold text-ink-900">Enviamos uma notificacao. Ela apareceu no seu dispositivo?</p><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={() => recordFeedback(true)} disabled={busy} className={`${buttonClass} bg-hope-600 text-white`}>Sim, recebi</button><button type="button" onClick={() => recordFeedback(false)} disabled={busy} className={`${buttonClass} bg-white`}>Nao apareceu</button><button type="button" onClick={() => setFeedbackOpen(false)} disabled={busy} className={`${buttonClass} bg-transparent`}>Testar depois</button></div></div> : null}
-      {environment.operatingSystem !== "UNKNOWN" ? <p className="mt-4 text-xs text-ink-500">Ambiente detectado para orientar as instrucoes: {currentEnvironmentLabel(environment)}{environment.isStandalone ? " â€¢ aplicativo instalado" : ""}.</p> : null}
+      {environment.operatingSystem !== "UNKNOWN" ? <p className="mt-4 text-xs text-ink-500">Ambiente detectado para orientar as instrucoes: {currentEnvironmentLabel(environment)}{environment.isStandalone ? " - aplicativo instalado" : ""}.</p> : null}
       <div className="mt-4 border-t border-hope-100 pt-4"><label className="flex items-center gap-3 text-sm font-semibold text-ink-800"><input type="checkbox" checked={status?.pushEnabled ?? false} onChange={(event) => setPreference(event.target.checked)} disabled={busy || !status?.activeDeviceCount} /> Receber notificacoes push nesta conta</label>{status?.pushEnabled === false && status.activeDeviceCount > 0 ? <div className="mt-2 space-y-3"><p className="text-xs leading-relaxed text-amber-800">As notificacoes estao pausadas para a conta. Nenhum dispositivo recebera avisos ate voce reativar.</p><button type="button" onClick={() => setPreference(true)} disabled={busy} className={`${buttonClass} bg-white`}>Reativar notificacoes da conta</button></div> : null}</div>
       {sortedDevices.length ? <ul className="mt-5 grid gap-3" aria-label="Dispositivos cadastrados">{sortedDevices.map((device) => { const statusInfo = deviceStatus(device, status?.pushEnabled ?? true); const isCurrent = device.id === deviceId; return <li key={device.id} className="rounded-md border border-hope-100 px-3 py-3 text-sm"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="break-words text-ink-900">{parseDeviceEnvironment(device)}</strong>{isCurrent ? <span className="rounded-full border border-hope-200 bg-hope-50 px-2 py-0.5 text-xs font-bold text-hope-700" aria-label="Este dispositivo">Este dispositivo</span> : null}</div><span className="mt-1 block break-words text-ink-500">Cadastrado em {formatDate(device.createdAt)}</span><span className="mt-1 block break-words text-ink-500">Ultimo teste em {formatDate(device.testSentAt, true)}</span></div><span className={`inline-flex w-fit rounded-full border px-2 py-1 text-xs font-bold ${statusInfo.className}`}>Status: {statusInfo.label}</span></div></li>; })}</ul> : <p className="mt-5 text-sm text-ink-500">Nenhum dispositivo esta inscrito.</p>}
       <p className="mt-4 text-xs leading-relaxed text-ink-500">Voce pode pausar as notificacoes da conta sem remover os dispositivos. Os avisos automaticos serao disponibilizados gradualmente nas proximas atualizacoes.</p>
