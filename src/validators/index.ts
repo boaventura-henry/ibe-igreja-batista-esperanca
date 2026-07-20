@@ -154,3 +154,7 @@ export type {
   UserResetPasswordInput,
   UserUpdateInput
 } from "./user.validator";
+export { pushNotificationLogListQuerySchema } from "./push-notification-log.validator";
+export type { PushNotificationLogListQuery } from "./push-notification-log.validator";
+export { pushNotificationDeviceHealthQuerySchema, pushNotificationHealthQuerySchema } from "./push-notification-health.validator";
+export type { PushNotificationDeviceHealthQuery, PushNotificationHealthQuery } from "./push-notification-health.validator";

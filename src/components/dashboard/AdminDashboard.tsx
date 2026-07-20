@@ -84,6 +84,14 @@ export function AdminDashboard() {
         <StatCard label="Comunicados publicados" value={String(data.publishedAnnouncements)} detail="Publicados e nao deletados" />
         <StatCard label="Comunicados ativos" value={String(data.activeAnnouncements)} detail="Visiveis no portal agora" />
         <StatCard label="Comunicados fixados" value={String(data.pinnedAnnouncements)} detail="Destaques ativos no portal" />
+        <StatCard label="Notificacoes hoje" value={String(data.pushNotificationsSentToday)} detail="Envios com sucesso ou sucesso parcial" />
+        <StatCard label="Taxa de sucesso push" value={`${data.pushNotificationSuccessRate}%`} detail="Com base nos envios de hoje" />
+        <StatCard label="Dispositivos ativos" value={String(data.activePushDevices)} detail="Inscricoes push ativas" />
+        <StatCard label="Dispositivos expirados" value={String(data.expiredPushDevices)} detail="Detectados pela auditoria" />
+        <StatCard label="Falhas em 24h" value={String(data.pushFailuresLast24h)} detail="Tentativas sem sucesso" />
+        <StatCard label="Reenvios push" value={String(data.pushRetriesExecuted)} detail="Tentativas de recuperacao executadas" />
+        <StatCard label="Dispositivos recuperados" value={String(data.pushRecoveredDevices)} detail="Sucesso apos reenvio" />
+        <StatCard label="Taxa final push" value={`${data.pushFinalSuccessRate}%`} detail="Apos reenvios registrados" />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">

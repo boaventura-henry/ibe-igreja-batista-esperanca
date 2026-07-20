@@ -54,7 +54,16 @@ export const pushSubscriptionRepository = {
     return prisma.pushSubscription.updateMany({ where: { endpoint, userId }, data: { isActive: false, revokedAt: new Date() } });
   },
   findActiveForDelivery(userId: string) {
-    return prisma.pushSubscription.findMany({ where: { userId, isActive: true, revokedAt: null } });
+    return prisma.pushSubscription.findMany({
+      where: { userId, isActive: true, revokedAt: null, user: { isActive: true } },
+      include: { user: { select: { id: true, memberId: true, isActive: true } } }
+    });
+  },
+  findByIdForRetry(id: string) {
+    return prisma.pushSubscription.findUnique({
+      where: { id },
+      include: { user: { select: { id: true, memberId: true, isActive: true } } }
+    });
   },
   markSuccess(id: string) {
     return prisma.pushSubscription.update({ where: { id }, data: { lastUsedAt: new Date(), lastSuccessAt: new Date(), lastFailureAt: null, failureCount: 0 } });

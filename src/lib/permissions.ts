@@ -3,6 +3,8 @@ import type { AuthSessionUser } from "@/types";
 export const availablePermissions = [
   { code: "dashboard.admin.view", name: "Visualizar dashboard administrativo", label: "Visualizar dashboard administrativo", module: "Dashboard" },
   { code: "dashboard.portal.view", name: "Visualizar dashboard do portal", label: "Visualizar dashboard do portal", module: "Portal do Membro" },
+  { code: "push.logs.view", name: "Visualizar historico de notificacoes", label: "Visualizar historico", module: "Administracao" },
+  { code: "push.logs.retry", name: "Reenviar notificacoes com falha", label: "Reenviar falhas", module: "Administracao" },
   { code: "report.view", name: "Visualizar relatorios", label: "Visualizar relatorios", module: "Relatorios" },
   { code: "report.export", name: "Exportar relatorios", label: "Exportar relatorios", module: "Relatorios" },
   { code: "member.view", name: "Visualizar membros", label: "Visualizar membros", module: "Membros" },

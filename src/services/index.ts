@@ -23,3 +23,5 @@ export { songService } from "./song.service";
 export { scheduleSongService } from "./schedule-song.service";
 export { userService } from "./user.service";
 export { pushNotificationService } from "./push-notification.service";
+export { pushNotificationLogService } from "./push-notification-log.service";
+export { pushNotificationHealthService } from "./push-notification-health.service";

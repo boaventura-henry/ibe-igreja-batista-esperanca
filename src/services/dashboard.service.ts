@@ -1,4 +1,4 @@
-import { announcementRepository, dashboardRepository } from "@/repositories";
+import { announcementRepository, dashboardRepository, pushNotificationLogRepository } from "@/repositories";
 import type {
   AdminDashboardContribution,
   AdminDashboardData,
@@ -121,7 +121,7 @@ function serializePortalNotice(notice: {
 
 export const dashboardService = {
   async getAdminDashboard(): Promise<AdminDashboardData> {
-    const data = await dashboardRepository.getAdminDashboardData();
+    const [data, pushMetrics] = await Promise.all([dashboardRepository.getAdminDashboardData(), pushNotificationLogRepository.getDashboardMetrics()]);
     const monthlyIncome = Number(decimalToString(data.monthlyIncome));
     const monthlyExpense = Number(decimalToString(data.monthlyExpense));
 
@@ -131,6 +131,14 @@ export const dashboardService = {
       publishedAnnouncements: data.publishedAnnouncements,
       activeAnnouncements: data.activeAnnouncements,
       pinnedAnnouncements: data.pinnedAnnouncements,
+      pushNotificationsSentToday: pushMetrics.sentToday,
+      pushNotificationSuccessRate: pushMetrics.successRate,
+      activePushDevices: pushMetrics.activeDevices,
+      expiredPushDevices: pushMetrics.expiredDevices,
+      pushFailuresLast24h: pushMetrics.failuresLast24h,
+      pushRetriesExecuted: pushMetrics.retriesExecuted,
+      pushRecoveredDevices: pushMetrics.recoveredDevices,
+      pushFinalSuccessRate: pushMetrics.successRate,
       upcomingEvents: data.upcomingEvents.map(serializeEvent),
       upcomingSchedules: data.upcomingSchedules.map(serializeSchedule),
       monthlyIncome: monthlyIncome.toFixed(2),

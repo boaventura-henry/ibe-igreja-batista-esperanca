@@ -6,6 +6,7 @@ const protectedRoutes = [
   "/membros",
   "/perfis-acesso",
   "/usuarios",
+  "/notificacoes",
   "/solicitacoes-acesso",
   "/solicitacoes-recuperacao-senha",
   "/trocar-senha",
@@ -58,6 +59,10 @@ export default withAuth(
     }
 
     if (pathname.startsWith("/usuarios") && !request.nextauth.token?.permissionCodes?.includes("user.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (pathname.startsWith("/notificacoes") && !request.nextauth.token?.permissionCodes?.includes("push.logs.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
@@ -197,6 +202,7 @@ export const config = {
     "/membros/:path*",
     "/perfis-acesso/:path*",
     "/usuarios/:path*",
+    "/notificacoes/:path*",
     "/solicitacoes-acesso/:path*",
     "/solicitacoes-recuperacao-senha/:path*",
     "/trocar-senha",

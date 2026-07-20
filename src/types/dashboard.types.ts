@@ -49,6 +49,14 @@ export type AdminDashboardData = {
   publishedAnnouncements: number;
   activeAnnouncements: number;
   pinnedAnnouncements: number;
+  pushNotificationsSentToday: number;
+  pushNotificationSuccessRate: number;
+  activePushDevices: number;
+  expiredPushDevices: number;
+  pushFailuresLast24h: number;
+  pushRetriesExecuted: number;
+  pushRecoveredDevices: number;
+  pushFinalSuccessRate: number;
   upcomingEvents: AdminDashboardEvent[];
   upcomingSchedules: AdminDashboardSchedule[];
   monthlyIncome: string;
