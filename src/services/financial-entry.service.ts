@@ -1,10 +1,16 @@
-import { FinancialEntryStatus } from "@prisma/client";
+import { FinancialEntryStatus, Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { financialCategoryService } from "@/services/financial-category.service";
 import { financialEntryRepository, type FinancialEntryRecord } from "@/repositories/financial-entry.repository";
 import type { FinancialEntryListResult, FinancialEntrySummary } from "@/types";
 import type { FinancialEntryCreateInput, FinancialEntryListQueryInput, FinancialEntryUpdateInput } from "@/validators";
 import { getMemberDisplayName } from "@/utils";
+
+const ENTRY_NUMBER_CREATE_ATTEMPTS = 3;
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
 
 function serialize(entry: FinancialEntryRecord): FinancialEntrySummary {
   return {
@@ -100,9 +106,24 @@ export const financialEntryService = {
   async create(data: FinancialEntryCreateInput, userId: string) {
     ensureAnonymousRule(data);
     await ensureReferences(data);
-    const entryNumber = await financialEntryRepository.nextEntryNumber();
 
-    return serialize(await financialEntryRepository.create(data, entryNumber, userId));
+    for (let attempt = 1; attempt <= ENTRY_NUMBER_CREATE_ATTEMPTS; attempt += 1) {
+      const entryNumber = await financialEntryRepository.nextEntryNumber();
+
+      try {
+        return serialize(await financialEntryRepository.create(data, entryNumber, userId));
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        if (attempt === ENTRY_NUMBER_CREATE_ATTEMPTS) {
+          throw new AppError("Nao foi possivel numerar o lancamento.", 409, "FINANCIAL_ENTRY_NUMBER_CONFLICT");
+        }
+      }
+    }
+
+    throw new AppError("Nao foi possivel criar o lancamento.", 409, "FINANCIAL_ENTRY_CREATE_CONFLICT");
   },
 
   async update(id: string, data: FinancialEntryUpdateInput, userId: string) {

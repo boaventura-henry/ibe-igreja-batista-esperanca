@@ -16,6 +16,21 @@ const accessRoleSelect = {
     },
     orderBy: [{ module: "asc" }, { code: "asc" }]
   },
+  dashboardWidgets: {
+    select: {
+      isVisible: true,
+      sortOrder: true,
+      size: true,
+      visibleOnMobile: true,
+      visibleOnTablet: true,
+      visibleOnDesktop: true,
+      dashboardWidget: { select: { code: true } }
+    },
+    orderBy: { dashboardWidget: { defaultOrder: "asc" } }
+  },
+  dashboardLayout: {
+    select: { layoutMode: true, desktopColumns: true, tabletColumns: true, mobileColumns: true, showCategoryHeaders: true, allowCategoryCollapse: true }
+  },
   isSystem: true,
   isActive: true,
   updatedAt: true,
@@ -98,9 +113,33 @@ export const accessRoleRepository = {
         code: true,
         name: true,
         label: true,
-        module: true
+        module: true,
+        description: true
       },
       orderBy: [{ module: "asc" }, { code: "asc" }]
+    });
+  },
+
+  listDashboardWidgets() {
+    return prisma.dashboardWidget.findMany({
+      select: {
+        code: true,
+        title: true,
+        description: true,
+        category: true,
+        defaultOrder: true,
+        isEnabled: true,
+        sensitivity: true,
+        priority: true,
+        defaultSize: true,
+        defaultVisibleOnMobile: true,
+        defaultVisibleOnTablet: true,
+        defaultVisibleOnDesktop: true,
+        iconKey: true,
+        visualVariant: true,
+        permission: { select: { code: true } }
+      },
+      orderBy: { defaultOrder: "asc" }
     });
   },
 
@@ -113,6 +152,18 @@ export const accessRoleRepository = {
           connect: data.permissions.map((code) => ({ code }))
         },
         isActive: data.isActive,
+        dashboardWidgets: {
+          create: data.dashboardWidgets.map((widget) => ({
+            isVisible: widget.isVisible,
+            sortOrder: widget.sortOrder ?? null,
+            size: widget.size ?? null,
+            visibleOnMobile: widget.visibleOnMobile ?? null,
+            visibleOnTablet: widget.visibleOnTablet ?? null,
+            visibleOnDesktop: widget.visibleOnDesktop ?? null,
+            dashboardWidget: { connect: { code: widget.code } }
+          }))
+        },
+        dashboardLayout: { create: { layoutMode: data.dashboardLayout.mode, desktopColumns: data.dashboardLayout.desktopColumns, tabletColumns: data.dashboardLayout.tabletColumns, mobileColumns: data.dashboardLayout.mobileColumns, showCategoryHeaders: data.dashboardLayout.showCategoryHeaders, allowCategoryCollapse: data.dashboardLayout.allowCategoryCollapse } },
         createdById: userId,
         updatedById: userId
       },
@@ -133,6 +184,24 @@ export const accessRoleRepository = {
                 set: data.permissions.map((code) => ({ code }))
               },
         isActive: data.isActive,
+        dashboardWidgets: data.dashboardWidgets === undefined ? undefined : {
+          deleteMany: {},
+          create: data.dashboardWidgets.map((widget) => ({
+            isVisible: widget.isVisible,
+            sortOrder: widget.sortOrder ?? null,
+            size: widget.size ?? null,
+            visibleOnMobile: widget.visibleOnMobile ?? null,
+            visibleOnTablet: widget.visibleOnTablet ?? null,
+            visibleOnDesktop: widget.visibleOnDesktop ?? null,
+            dashboardWidget: { connect: { code: widget.code } }
+          }))
+        },
+        dashboardLayout: data.dashboardLayout === undefined ? undefined : {
+          upsert: {
+            create: { layoutMode: data.dashboardLayout.mode, desktopColumns: data.dashboardLayout.desktopColumns, tabletColumns: data.dashboardLayout.tabletColumns, mobileColumns: data.dashboardLayout.mobileColumns, showCategoryHeaders: data.dashboardLayout.showCategoryHeaders, allowCategoryCollapse: data.dashboardLayout.allowCategoryCollapse },
+            update: { layoutMode: data.dashboardLayout.mode, desktopColumns: data.dashboardLayout.desktopColumns, tabletColumns: data.dashboardLayout.tabletColumns, mobileColumns: data.dashboardLayout.mobileColumns, showCategoryHeaders: data.dashboardLayout.showCategoryHeaders, allowCategoryCollapse: data.dashboardLayout.allowCategoryCollapse }
+          }
+        },
         updatedById: userId
       },
       select: accessRoleDetailSelect
@@ -150,7 +219,7 @@ export const accessRoleRepository = {
     });
   },
 
-  upsertSystemRole(data: AccessRoleCreateInput & { isSystem?: boolean }) {
+  upsertSystemRole(data: Omit<AccessRoleCreateInput, "dashboardWidgets" | "dashboardLayout"> & { isSystem?: boolean }) {
     return prisma.accessRole.upsert({
       where: { name: data.name },
       update: {

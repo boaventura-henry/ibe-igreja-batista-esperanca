@@ -3,6 +3,9 @@ import type { AuthSessionUser } from "@/types";
 import { verifyPassword } from "@/utils";
 import { loginSchema, type LoginInput } from "@/validators";
 
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCK_DURATION_MS = 15 * 60 * 1000;
+
 export const authService = {
   async validateCredentials(input: unknown): Promise<AuthSessionUser | null> {
     const parsed = loginSchema.safeParse(input);
@@ -29,10 +32,18 @@ export const authService = {
       return null;
     }
 
+    if (user.accessRoleId && (!user.accessRole || !user.accessRole.isActive || user.accessRole.deletedAt)) {
+      return null;
+    }
+
     const isValidPassword = await verifyPassword(input.password, user.passwordHash);
 
     if (!isValidPassword) {
-      await userRepository.registerFailedLogin(user.id);
+      const failedLogin = await userRepository.registerFailedLogin(user.id);
+
+      if (failedLogin.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+        await userRepository.lock(user.id, new Date(Date.now() + LOGIN_LOCK_DURATION_MS));
+      }
 
       return null;
     }

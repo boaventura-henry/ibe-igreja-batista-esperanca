@@ -1,3 +1,5 @@
+import { isSafeExternalUrl } from "@/utils/url";
+
 const supportedKeys = [
   "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B",
   "Cm", "C#m", "Dbm", "Dm", "D#m", "Ebm", "Em", "Fm", "F#m", "Gbm", "Gm", "G#m", "Abm", "Am", "A#m", "Bbm", "Bm"
@@ -56,9 +58,6 @@ export function isYouTubeUrl(value: string | null | undefined) {
   }
 }
 
-export function isSafeExternalUrl(value: string | null | undefined) {
-  if (!value) return true;
-  try { return ["http:", "https:"].includes(new URL(value).protocol); } catch { return false; }
-}
+export { isSafeExternalUrl };
 
 export const musicKeys = supportedKeys;

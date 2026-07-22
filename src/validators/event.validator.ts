@@ -1,5 +1,6 @@
 import { EventStatus, EventType } from "@prisma/client";
 import { z } from "zod";
+import { isSafeExternalUrl } from "@/utils/url";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") {
@@ -22,6 +23,10 @@ const emptyToNull = (value: unknown) => {
 };
 
 const optionalText = z.preprocess(emptyToNull, z.string().trim().nullable().optional());
+const optionalUrl = z.preprocess(
+  emptyToNull,
+  z.string().trim().max(2048).refine(isSafeExternalUrl, "Informe uma URL HTTP ou HTTPS valida.").nullable().optional()
+);
 const optionalFilterText = z.preprocess(emptyToUndefined, z.string().trim().optional());
 const optionalCuid = z.preprocess(emptyToNull, z.string().cuid().nullable().optional());
 const optionalFilterCuid = z.preprocess(emptyToUndefined, z.string().cuid().optional());
@@ -50,7 +55,7 @@ const eventBaseObjectSchema = z.object({
   capacity: optionalCapacity,
   requiresRegistration: z.boolean(),
   isPublic: z.boolean(),
-  imageUrl: optionalText,
+  imageUrl: optionalUrl,
   observations: optionalText
 });
 

@@ -333,6 +333,23 @@ export const accessRequestRepository = {
     };
   }) {
     return prisma.$transaction(async (tx) => {
+      const claimed = await tx.userAccessRequest.updateMany({
+        where: { id: data.requestId, status: "PENDING", deletedAt: null },
+        data: {
+          status: "APPROVED",
+          approvedMemberId: data.memberId,
+          approvedById: data.actionUserId,
+          approvedAt: new Date(),
+          rejectedById: null,
+          rejectedAt: null,
+          rejectionReason: null
+        }
+      });
+
+      if (claimed.count !== 1) {
+        return null;
+      }
+
       await tx.user.create({
         data: {
           ...data.user,
@@ -343,17 +360,8 @@ export const accessRequestRepository = {
         select: { id: true }
       });
 
-      return tx.userAccessRequest.update({
+      return tx.userAccessRequest.findUnique({
         where: { id: data.requestId },
-        data: {
-          status: "APPROVED",
-          approvedMemberId: data.memberId,
-          approvedById: data.actionUserId,
-          approvedAt: new Date(),
-          rejectedById: null,
-          rejectedAt: null,
-          rejectionReason: null
-        },
         select: accessRequestSelect
       });
     });
@@ -473,15 +481,22 @@ export const accessRequestRepository = {
   },
 
   reject(id: string, actionUserId: string, reason: string) {
-    return prisma.userAccessRequest.update({
-      where: { id },
-      data: {
-        status: "REJECTED",
-        rejectedById: actionUserId,
-        rejectedAt: new Date(),
-        rejectionReason: reason
-      },
-      select: accessRequestSelect
+    return prisma.$transaction(async (tx) => {
+      const claimed = await tx.userAccessRequest.updateMany({
+        where: { id, status: "PENDING", deletedAt: null },
+        data: {
+          status: "REJECTED",
+          rejectedById: actionUserId,
+          rejectedAt: new Date(),
+          rejectionReason: reason
+        }
+      });
+
+      if (claimed.count !== 1) {
+        return null;
+      }
+
+      return tx.userAccessRequest.findUnique({ where: { id }, select: accessRequestSelect });
     });
   }
 };

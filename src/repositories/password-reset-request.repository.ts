@@ -187,6 +187,21 @@ export const passwordResetRequestRepository = {
 
   approve(id: string, actionUserId: string, targetUserId: string, passwordHash: string) {
     return prisma.$transaction(async (tx) => {
+      const claimed = await tx.passwordResetRequest.updateMany({
+        where: { id, status: PasswordResetRequestStatus.PENDING, deletedAt: null },
+        data: {
+          status: PasswordResetRequestStatus.COMPLETED,
+          processedById: actionUserId,
+          processedAt: new Date(),
+          rejectionReason: null,
+          userId: targetUserId
+        }
+      });
+
+      if (claimed.count !== 1) {
+        return null;
+      }
+
       await tx.user.update({
         where: { id: targetUserId },
         data: {
@@ -198,30 +213,30 @@ export const passwordResetRequestRepository = {
         select: { id: true }
       });
 
-      return tx.passwordResetRequest.update({
+      return tx.passwordResetRequest.findUnique({
         where: { id },
-        data: {
-          status: PasswordResetRequestStatus.COMPLETED,
-          processedById: actionUserId,
-          processedAt: new Date(),
-          rejectionReason: null,
-          userId: targetUserId
-        },
         select: passwordResetRequestSelect
       });
     });
   },
 
   reject(id: string, actionUserId: string, reason: string) {
-    return prisma.passwordResetRequest.update({
-      where: { id },
-      data: {
-        status: PasswordResetRequestStatus.REJECTED,
-        processedById: actionUserId,
-        processedAt: new Date(),
-        rejectionReason: reason
-      },
-      select: passwordResetRequestSelect
+    return prisma.$transaction(async (tx) => {
+      const claimed = await tx.passwordResetRequest.updateMany({
+        where: { id, status: PasswordResetRequestStatus.PENDING, deletedAt: null },
+        data: {
+          status: PasswordResetRequestStatus.REJECTED,
+          processedById: actionUserId,
+          processedAt: new Date(),
+          rejectionReason: reason
+        }
+      });
+
+      if (claimed.count !== 1) {
+        return null;
+      }
+
+      return tx.passwordResetRequest.findUnique({ where: { id }, select: passwordResetRequestSelect });
     });
   }
 };

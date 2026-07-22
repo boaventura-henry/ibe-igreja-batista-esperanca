@@ -145,6 +145,10 @@ export const passwordResetRequestService = {
     const passwordHash = await hashPassword(temporaryPassword);
     const approvedRequest = await passwordResetRequestRepository.approve(id, actionUserId, request.user.id, passwordHash);
 
+    if (!approvedRequest) {
+      throw new AppError("Esta solicitacao ja foi finalizada.", 409, "PASSWORD_RESET_REQUEST_CLOSED");
+    }
+
     return {
       request: serializeRequest(approvedRequest),
       temporaryPassword
@@ -162,6 +166,12 @@ export const passwordResetRequestService = {
       throw new AppError("Esta solicitacao ja foi finalizada.", 409, "PASSWORD_RESET_REQUEST_CLOSED");
     }
 
-    return serializeRequest(await passwordResetRequestRepository.reject(id, actionUserId, data.reason));
+    const rejectedRequest = await passwordResetRequestRepository.reject(id, actionUserId, data.reason);
+
+    if (!rejectedRequest) {
+      throw new AppError("Esta solicitacao ja foi finalizada.", 409, "PASSWORD_RESET_REQUEST_CLOSED");
+    }
+
+    return serializeRequest(rejectedRequest);
   }
 };

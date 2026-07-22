@@ -26,6 +26,8 @@ export type {
   AdminDashboardEvent,
   AdminDashboardMetric,
   AdminDashboardSchedule,
+  AdminDashboardResponse,
+  AuthorizedDashboardWidget,
   PortalDashboardData,
   PortalDashboardEvent,
   PortalDashboardNotice,

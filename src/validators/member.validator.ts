@@ -1,6 +1,7 @@
 import { MemberSex, MemberStatus } from "@prisma/client";
 import { z } from "zod";
 import { onlyDigits } from "@/utils";
+import { isSafeExternalUrl } from "@/utils/url";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") {
@@ -19,6 +20,10 @@ const emptyToNull = (value: unknown) => {
 };
 
 const optionalText = z.preprocess(emptyToUndefined, z.string().trim().optional());
+const optionalUrl = z.preprocess(
+  emptyToUndefined,
+  z.string().trim().max(2048).refine(isSafeExternalUrl, "Informe uma URL HTTP ou HTTPS valida.").optional()
+);
 const optionalEmail = z.preprocess(
   emptyToUndefined,
   z.string().trim().email("Informe um e-mail valido.").optional()
@@ -102,7 +107,7 @@ export const memberCreateSchema = z.object({
   joinedAt: optionalDate,
   status: z.enum(MemberStatus).default(MemberStatus.ACTIVE),
   notes: optionalText,
-  photoUrl: optionalText,
+  photoUrl: optionalUrl,
   ministryIds: z.array(z.string().cuid()).default([])
 });
 

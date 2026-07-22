@@ -1,3 +1,7 @@
+import type { DashboardWidgetCode, DashboardWidgetComponentKey } from "@/config/dashboard-widgets";
+import type { DashboardLayoutConfiguration, DashboardWidgetBadge, DashboardWidgetCategory, DashboardWidgetIconKey, DashboardWidgetPriority, DashboardWidgetSensitivity, DashboardWidgetSize, DashboardWidgetVisualVariant } from "@/config/dashboard-widget-enums";
+import type { BirthdayDashboardData } from "./birthday.types";
+
 export type AdminDashboardMetric = {
   label: string;
   value: string;
@@ -63,6 +67,54 @@ export type AdminDashboardData = {
   monthlyExpense: string;
   monthlyBalance: string;
   latestContributions: AdminDashboardContribution[];
+};
+
+type AuthorizedWidgetBase<TCode extends DashboardWidgetCode, TComponent extends DashboardWidgetComponentKey, TData> = {
+  code: TCode;
+  title: string;
+  description: string | null;
+  componentKey: TComponent;
+  sensitivity: DashboardWidgetSensitivity;
+  category: DashboardWidgetCategory;
+  priority: DashboardWidgetPriority;
+  size: DashboardWidgetSize;
+  visibleOnMobile: boolean;
+  visibleOnTablet: boolean;
+  visibleOnDesktop: boolean;
+  iconKey: DashboardWidgetIconKey;
+  visualVariant: DashboardWidgetVisualVariant;
+  badge: DashboardWidgetBadge | null;
+  order: number;
+  data: TData;
+};
+
+export type AuthorizedDashboardWidget =
+  | AuthorizedWidgetBase<"members.birthdays", "MEMBERS_BIRTHDAYS", BirthdayDashboardData>
+  | AuthorizedWidgetBase<"members.summary", "MEMBERS_SUMMARY", { activeMembers: number; newMembersThisMonth: number }>
+  | AuthorizedWidgetBase<"events.upcoming", "EVENTS_UPCOMING", { events: AdminDashboardEvent[] }>
+  | AuthorizedWidgetBase<"scales.upcoming", "SCALES_UPCOMING", { schedules: AdminDashboardSchedule[] }>
+  | AuthorizedWidgetBase<"finance.revenue", "FINANCE_REVENUE", { monthlyIncome: string }>
+  | AuthorizedWidgetBase<"finance.balance", "FINANCE_BALANCE", { monthlyBalance: string }>
+  | AuthorizedWidgetBase<"finance.summary", "FINANCE_SUMMARY", { monthlyIncome: string; monthlyExpense: string; monthlyBalance: string }>
+  | AuthorizedWidgetBase<"contributions.recent", "CONTRIBUTIONS_RECENT", { contributions: AdminDashboardContribution[] }>
+  | AuthorizedWidgetBase<"announcements.summary", "ANNOUNCEMENTS_SUMMARY", { publishedAnnouncements: number; activeAnnouncements: number; pinnedAnnouncements: number }>
+  | AuthorizedWidgetBase<"notifications.health", "NOTIFICATIONS_HEALTH", { pushNotificationsSentToday: number; pushNotificationSuccessRate: number; activePushDevices: number; expiredPushDevices: number; pushFailuresLast24h: number; pushRetriesExecuted: number; pushRecoveredDevices: number; pushFinalSuccessRate: number }>;
+
+export type AdminDashboardResponse = {
+  version: string;
+  layout: DashboardLayoutConfiguration;
+  categories: Array<{
+    code: DashboardWidgetCategory;
+    title: string;
+    description: string;
+    iconKey: DashboardWidgetIconKey;
+    order: number;
+    collapsible: boolean;
+    defaultCollapsed: boolean;
+    sensitivity: DashboardWidgetSensitivity;
+    widgets: AuthorizedDashboardWidget[];
+  }>;
+  allowedWidgetCodes: DashboardWidgetCode[];
 };
 
 export type PortalDashboardSchedule = {

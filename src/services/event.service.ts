@@ -1,10 +1,16 @@
-import { EventStatus, MemberStatus } from "@prisma/client";
+import { EventStatus, MemberStatus, Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { eventRepository, type EventRecord } from "@/repositories";
 import type { EventListResult, EventSummary } from "@/types";
 import { createSlug } from "@/utils";
 import type { EventCreateInput, EventListQueryInput, EventUpdateInput } from "@/validators";
 import { getMemberDisplayName } from "@/utils";
+
+const SLUG_WRITE_ATTEMPTS = 3;
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
 
 function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
@@ -149,9 +155,23 @@ export const eventService = {
       ensureResponsibleMember(data.responsibleMemberId)
     ]);
 
-    const slug = await createUniqueSlug(data.title);
+    for (let attempt = 1; attempt <= SLUG_WRITE_ATTEMPTS; attempt += 1) {
+      const slug = await createUniqueSlug(data.title);
 
-    return serialize(await eventRepository.create(data, slug, userId));
+      try {
+        return serialize(await eventRepository.create(data, slug, userId));
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        if (attempt === SLUG_WRITE_ATTEMPTS) {
+          throw new AppError("Nao foi possivel gerar um identificador unico para o evento.", 409, "EVENT_SLUG_CONFLICT");
+        }
+      }
+    }
+
+    throw new AppError("Nao foi possivel gerar um identificador unico para o evento.", 409, "EVENT_SLUG_CONFLICT");
   },
 
   async update(id: string, data: EventUpdateInput, userId: string) {
@@ -172,9 +192,27 @@ export const eventService = {
       ensureResponsibleMember(data.responsibleMemberId)
     ]);
 
-    const nextData = data.title ? { ...data, slug: await createUniqueSlug(data.title, id) } : data;
+    if (!data.title) {
+      return serialize(await eventRepository.update(id, data, userId));
+    }
 
-    return serialize(await eventRepository.update(id, nextData, userId));
+    for (let attempt = 1; attempt <= SLUG_WRITE_ATTEMPTS; attempt += 1) {
+      const nextData = { ...data, slug: await createUniqueSlug(data.title, id) };
+
+      try {
+        return serialize(await eventRepository.update(id, nextData, userId));
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        if (attempt === SLUG_WRITE_ATTEMPTS) {
+          throw new AppError("Nao foi possivel gerar um identificador unico para o evento.", 409, "EVENT_SLUG_CONFLICT");
+        }
+      }
+    }
+
+    throw new AppError("Nao foi possivel gerar um identificador unico para o evento.", 409, "EVENT_SLUG_CONFLICT");
   },
 
   async remove(id: string, userId: string) {

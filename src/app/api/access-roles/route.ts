@@ -16,7 +16,7 @@ export async function GET() {
   try {
     await requirePermission("accessRole.view");
 
-    return apiSuccess(await accessRoleService.list());
+    return apiSuccess(await accessRoleService.list(), { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     const appError = toAppError(error);
 

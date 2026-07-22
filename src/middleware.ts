@@ -20,7 +20,8 @@ const protectedRoutes = [
   "/comunicados",
   "/relatorios",
   "/financeiro",
-  "/contribuicoes"
+  "/contribuicoes",
+  "/sobre"
 ];
 
 function isProtectedRoute(pathname: string) {
@@ -216,6 +217,7 @@ export const config = {
     "/comunicados/:path*",
     "/relatorios/:path*",
     "/financeiro/:path*",
-    "/contribuicoes/:path*"
+    "/contribuicoes/:path*",
+    "/sobre/:path*"
   ]
 };

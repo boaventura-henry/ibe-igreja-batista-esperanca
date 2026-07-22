@@ -2,6 +2,16 @@ import type { AuthSessionUser } from "@/types";
 
 export const availablePermissions = [
   { code: "dashboard.admin.view", name: "Visualizar dashboard administrativo", label: "Visualizar dashboard administrativo", module: "Dashboard" },
+  { code: "dashboard.members.birthdays", name: "Visualizar aniversariantes no dashboard", label: "Aniversariantes", description: "Permite visualizar aniversariantes do dia, da semana e do mes no dashboard administrativo.", module: "Dashboard - Membros" },
+  { code: "dashboard.members.summary", name: "Visualizar resumo de membros no dashboard", label: "Resumo de membros", description: "Permite visualizar totais e novos membros no dashboard administrativo.", module: "Dashboard - Membros" },
+  { code: "dashboard.events.upcoming", name: "Visualizar proximos eventos no dashboard", label: "Proximos eventos", description: "Permite visualizar a lista de eventos futuros no dashboard administrativo.", module: "Dashboard - Eventos" },
+  { code: "dashboard.scales.upcoming", name: "Visualizar proximas escalas no dashboard", label: "Proximas escalas", description: "Permite visualizar a lista de escalas futuras no dashboard administrativo.", module: "Dashboard - Escalas" },
+  { code: "dashboard.finance.revenue", name: "Visualizar receitas no dashboard", label: "Receitas do mes", description: "Permite visualizar o total de receitas confirmadas no dashboard administrativo.", module: "Dashboard - Financeiro" },
+  { code: "dashboard.finance.balance", name: "Visualizar saldo financeiro no dashboard", label: "Saldo financeiro", description: "Permite visualizar o saldo financeiro consolidado no dashboard administrativo.", module: "Dashboard - Financeiro" },
+  { code: "dashboard.finance.summary", name: "Visualizar resumo financeiro no dashboard", label: "Resumo financeiro", description: "Permite visualizar receitas, despesas e saldo no resumo financeiro mensal.", module: "Dashboard - Financeiro" },
+  { code: "dashboard.contributions.recent", name: "Visualizar contribuicoes recentes no dashboard", label: "Contribuicoes recentes", description: "Permite visualizar valores e contribuintes das entradas recentes confirmadas.", module: "Dashboard - Contribuicoes" },
+  { code: "dashboard.announcements.summary", name: "Visualizar resumo de comunicados no dashboard", label: "Resumo de comunicados", description: "Permite visualizar indicadores de comunicados publicados, ativos e fixados.", module: "Dashboard - Comunicados" },
+  { code: "dashboard.notifications.health", name: "Visualizar saude das notificacoes no dashboard", label: "Saude das notificacoes", description: "Permite visualizar metricas operacionais, falhas e recuperacao das notificacoes push.", module: "Dashboard - Notificacoes" },
   { code: "dashboard.portal.view", name: "Visualizar dashboard do portal", label: "Visualizar dashboard do portal", module: "Portal do Membro" },
   { code: "push.logs.view", name: "Visualizar historico de notificacoes", label: "Visualizar historico", module: "Administracao" },
   { code: "push.logs.retry", name: "Reenviar notificacoes com falha", label: "Reenviar falhas", module: "Administracao" },
@@ -135,6 +145,13 @@ export const availablePermissions = [
   { code: "user.resetPassword", name: "Redefinir senha", label: "Redefinir senha", module: "Usuarios" },
   { code: "user.lock", name: "Bloquear usuario", label: "Bloquear usuario", module: "Usuarios" },
   { code: "user.unlock", name: "Desbloquear usuario", label: "Desbloquear usuario", module: "Usuarios" },
+  {
+    code: "system.diagnostics.view",
+    name: "Visualizar diagnosticos do sistema",
+    label: "Visualizar diagnosticos",
+    description: "Permite visualizar versao, build e alinhamento das migrations do banco.",
+    module: "Sistema"
+  },
   {
     code: "system.settings.view",
     name: "Visualizar configuracoes",

@@ -7,6 +7,20 @@ import {
 } from "@/repositories";
 import type { AccessRoleListResult, AccessRoleSummary } from "@/types";
 import type { AccessRoleCreateInput, AccessRoleUpdateInput } from "@/validators";
+import { dashboardWidgetByCode, isDashboardWidgetCode } from "@/config/dashboard-widgets";
+import { defaultDashboardLayout, dashboardLayoutModes, type DashboardLayoutConfiguration } from "@/config/dashboard-widget-enums";
+
+function serializeLayout(layout: AccessRoleListItem["dashboardLayout"]): DashboardLayoutConfiguration {
+  if (!layout) return { ...defaultDashboardLayout };
+  return {
+    mode: dashboardLayoutModes.includes(layout.layoutMode) ? layout.layoutMode : defaultDashboardLayout.mode,
+    desktopColumns: ([1, 2, 3, 4].includes(layout.desktopColumns) ? layout.desktopColumns : 3) as 1 | 2 | 3 | 4,
+    tabletColumns: ([1, 2, 3].includes(layout.tabletColumns) ? layout.tabletColumns : 2) as 1 | 2 | 3,
+    mobileColumns: ([1, 2].includes(layout.mobileColumns) ? layout.mobileColumns : 1) as 1 | 2,
+    showCategoryHeaders: layout.showCategoryHeaders,
+    allowCategoryCollapse: layout.allowCategoryCollapse
+  };
+}
 
 function serialize(role: AccessRoleListItem): AccessRoleSummary {
   return {
@@ -18,7 +32,13 @@ function serialize(role: AccessRoleListItem): AccessRoleSummary {
     isActive: role.isActive,
     usersCount: role._count.users,
     membersCount: role._count.users,
-    updatedAt: role.updatedAt.toISOString()
+    updatedAt: role.updatedAt.toISOString(),
+    dashboardWidgets: role.dashboardWidgets.flatMap((configuration) =>
+      isDashboardWidgetCode(configuration.dashboardWidget.code)
+        ? [{ code: configuration.dashboardWidget.code, isVisible: configuration.isVisible, sortOrder: configuration.sortOrder, size: configuration.size, visibleOnMobile: configuration.visibleOnMobile, visibleOnTablet: configuration.visibleOnTablet, visibleOnDesktop: configuration.visibleOnDesktop }]
+        : []
+    ),
+    dashboardLayout: serializeLayout(role.dashboardLayout)
   };
 }
 
@@ -49,14 +69,21 @@ async function ensureUniqueName(name: string | undefined, currentId?: string) {
 
 export const accessRoleService = {
   async list(): Promise<AccessRoleListResult> {
-    const [roles, permissions] = await Promise.all([
+    const [roles, permissions, widgets] = await Promise.all([
       accessRoleRepository.list(),
-      accessRoleRepository.listPermissions()
+      accessRoleRepository.listPermissions(),
+      accessRoleRepository.listDashboardWidgets()
     ]);
 
     return {
       accessRoles: roles.map(serialize),
-      availablePermissions: permissions
+      availablePermissions: permissions,
+      availableDashboardWidgets: widgets.flatMap((widget) => {
+        if (!isDashboardWidgetCode(widget.code)) return [];
+        const definition = dashboardWidgetByCode.get(widget.code);
+        if (!definition) return [];
+        return [{ code: widget.code, title: widget.title, description: widget.description, category: widget.category, permissionCode: widget.permission.code, defaultOrder: widget.defaultOrder, isEnabled: widget.isEnabled, sensitivity: definition.sensitivity, priority: definition.priority, defaultSize: definition.defaultSize, defaultVisibleOnMobile: definition.defaultVisibleOnMobile, defaultVisibleOnTablet: definition.defaultVisibleOnTablet, defaultVisibleOnDesktop: definition.defaultVisibleOnDesktop, iconKey: definition.iconKey, visualVariant: definition.visualVariant }];
+      })
     };
   },
 

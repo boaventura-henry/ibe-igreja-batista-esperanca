@@ -6,7 +6,9 @@ import { usePathname } from "next/navigation";
 import { useMobileMenu } from "@/hooks";
 import { getAllowedNavigationItems, navigationItems } from "@/lib/navigation";
 import { isRouteActive } from "@/utils";
+import { APP_VERSION } from "@/lib/app-version";
 import { LogoutButton } from "./LogoutButton";
+import { AppReleaseNotesModal } from "./releases/AppReleaseNotesModal";
 
 const iconMap: Record<(typeof navigationItems)[number]["icon"], string> = {
   Inicio: "I",
@@ -33,6 +35,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <Navigation pathname={pathname} permissionCodes={permissionCodes} />
         <div className="shrink-0 border-t border-hope-100 px-5 py-4">
+          <Link href="/sobre" className="mb-3 block text-center text-xs font-semibold text-ink-500 hover:text-hope-700">
+            Versao {APP_VERSION}
+          </Link>
           <LogoutButton className="flex w-full items-center justify-center rounded-md border border-hope-100 px-3 py-3 text-sm font-bold text-ink-700 transition hover:bg-hope-50 hover:text-hope-700" />
         </div>
       </aside>
@@ -56,6 +61,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             permissionCodes={permissionCodes}
             onNavigate={mobileMenu.close}
           />
+          <Link href="/sobre" onClick={mobileMenu.close} className="block py-3 text-center text-xs font-semibold text-ink-500">
+            Sobre a versao {APP_VERSION}
+          </Link>
           <LogoutButton className="mt-2 flex w-full items-center justify-center rounded-md border border-hope-100 px-3 py-3 text-sm font-bold text-ink-700 transition hover:bg-hope-50 hover:text-hope-700" />
         </div>
       ) : null}
@@ -65,6 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <AppReleaseNotesModal />
     </div>
   );
 }

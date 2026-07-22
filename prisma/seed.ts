@@ -7,6 +7,13 @@ import { prisma } from "../src/prisma/client";
 import { ZodError } from "zod";
 import { createSlug } from "../src/utils/identity";
 import { FinancialEntryType, MinistryIcon } from "@prisma/client";
+import { dashboardWidgets } from "../src/config/dashboard-widgets";
+import { defaultDashboardLayout, type DashboardLayoutConfiguration } from "../src/config/dashboard-widget-enums";
+
+const allDashboardWidgetPermissions = dashboardWidgets.map((widget) => widget.permissionCode);
+const operationalDashboardWidgetPermissions = dashboardWidgets
+  .filter((widget) => widget.sensitivity !== "RESTRICTED")
+  .map((widget) => widget.permissionCode);
 
 const defaultAccessRoles: Array<{
   name: string;
@@ -23,6 +30,7 @@ const defaultAccessRoles: Array<{
     description: "Acesso pastoral para visualizar e manter cadastros de membros.",
     permissions: [
       "dashboard.admin.view",
+      ...allDashboardWidgetPermissions,
       "dashboard.portal.view",
       "report.view",
       "report.export",
@@ -58,6 +66,7 @@ const defaultAccessRoles: Array<{
     description: "Acesso operacional para secretaria da igreja.",
     permissions: [
       "dashboard.admin.view",
+      ...operationalDashboardWidgetPermissions,
       "dashboard.portal.view",
       "report.view",
       "report.export",
@@ -140,6 +149,12 @@ const defaultAccessRoles: Array<{
   }
 ];
 
+const defaultDashboardLayoutsByRole: Record<string, DashboardLayoutConfiguration> = {
+  Administrador: { ...defaultDashboardLayout, mode: "EXPANDED", desktopColumns: 4 },
+  Pastor: { ...defaultDashboardLayout, mode: "BALANCED", desktopColumns: 3 },
+  Secretario: { ...defaultDashboardLayout, mode: "COMPACT", desktopColumns: 3 }
+};
+
 const defaultMinistries: Array<{
   name: string;
   color: string;
@@ -194,6 +209,7 @@ async function main() {
         name: permission.name,
         label: permission.label,
         module: permission.module,
+        description: "description" in permission ? permission.description : null,
         isSystem: true,
         isActive: true
       },
@@ -202,11 +218,55 @@ async function main() {
         name: permission.name,
         label: permission.label,
         module: permission.module,
+        description: "description" in permission ? permission.description : null,
         isSystem: true,
         isActive: true
       }
     });
   }
+
+  for (const widget of dashboardWidgets) {
+    await prisma.dashboardWidget.upsert({
+      where: { code: widget.code },
+      update: {
+        title: widget.title,
+        description: widget.description,
+        category: widget.category,
+        sensitivity: widget.sensitivity,
+        priority: widget.priority,
+        defaultSize: widget.defaultSize,
+        defaultVisibleOnMobile: widget.defaultVisibleOnMobile,
+        defaultVisibleOnTablet: widget.defaultVisibleOnTablet,
+        defaultVisibleOnDesktop: widget.defaultVisibleOnDesktop,
+        iconKey: widget.iconKey,
+        visualVariant: widget.visualVariant,
+        defaultOrder: widget.defaultOrder,
+        isEnabled: widget.enabled,
+        isSystem: true,
+        permission: { connect: { code: widget.permissionCode } }
+      },
+      create: {
+        code: widget.code,
+        title: widget.title,
+        description: widget.description,
+        category: widget.category,
+        sensitivity: widget.sensitivity,
+        priority: widget.priority,
+        defaultSize: widget.defaultSize,
+        defaultVisibleOnMobile: widget.defaultVisibleOnMobile,
+        defaultVisibleOnTablet: widget.defaultVisibleOnTablet,
+        defaultVisibleOnDesktop: widget.defaultVisibleOnDesktop,
+        iconKey: widget.iconKey,
+        visualVariant: widget.visualVariant,
+        defaultOrder: widget.defaultOrder,
+        isEnabled: widget.enabled,
+        isSystem: true,
+        permission: { connect: { code: widget.permissionCode } }
+      }
+    });
+  }
+
+  console.log(`Dashboard widgets ready: ${dashboardWidgets.length}`);
 
   let adminAccessRoleId: string | null = null;
   for (const role of defaultAccessRoles) {
@@ -218,6 +278,17 @@ async function main() {
 
     if (role.name === "Administrador") {
       adminAccessRoleId = accessRole.id;
+    }
+
+    const dashboardLayout = defaultDashboardLayoutsByRole[role.name];
+    if (dashboardLayout) {
+      const { mode, ...dashboardLayoutValues } = dashboardLayout;
+      const databaseDashboardLayout = { ...dashboardLayoutValues, layoutMode: mode };
+      await prisma.accessRoleDashboardLayout.upsert({
+        where: { accessRoleId: accessRole.id },
+        update: databaseDashboardLayout,
+        create: { accessRoleId: accessRole.id, ...databaseDashboardLayout }
+      });
     }
   }
 

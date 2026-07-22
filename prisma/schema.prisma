@@ -14,6 +14,68 @@ enum UserRole {
   TREASURER
 }
 
+enum DashboardWidgetCategory {
+  MEMBERS
+  MINISTRIES
+  EVENTS
+  SCALES
+  FINANCE
+  CONTRIBUTIONS
+  ANNOUNCEMENTS
+  NOTIFICATIONS
+  SYSTEM
+}
+
+enum DashboardWidgetSensitivity {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+}
+
+enum DashboardWidgetPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum DashboardWidgetSize {
+  SMALL
+  MEDIUM
+  LARGE
+  FULL
+}
+
+enum DashboardWidgetIconKey {
+  USERS
+  CAKE
+  CALENDAR
+  MUSIC
+  WALLET
+  TRENDING_UP
+  HAND_COINS
+  MEGAPHONE
+  BELL
+  HEART_PULSE
+  SERVER
+  SHIELD
+}
+
+enum DashboardWidgetVisualVariant {
+  DEFAULT
+  INFO
+  POSITIVE
+  WARNING
+  DANGER
+  RESTRICTED
+}
+
+enum DashboardLayoutMode {
+  COMPACT
+  BALANCED
+  EXPANDED
+}
+
 enum MemberStatus {
   ACTIVE
   INACTIVE
@@ -225,6 +287,7 @@ model User {
   lastLoginAt                    DateTime?
   failedLoginAttempts            Int                         @default(0)
   lockedUntil                    DateTime?
+  lastSeenAppVersion             String?
   member                         Member?                     @relation("MemberUser", fields: [memberId], references: [id], onDelete: SetNull)
   accessRole                     AccessRole?                 @relation("UserAccessRole", fields: [accessRoleId], references: [id], onDelete: SetNull)
   createdMembers                 Member[]                    @relation("MemberCreatedBy")
@@ -390,20 +453,22 @@ model PushNotificationLogDevice {
 }
 
 model AccessRole {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  description String?
-  permissions Permission[] @relation("AccessRolePermissions")
-  isSystem    Boolean      @default(false)
-  isActive    Boolean      @default(true)
-  deletedAt   DateTime?
-  createdById String?
-  updatedById String?
-  createdBy   User?        @relation("AccessRoleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   User?        @relation("AccessRoleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  users       User[]       @relation("UserAccessRole")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id               String                      @id @default(cuid())
+  name             String                      @unique
+  description      String?
+  permissions      Permission[]                @relation("AccessRolePermissions")
+  isSystem         Boolean                     @default(false)
+  isActive         Boolean                     @default(true)
+  deletedAt        DateTime?
+  createdById      String?
+  updatedById      String?
+  createdBy        User?                       @relation("AccessRoleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy        User?                       @relation("AccessRoleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  users            User[]                      @relation("UserAccessRole")
+  dashboardWidgets AccessRoleDashboardWidget[]
+  dashboardLayout  AccessRoleDashboardLayout?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
 
   @@index([name])
   @@index([isActive])
@@ -411,21 +476,86 @@ model AccessRole {
 }
 
 model Permission {
-  id          String       @id @default(cuid())
-  code        String       @unique
-  name        String
-  label       String
-  description String?
-  module      String
-  isSystem    Boolean      @default(true)
-  isActive    Boolean      @default(true)
-  accessRoles AccessRole[] @relation("AccessRolePermissions")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id               String            @id @default(cuid())
+  code             String            @unique
+  name             String
+  label            String
+  description      String?
+  module           String
+  isSystem         Boolean           @default(true)
+  isActive         Boolean           @default(true)
+  accessRoles      AccessRole[]      @relation("AccessRolePermissions")
+  dashboardWidgets DashboardWidget[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([code])
   @@index([module])
   @@index([isActive])
+}
+
+model DashboardWidget {
+  id                      String                       @id @default(cuid())
+  code                    String                       @unique
+  title                   String
+  description             String?
+  category                DashboardWidgetCategory
+  sensitivity             DashboardWidgetSensitivity   @default(INTERNAL)
+  priority                DashboardWidgetPriority      @default(NORMAL)
+  defaultSize             DashboardWidgetSize          @default(MEDIUM)
+  defaultVisibleOnMobile  Boolean                      @default(true)
+  defaultVisibleOnTablet  Boolean                      @default(true)
+  defaultVisibleOnDesktop Boolean                      @default(true)
+  iconKey                 DashboardWidgetIconKey       @default(SERVER)
+  visualVariant           DashboardWidgetVisualVariant @default(DEFAULT)
+  permissionId            String
+  permission              Permission                   @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+  defaultOrder            Int
+  isEnabled               Boolean                      @default(true)
+  isSystem                Boolean                      @default(true)
+  accessRoles             AccessRoleDashboardWidget[]
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
+
+  @@index([permissionId])
+  @@index([category, defaultOrder])
+  @@index([isEnabled])
+}
+
+model AccessRoleDashboardWidget {
+  id                String               @id @default(cuid())
+  accessRoleId      String
+  dashboardWidgetId String
+  isVisible         Boolean              @default(true)
+  sortOrder         Int?
+  size              DashboardWidgetSize?
+  visibleOnMobile   Boolean?
+  visibleOnTablet   Boolean?
+  visibleOnDesktop  Boolean?
+  accessRole        AccessRole           @relation(fields: [accessRoleId], references: [id], onDelete: Cascade)
+  dashboardWidget   DashboardWidget      @relation(fields: [dashboardWidgetId], references: [id], onDelete: Cascade)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([accessRoleId, dashboardWidgetId])
+  @@index([accessRoleId, isVisible])
+  @@index([dashboardWidgetId])
+}
+
+model AccessRoleDashboardLayout {
+  id                    String              @id @default(cuid())
+  accessRoleId          String              @unique
+  layoutMode            DashboardLayoutMode @default(BALANCED)
+  desktopColumns        Int                 @default(3)
+  tabletColumns         Int                 @default(2)
+  mobileColumns         Int                 @default(1)
+  showCategoryHeaders   Boolean             @default(true)
+  allowCategoryCollapse Boolean             @default(true)
+  accessRole            AccessRole          @relation(fields: [accessRoleId], references: [id], onDelete: Cascade)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([accessRoleId])
 }
 
 model Member {

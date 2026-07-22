@@ -1,5 +1,6 @@
 import { AnnouncementAudience, AnnouncementStatus } from "@prisma/client";
 import { z } from "zod";
+import { isSafeExternalUrl } from "@/utils/url";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") return value;
@@ -13,7 +14,10 @@ const emptyToNull = (value: unknown) => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
-const optionalText = z.preprocess(emptyToNull, z.string().trim().nullable().optional());
+const optionalUrl = z.preprocess(
+  emptyToNull,
+  z.string().trim().max(2048).refine(isSafeExternalUrl, "Informe uma URL HTTP ou HTTPS valida.").nullable().optional()
+);
 const optionalFilterText = z.preprocess(emptyToUndefined, z.string().trim().optional());
 const optionalCuid = z.preprocess(emptyToNull, z.string().cuid().nullable().optional());
 const optionalFilterCuid = z.preprocess(emptyToUndefined, z.string().cuid().optional());
@@ -28,7 +32,7 @@ const announcementBaseSchema = z.object({
   isPinned: z.boolean(),
   publishAt: optionalDate,
   expiresAt: optionalDate,
-  externalLink: optionalText
+  externalLink: optionalUrl
 });
 
 function validateAnnouncementRange(data: {

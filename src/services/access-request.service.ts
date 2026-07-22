@@ -398,8 +398,7 @@ export const accessRequestService = {
       throw new AppError("Perfil de acesso Membro nao encontrado.", 409, "MEMBER_ACCESS_ROLE_NOT_FOUND");
     }
 
-    return serializeRequest(
-      await accessRequestRepository.approve({
+    const approvedRequest = await accessRequestRepository.approve({
         requestId: id,
         actionUserId,
         memberId: data.memberId,
@@ -412,13 +411,24 @@ export const accessRequestService = {
           role: UserRole.LEADER,
           mustChangePassword: data.mustChangePassword
         }
-      })
-    );
+      });
+
+    if (!approvedRequest) {
+      throw new AppError("Esta solicitacao ja foi finalizada.", 409, "ACCESS_REQUEST_CLOSED");
+    }
+
+    return serializeRequest(approvedRequest);
   },
 
   async reject(id: string, data: AccessRequestRejectInput, actionUserId: string) {
     await ensureRequestPending(id);
 
-    return serializeRequest(await accessRequestRepository.reject(id, actionUserId, data.reason));
+    const rejectedRequest = await accessRequestRepository.reject(id, actionUserId, data.reason);
+
+    if (!rejectedRequest) {
+      throw new AppError("Esta solicitacao ja foi finalizada.", 409, "ACCESS_REQUEST_CLOSED");
+    }
+
+    return serializeRequest(rejectedRequest);
   }
 };

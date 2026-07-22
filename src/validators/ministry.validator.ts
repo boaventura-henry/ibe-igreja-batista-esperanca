@@ -1,6 +1,7 @@
 import { MinistryIcon, WeekDay } from "@prisma/client";
 import { z } from "zod";
 import { onlyDigits } from "@/utils";
+import { isSafeExternalUrl } from "@/utils/url";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") {
@@ -23,6 +24,10 @@ const emptyToNull = (value: unknown) => {
 };
 
 const optionalText = z.preprocess(emptyToNull, z.string().trim().nullable().optional());
+const optionalUrl = z.preprocess(
+  emptyToNull,
+  z.string().trim().max(2048).refine(isSafeExternalUrl, "Informe uma URL HTTP ou HTTPS valida.").nullable().optional()
+);
 const optionalFilterText = z.preprocess(emptyToUndefined, z.string().trim().optional());
 const optionalEmail = z.preprocess(
   emptyToNull,
@@ -49,7 +54,7 @@ const ministryBaseSchema = z.object({
       .regex(/^#[0-9A-Fa-f]{6}$/, "Informe uma cor hexadecimal valida.")
       .default("#2563eb"),
     icon: z.enum(MinistryIcon).default(MinistryIcon.USERS),
-    imageUrl: optionalText,
+    imageUrl: optionalUrl,
     displayOrder: z.coerce.number().int().min(1, "A ordem deve ser maior ou igual a um.").optional(),
     email: optionalEmail,
     phone: optionalPhone,

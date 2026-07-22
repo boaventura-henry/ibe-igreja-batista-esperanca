@@ -22,7 +22,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     const { id } = await context.params;
 
-    return apiSuccess(await accessRoleService.getById(id));
+    return apiSuccess(await accessRoleService.getById(id), { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     if (error instanceof AppError) {
       return apiError(error.message, error.statusCode, error.code);

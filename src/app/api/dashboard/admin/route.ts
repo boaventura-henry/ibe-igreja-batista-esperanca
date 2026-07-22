@@ -7,16 +7,24 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await requirePermission("dashboard.admin.view");
-
-    return apiSuccess(await dashboardService.getAdminDashboard());
+    const user = await requirePermission("dashboard.admin.view");
+    return apiSuccess(
+      await dashboardService.getAdminDashboardForUser({
+        permissionCodes: user.permissionCodes,
+        accessRoleId: user.accessRoleId
+      }),
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     if (error instanceof AppError) {
-      return apiError(error.message, error.statusCode, error.code);
+      const response = apiError(error.message, error.statusCode, error.code);
+      response.headers.set("Cache-Control", "no-store, max-age=0");
+      return response;
     }
 
     const appError = toAppError(error);
-
-    return apiError(appError.message, appError.statusCode, appError.code);
+    const response = apiError(appError.message, appError.statusCode, appError.code);
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    return response;
   }
 }

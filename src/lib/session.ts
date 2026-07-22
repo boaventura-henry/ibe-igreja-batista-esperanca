@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { AppError } from "@/lib/errors";
 import { hasPermission, type PermissionKey } from "@/lib/permissions";
+import { userRepository } from "@/repositories";
 
 export async function requireCurrentUser() {
   const session = await getServerSession(authOptions);
@@ -10,7 +11,30 @@ export async function requireCurrentUser() {
     throw new AppError("Acesso nao autorizado.", 401, "UNAUTHORIZED");
   }
 
-  return session.user;
+  const current = await userRepository.findSessionAuthorization(session.user.id);
+
+  if (
+    !current ||
+    !current.isActive ||
+    (current.lockedUntil && current.lockedUntil > new Date()) ||
+    (Boolean(current.accessRoleId) &&
+      (!current.accessRole || !current.accessRole.isActive || Boolean(current.accessRole.deletedAt)))
+  ) {
+    throw new AppError("Acesso nao autorizado.", 401, "UNAUTHORIZED");
+  }
+
+  return {
+    id: current.id,
+    name: current.name,
+    username: current.username,
+    email: current.email,
+    role: current.role,
+    memberId: current.memberId,
+    accessRoleId: current.accessRoleId,
+    mustChangePassword: current.mustChangePassword,
+    permissions: current.accessRole?.permissions ?? [],
+    permissionCodes: current.accessRole?.permissions.map((permission) => permission.code) ?? []
+  };
 }
 
 export async function requirePermission(permission: PermissionKey) {

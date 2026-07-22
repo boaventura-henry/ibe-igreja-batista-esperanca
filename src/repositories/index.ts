@@ -48,6 +48,7 @@ export type { SongRecord } from "./song.repository";
 export { scheduleSongRepository } from "./schedule-song.repository";
 export type { ScheduleSongRecord } from "./schedule-song.repository";
 export { userRepository } from "./user.repository";
+export { systemDiagnosticsRepository, MigrationsTableUnavailableError } from "./system-diagnostics.repository";
 export type { SafeUser, UserWithPassword } from "./user.repository";
 export { pushSubscriptionRepository } from "./push-subscription.repository";
 export type { PushDeviceRecord } from "./push-subscription.repository";

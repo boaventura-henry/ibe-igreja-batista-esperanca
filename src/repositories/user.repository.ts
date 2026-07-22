@@ -28,6 +28,8 @@ const userSelect = {
     select: {
       id: true,
       name: true,
+      isActive: true,
+      deletedAt: true,
       permissions: {
         select: {
           code: true,
@@ -93,6 +95,50 @@ function buildWhere(filters: UserListQueryInput): Prisma.UserWhereInput {
 }
 
 export const userRepository = {
+  findSessionAuthorization(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        email: true,
+        role: true,
+        memberId: true,
+        accessRoleId: true,
+        isActive: true,
+        mustChangePassword: true,
+        lockedUntil: true,
+        accessRole: {
+          select: {
+            isActive: true,
+            deletedAt: true,
+            permissions: {
+              where: { isActive: true },
+              select: { code: true, name: true, label: true, module: true },
+              orderBy: [{ module: "asc" }, { code: "asc" }]
+            }
+          }
+        }
+      }
+    });
+  },
+
+  findReleasePreference(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, lastSeenAppVersion: true }
+    });
+  },
+
+  updateLastSeenAppVersion(input: { userId: string; version: string }) {
+    return prisma.user.update({
+      where: { id: input.userId },
+      data: { lastSeenAppVersion: input.version },
+      select: { id: true, lastSeenAppVersion: true }
+    });
+  },
+
   async list(filters: UserListQueryInput) {
     const where = buildWhere(filters);
     const skip = (filters.page - 1) * filters.pageSize;
@@ -341,7 +387,7 @@ export const userRepository = {
       data: {
         failedLoginAttempts: { increment: 1 }
       },
-      select: { id: true }
+      select: { id: true, failedLoginAttempts: true }
     });
   },
 
