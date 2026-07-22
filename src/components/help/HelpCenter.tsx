@@ -11,6 +11,10 @@ function normalize(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 
+function categoryKey(value: string) {
+  return normalize(value);
+}
+
 function canSee(article: HelpArticle, permissionCodes: string[], authenticated: boolean) {
   if (article.audience === "PUBLIC") return true;
   if (!authenticated) return false;
@@ -26,10 +30,20 @@ export function HelpCenter() {
   const sessionPermissionCodes = session?.user.permissionCodes;
   const permissionCodes = useMemo(() => sessionPermissionCodes ?? [], [sessionPermissionCodes]);
   const accessibleArticles = useMemo(() => helpArticles.filter((article) => canSee(article, permissionCodes, Boolean(session))), [permissionCodes, session]);
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    return ["Todas", ...accessibleArticles.flatMap((article) => {
+      const key = categoryKey(article.category);
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [article.category];
+    })];
+  }, [accessibleArticles]);
   const visibleArticles = useMemo(() => {
     const normalizedQuery = normalize(query);
+    const selectedCategoryKey = categoryKey(category);
     return accessibleArticles.filter((article) => {
-      if (category !== "Todas" && article.category !== category) return false;
+      if (category !== "Todas" && categoryKey(article.category) !== selectedCategoryKey) return false;
       if (!normalizedQuery) return true;
       const searchable = normalize([
         article.title,
@@ -41,7 +55,6 @@ export function HelpCenter() {
       return searchable.includes(normalizedQuery);
     });
   }, [accessibleArticles, category, query]);
-  const categories = useMemo(() => ["Todas", ...new Set(visibleArticles.map((article) => article.category))], [visibleArticles]);
   const requestedArticle = requestedId ? helpArticles.find((article) => article.id === requestedId) ?? null : null;
   const selectedArticle = requestedArticle && accessibleArticles.some((article) => article.id === requestedArticle.id) ? requestedArticle : null;
   const requestedArticleUnavailable = Boolean(requestedId && !selectedArticle);

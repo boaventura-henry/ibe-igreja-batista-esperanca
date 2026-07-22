@@ -313,7 +313,7 @@ export const helpArticles: HelpArticle[] = [
     ]
   },
   {
-    id: "notificacoes-nao-recebida",
+    id: "notificacoes-nao-recebida-permissao",
     title: "Por que não recebi uma notificação",
     description: "Confira o dispositivo, a permissão e a preferência geral antes de tentar novamente.",
     category: "Notificações",
@@ -711,7 +711,7 @@ export const helpArticles: HelpArticle[] = [
     ]
   },
   {
-    id: "notificacoes-android",
+    id: "notificacoes-android-permissao",
     title: "Como liberar notificacoes no Android",
     description: "Veja onde liberar notificacoes no Chrome, Edge ou aplicativo instalado.",
     category: "Notificacoes",
@@ -724,7 +724,7 @@ export const helpArticles: HelpArticle[] = [
     ]
   },
   {
-    id: "notificacoes-iphone",
+    id: "notificacoes-iphone-permissao",
     title: "Como liberar notificacoes no iPhone",
     description: "No iPhone, as notificacoes do PWA dependem da instalacao na Tela de Inicio.",
     category: "Notificacoes",
