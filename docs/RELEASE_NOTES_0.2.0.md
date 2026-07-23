@@ -1,6 +1,6 @@
 # Release Notes - IBE 0.2.0
 
-Status: preparado para publicacao. Ainda nao marcar como publicado.
+Status: publicado em 23/07/2026.
 
 ## Resumo
 
@@ -69,6 +69,10 @@ A arquitetura Repository -> Service -> API -> Component foi preservada. A sprint
 - Ajustes de seguranca e consistencia acumulados ate RC1.
 - Hardening de diagnosticos, dashboard e push notifications.
 - Melhor rastreabilidade operacional por documentacao.
+- Isolamento dos artigos da Central de Ajuda pelo topico selecionado.
+- Restauracao do comportamento de expandir e recolher categorias do Dashboard.
+- Remocao do item Contribuicoes do menu lateral, preservando a rota.
+- Aplicacao da ordem, visibilidade e permissoes do Perfil de Acesso no Dashboard Portal.
 
 ## Limitacoes Conhecidas
 

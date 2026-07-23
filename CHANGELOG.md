@@ -4,6 +4,8 @@ Todas as alteracoes relevantes deste projeto serao registradas aqui. O formato s
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-23
+
 ### Added
 
 - RBAC granular para os dez widgets do dashboard administrativo.
@@ -21,6 +23,14 @@ Todas as alteracoes relevantes deste projeto serao registradas aqui. O formato s
 ### Changed
 
 - O dashboard administrativo passou a ser montado por categorias e layout do perfil.
+- O Dashboard Portal passou a respeitar permissoes, visibilidade e ordem dos widgets configuradas no Perfil de Acesso.
+- O item Contribuicoes foi removido do menu lateral, preservando sua rota e funcionalidades.
+
+### Fixed
+
+- Artigos da Central de Ajuda agora ficam isolados pelo topico normalizado.
+- Categorias do Dashboard voltaram a recolher e expandir visualmente.
+- A ordem fixa do Dashboard Portal foi substituida pela ordem configurada no perfil.
 
 ### Security
 
