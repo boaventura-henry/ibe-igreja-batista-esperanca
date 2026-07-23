@@ -27,7 +27,6 @@ export const navigationItems: readonly NavigationItem[] = [
   { href: "/financeiro/categorias", label: "Financeiro - Categorias", icon: "Dizimos", permission: "financialCategory.view" },
   { href: "/financeiro/lancamentos", label: "Financeiro - Lancamentos", icon: "Dizimos", permission: "financialEntry.view" },
   { href: "/financeiro/fechamentos", label: "Financeiro - Fechamentos", icon: "Dizimos", permission: "financialClosing.view" },
-  { href: "/contribuicoes", label: "Contribuicoes", icon: "Dizimos", permission: "financialEntry.view" },
   { href: "/ajuda", label: "Ajuda", icon: "Inicio", administrative: false }
 ];
 
