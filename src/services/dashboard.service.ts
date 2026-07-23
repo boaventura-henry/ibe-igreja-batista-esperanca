@@ -13,7 +13,8 @@ import type {
   PortalDashboardData,
   PortalDashboardEvent,
   PortalDashboardNotice,
-  PortalDashboardSchedule
+  PortalDashboardSchedule,
+  PortalDashboardWidgetCode
 } from "@/types";
 import { getMemberDisplayName } from "@/utils";
 
@@ -21,6 +22,16 @@ type WidgetConfigurationRecord = Awaited<ReturnType<typeof dashboardRepository.l
 type LayoutRecord = Awaited<ReturnType<typeof dashboardRepository.findRoleDashboardLayout>>;
 
 const priorityOrder: Record<DashboardWidgetPriority, number> = { CRITICAL: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
+const portalDashboardWidgetCodes = new Set<DashboardWidgetCode>([
+  "members.birthdays",
+  "events.upcoming",
+  "scales.upcoming",
+  "announcements.summary"
+]);
+
+function isPortalDashboardWidgetCode(code: DashboardWidgetCode): code is PortalDashboardWidgetCode {
+  return portalDashboardWidgetCodes.has(code);
+}
 
 export function getDashboardQueryPlan(codes: ReadonlySet<DashboardWidgetCode>) {
   const needsFinanceSummary = codes.has("finance.balance") || codes.has("finance.summary");
@@ -188,11 +199,25 @@ export const dashboardService = {
     return { version: APP_VERSION, layout, categories, allowedWidgetCodes: widgets.map((widget) => widget.code) };
   },
 
-  async getPortalDashboard(userId: string, memberId: string | null | undefined): Promise<PortalDashboardData> {
-    const nextEvent = await dashboardRepository.findNextPublicEvent();
-    const notices = await announcementRepository.listPortalAnnouncements(userId, memberId);
-    if (!memberId) return { userWithoutMember: true, nextSchedule: null, nextEvent: nextEvent ? serializePortalEvent(serializeEvent(nextEvent)) : null, notices: notices.slice(0, 3).map(serializePortalNotice) };
-    const nextSchedule = await dashboardRepository.findNextScheduleForMember(memberId);
-    return { userWithoutMember: false, nextSchedule: nextSchedule ? serializePortalSchedule(nextSchedule) : null, nextEvent: nextEvent ? serializePortalEvent(serializeEvent(nextEvent)) : null, notices: notices.slice(0, 3).map(serializePortalNotice) };
+  async getPortalDashboard(input: { userId: string; memberId: string | null | undefined; permissionCodes: readonly string[]; accessRoleId?: string | null }): Promise<PortalDashboardData> {
+    const configurations = await dashboardRepository.listWidgetConfiguration(input.accessRoleId);
+    const widgetOrder = resolveAuthorizedWidgetConfigurations(configurations, input.permissionCodes)
+      .map((item) => item.definition.code)
+      .filter(isPortalDashboardWidgetCode);
+    const visibleWidgets = new Set(widgetOrder);
+
+    const [nextEvent, notices, nextSchedule] = await Promise.all([
+      visibleWidgets.has("events.upcoming") ? dashboardRepository.findNextPublicEvent() : null,
+      visibleWidgets.has("announcements.summary") ? announcementRepository.listPortalAnnouncements(input.userId, input.memberId) : [],
+      input.memberId && visibleWidgets.has("scales.upcoming") ? dashboardRepository.findNextScheduleForMember(input.memberId) : null
+    ]);
+
+    return {
+      userWithoutMember: !input.memberId,
+      widgetOrder,
+      nextSchedule: nextSchedule ? serializePortalSchedule(nextSchedule) : null,
+      nextEvent: nextEvent ? serializePortalEvent(serializeEvent(nextEvent)) : null,
+      notices: notices.slice(0, 3).map(serializePortalNotice)
+    };
   }
 };

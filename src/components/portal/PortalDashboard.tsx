@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { MemberLinkRequired } from "@/components/portal/MemberLinkRequired";
 import { PortalBirthdayCard } from "@/components/portal/PortalBirthdayCard";
-import type { PortalDashboardData } from "@/types";
+import type { PortalDashboardData, PortalDashboardWidgetCode } from "@/types";
 import type { ApiResponseBody } from "@/types/api";
 
 function formatDate(value: string) {
@@ -67,11 +68,11 @@ export function PortalDashboard() {
   }
 
   if (data.userWithoutMember) {
-    return <div className="grid gap-6"><MemberLinkRequired /><PortalBirthdayCard /></div>;
+    return <div className="grid gap-6"><MemberLinkRequired />{data.widgetOrder.includes("members.birthdays") ? <PortalBirthdayCard /> : null}</div>;
   }
 
-  return (
-    <div className="grid gap-5 lg:grid-cols-3">
+  const widgets: Record<PortalDashboardWidgetCode, ReactNode> = {
+    "scales.upcoming": (
       <section className="rounded-md border border-hope-100 bg-white p-5 shadow-sm lg:col-span-2">
         <div className="flex items-center justify-between gap-3 border-b border-hope-100 pb-3">
           <div>
@@ -91,7 +92,8 @@ export function PortalDashboard() {
           <p className="mt-4 text-sm font-semibold text-ink-500">Nenhuma escala futura encontrada.</p>
         )}
       </section>
-
+    ),
+    "events.upcoming": (
       <section className="rounded-md border border-hope-100 bg-white p-5 shadow-sm">
         <div className="border-b border-hope-100 pb-3">
           <h2 className="text-sm font-bold text-ink-900">Proximo evento</h2>
@@ -107,7 +109,8 @@ export function PortalDashboard() {
           <p className="mt-4 text-sm font-semibold text-ink-500">Nenhum evento publico publicado.</p>
         )}
       </section>
-
+    ),
+    "announcements.summary": (
       <section className="rounded-md border border-hope-100 bg-white p-5 shadow-sm lg:col-span-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-bold text-ink-900">Avisos recentes</h2>
@@ -127,9 +130,21 @@ export function PortalDashboard() {
           ))}
         </div>
       </section>
+    ),
+    "members.birthdays": (
       <section className="lg:col-span-3">
         <PortalBirthdayCard />
       </section>
+    )
+  };
+
+  if (data.widgetOrder.length === 0) {
+    return <div className="rounded-md border border-hope-100 bg-white p-5 text-sm font-semibold text-ink-600 shadow-sm">Seu perfil nao possui widgets disponiveis no Portal.</div>;
+  }
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-3">
+      {data.widgetOrder.map((code) => <Fragment key={code}>{widgets[code]}</Fragment>)}
     </div>
   );
 }

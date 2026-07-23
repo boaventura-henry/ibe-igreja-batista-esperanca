@@ -31,7 +31,8 @@ export type {
   PortalDashboardData,
   PortalDashboardEvent,
   PortalDashboardNotice,
-  PortalDashboardSchedule
+  PortalDashboardSchedule,
+  PortalDashboardWidgetCode
 } from "./dashboard.types";
 export type { BirthdayDashboardData, BirthdayPerson } from "./birthday.types";
 export type {

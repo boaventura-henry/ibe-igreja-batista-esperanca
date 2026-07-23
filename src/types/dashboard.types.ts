@@ -151,8 +151,14 @@ export type PortalDashboardNotice = {
   readAt: string | null;
 };
 
+export type PortalDashboardWidgetCode = Extract<
+  DashboardWidgetCode,
+  "members.birthdays" | "events.upcoming" | "scales.upcoming" | "announcements.summary"
+>;
+
 export type PortalDashboardData = {
   userWithoutMember: boolean;
+  widgetOrder: PortalDashboardWidgetCode[];
   nextSchedule: PortalDashboardSchedule | null;
   nextEvent: PortalDashboardEvent | null;
   notices: PortalDashboardNotice[];

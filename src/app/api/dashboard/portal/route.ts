@@ -9,7 +9,12 @@ export async function GET() {
   try {
     const user = await requirePermission("dashboard.portal.view");
 
-    return apiSuccess(await dashboardService.getPortalDashboard(user.id, user.memberId), {
+    return apiSuccess(await dashboardService.getPortalDashboard({
+      userId: user.id,
+      memberId: user.memberId,
+      permissionCodes: user.permissionCodes,
+      accessRoleId: user.accessRoleId
+    }), {
       headers: { "Cache-Control": "no-store, max-age=0" }
     });
   } catch (error) {
