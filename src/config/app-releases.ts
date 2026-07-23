@@ -14,6 +14,20 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.1",
+    title: "Evolucoes operacionais planejadas",
+    summary: "Ciclo de desenvolvimento para evoluir autorizacao ministerial, repertorios e organizacao de registros.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: [
+      "RBAC por ministerio",
+      "Historico de utilizacao das musicas",
+      "Arquivamento automatico"
+    ],
+    technicalNotes: ["Escopo inicial registrado. Nenhuma funcionalidade desta versao foi implementada."]
+  },
+  {
     version: "0.2.0",
     title: "Dashboard configuravel por perfil",
     summary: "RBAC granular, layout responsivo por perfil e comunicacao estruturada das evolucoes do aplicativo.",

@@ -6,7 +6,7 @@ if (!isSemanticVersion(packageJson.version)) {
 }
 
 export const APP_VERSION = packageJson.version;
-export const APP_RELEASE_NAME = "Dashboard configuravel por perfil";
+export const APP_RELEASE_NAME = "Evolucoes operacionais planejadas";
 
 export type AppVersionInfo = {
   version: string;

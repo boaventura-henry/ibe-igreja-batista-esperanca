@@ -4,6 +4,14 @@ Todas as alteracoes relevantes deste projeto serao registradas aqui. O formato s
 
 ## [Unreleased]
 
+### Planning
+
+- RBAC por Ministerio para limitar a visualizacao de escalas aos ministerios vinculados ou permitir acesso global.
+- Historico de utilizacao das musicas com escala, data, tom, ministro, material e quantidade de usos.
+- Arquivamento automatico de escalas, eventos, comunicados e notificacoes, com avaliacao de status calculado por data.
+
+Nenhuma dessas funcionalidades foi implementada neste commit inicial.
+
 ## [0.2.0] - 2026-07-23
 
 ### Added
