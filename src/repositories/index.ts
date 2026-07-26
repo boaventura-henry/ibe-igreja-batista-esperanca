@@ -41,6 +41,11 @@ export { passwordResetRequestRepository } from "./password-reset-request.reposit
 export type { SafePasswordResetRequest } from "./password-reset-request.repository";
 export { reportRepository } from "./report.repository";
 export type { MyScheduleRecord } from "./my-schedule.repository";
+export {
+  buildActiveMemberMinistryWhere,
+  buildScheduleScopeWhere,
+  scheduleAccessRepository
+} from "./schedule-access.repository";
 export { scheduleRepository } from "./schedule.repository";
 export type { ScheduleMemberRecord, ScheduleRecord } from "./schedule.repository";
 export { songRepository } from "./song.repository";

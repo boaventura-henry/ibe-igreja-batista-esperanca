@@ -1,5 +1,6 @@
-import { MemberStatus, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
+import { MemberStatus, ScheduleMemberStatus, ScheduleScope, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import { scheduleRepository, type ScheduleMemberRecord, type ScheduleRecord } from "@/repositories";
 import type { ScheduleListResult, ScheduleMemberSummary, ScheduleSummary } from "@/types";
 import type {
@@ -67,6 +68,20 @@ async function ensureActiveMinistry(ministryId: string) {
 
   if (!ministry.isActive) {
     throw new AppError("Escalas precisam estar vinculadas a um ministerio ativo.", 409, "MINISTRY_INACTIVE");
+  }
+}
+
+function ensureAuthorizedMinistry(ministryId: string, authorization: ScheduleAuthorization) {
+  if (authorization.accessContext.scope === ScheduleScope.ALL) {
+    return;
+  }
+
+  if (!authorization.accessContext.authorizedMinistryIds?.includes(ministryId)) {
+    throw new AppError(
+      "Voce nao pode gerenciar escalas deste ministerio.",
+      403,
+      "SCHEDULE_MINISTRY_FORBIDDEN"
+    );
   }
 }
 
@@ -228,10 +243,13 @@ async function ensureMemberRules(
   }
 }
 export const scheduleService = {
-  async list(filters: ScheduleListQueryInput): Promise<ScheduleListResult> {
+  async list(
+    filters: ScheduleListQueryInput,
+    authorization: ScheduleAuthorization
+  ): Promise<ScheduleListResult> {
     const [result, ministries, members] = await Promise.all([
-      scheduleRepository.list(filters),
-      scheduleRepository.listMinistries(),
+      scheduleRepository.list(filters, authorization.accessContext),
+      scheduleRepository.listMinistries(authorization.accessContext),
       scheduleRepository.listMembers()
     ]);
 
@@ -247,8 +265,11 @@ export const scheduleService = {
     };
   },
 
-  async getById(id: string) {
-    const schedule = await scheduleRepository.findById(id);
+  async getById(id: string, authorization: ScheduleAuthorization) {
+    const schedule = await scheduleRepository.findByIdWithinScope(
+      id,
+      authorization.accessContext
+    );
 
     if (!schedule) {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
@@ -257,14 +278,15 @@ export const scheduleService = {
     return serialize(schedule);
   },
 
-  async create(data: ScheduleCreateInput, userId: string) {
+  async create(data: ScheduleCreateInput, authorization: ScheduleAuthorization) {
+    ensureAuthorizedMinistry(data.ministryId, authorization);
     await ensureActiveMinistry(data.ministryId);
 
-    return serialize(await scheduleRepository.create(data, userId));
+    return serialize(await scheduleRepository.create(data, authorization.user.id));
   },
 
-  async update(id: string, data: ScheduleUpdateInput, userId: string) {
-    const current = await scheduleRepository.findById(id);
+  async update(id: string, data: ScheduleUpdateInput, authorization: ScheduleAuthorization) {
+    const current = await scheduleRepository.findByIdWithinScope(id, authorization.accessContext);
 
     if (!current) {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
@@ -273,6 +295,7 @@ export const scheduleService = {
     ensureScheduleCanBeEdited(current, data);
 
     if (data.ministryId) {
+      ensureAuthorizedMinistry(data.ministryId, authorization);
       await ensureActiveMinistry(data.ministryId);
     }
 
@@ -280,54 +303,120 @@ export const scheduleService = {
       await ensureNoExistingMembersTimeConflict(current, data);
     }
 
-    return serialize(await scheduleRepository.update(id, data, userId));
+    const updated = await scheduleRepository.updateWithinScope(
+      id,
+      data,
+      authorization.user.id,
+      authorization.accessContext
+    );
+
+    if (!updated) {
+      throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+    }
+
+    return serialize(updated);
   },
 
-  async remove(id: string, userId: string) {
-    await this.getById(id);
+  async remove(id: string, authorization: ScheduleAuthorization) {
+    await this.getById(id, authorization);
 
-    return scheduleRepository.softDelete(id, userId);
+    const removed = await scheduleRepository.softDeleteWithinScope(
+      id,
+      authorization.user.id,
+      authorization.accessContext
+    );
+
+    if (!removed) {
+      throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+    }
+
+    return removed;
   },
 
-  async publish(id: string, userId: string) {
-    await this.getById(id);
+  async publish(id: string, authorization: ScheduleAuthorization) {
+    await this.getById(id, authorization);
+    const schedule = await scheduleRepository.updateWithinScope(
+      id,
+      { status: ScheduleStatus.PUBLISHED },
+      authorization.user.id,
+      authorization.accessContext
+    );
 
-    return serialize(await scheduleRepository.updateStatus(id, ScheduleStatus.PUBLISHED, userId));
+    if (!schedule) {
+      throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+    }
+
+    return serialize(schedule);
   },
 
-  async cancel(id: string, userId: string) {
-    await this.getById(id);
+  async cancel(id: string, authorization: ScheduleAuthorization) {
+    await this.getById(id, authorization);
+    const schedule = await scheduleRepository.updateWithinScope(
+      id,
+      { status: ScheduleStatus.CANCELED },
+      authorization.user.id,
+      authorization.accessContext
+    );
 
-    return serialize(await scheduleRepository.updateStatus(id, ScheduleStatus.CANCELED, userId));
+    if (!schedule) {
+      throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+    }
+
+    return serialize(schedule);
   },
 
-  async complete(id: string, userId: string) {
-    await this.getById(id);
+  async complete(id: string, authorization: ScheduleAuthorization) {
+    await this.getById(id, authorization);
+    const schedule = await scheduleRepository.updateWithinScope(
+      id,
+      { status: ScheduleStatus.COMPLETED },
+      authorization.user.id,
+      authorization.accessContext
+    );
 
-    return serialize(await scheduleRepository.updateStatus(id, ScheduleStatus.COMPLETED, userId));
+    if (!schedule) {
+      throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+    }
+
+    return serialize(schedule);
   },
 
-  async listMembers(id: string) {
-    return (await this.getById(id)).members;
+  async listMembers(id: string, authorization: ScheduleAuthorization) {
+    return (await this.getById(id, authorization)).members;
   },
 
-  async listAvailableMembers(id: string, allowMinistryException: boolean) {
-    const schedule = await this.getById(id);
+  async listAvailableMembers(
+    id: string,
+    allowMinistryException: boolean,
+    authorization: ScheduleAuthorization
+  ) {
+    const schedule = await this.getById(id, authorization);
     const members = await scheduleRepository.listAvailableMembers(schedule.ministry.id, allowMinistryException);
 
     return { members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })) };
   },
 
-  async addMember(scheduleId: string, data: ScheduleMemberCreateInput, userId: string) {
-    const schedule = await this.getById(scheduleId);
+  async addMember(
+    scheduleId: string,
+    data: ScheduleMemberCreateInput,
+    authorization: ScheduleAuthorization
+  ) {
+    const schedule = await this.getById(scheduleId, authorization);
     ensureScheduleCanReceiveMembers(schedule);
     await ensureMemberRules(schedule, data);
 
-    return serializeMember(await scheduleRepository.addMember(scheduleId, data, userId));
+    return serializeMember(
+      await scheduleRepository.addMember(scheduleId, data, authorization.user.id)
+    );
   },
 
-  async updateMember(scheduleId: string, memberScheduleId: string, data: ScheduleMemberUpdateInput, userId: string) {
-    const schedule = await this.getById(scheduleId);
+  async updateMember(
+    scheduleId: string,
+    memberScheduleId: string,
+    data: ScheduleMemberUpdateInput,
+    authorization: ScheduleAuthorization
+  ) {
+    const schedule = await this.getById(scheduleId, authorization);
     const current = await scheduleRepository.findScheduleMemberById(memberScheduleId, scheduleId);
 
     if (!current) {
@@ -345,26 +434,36 @@ export const scheduleService = {
       currentReplacedByMemberId: current.replacedByMember?.id ?? null
     });
 
-    return serializeMember(await scheduleRepository.updateMember(memberScheduleId, data, userId));
+    return serializeMember(
+      await scheduleRepository.updateMember(memberScheduleId, data, authorization.user.id)
+    );
   },
 
-  async removeMember(scheduleId: string, memberScheduleId: string, userId: string) {
-    await this.getById(scheduleId);
+  async removeMember(
+    scheduleId: string,
+    memberScheduleId: string,
+    authorization: ScheduleAuthorization
+  ) {
+    await this.getById(scheduleId, authorization);
     const current = await scheduleRepository.findScheduleMemberById(memberScheduleId, scheduleId);
 
     if (!current) {
       throw new AppError("Membro da escala nao encontrado.", 404, "SCHEDULE_MEMBER_NOT_FOUND");
     }
 
-    return scheduleRepository.softDeleteMember(memberScheduleId, userId);
+    return scheduleRepository.softDeleteMember(memberScheduleId, authorization.user.id);
   },
 
-  async confirmMember(scheduleId: string, memberScheduleId: string, userId: string) {
+  async confirmMember(
+    scheduleId: string,
+    memberScheduleId: string,
+    authorization: ScheduleAuthorization
+  ) {
     return this.updateMember(
       scheduleId,
       memberScheduleId,
       { status: ScheduleMemberStatus.CONFIRMED, confirmedAt: new Date().toISOString() },
-      userId
+      authorization
     );
   }
 };

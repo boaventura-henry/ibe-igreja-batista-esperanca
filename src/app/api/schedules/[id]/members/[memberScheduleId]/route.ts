@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
-import { requireAnyPermission, requirePermission } from "@/lib/session";
+import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { scheduleService } from "@/services";
 import { scheduleMemberUpdateSchema } from "@/validators";
 
@@ -24,11 +24,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const { id, memberScheduleId } = await context.params;
     const payload = scheduleMemberUpdateSchema.parse(await request.json());
-    const user = requiresScheduleUpdate(payload)
-      ? await requirePermission("schedule.update")
-      : await requireAnyPermission(["schedule.update", "schedule.confirm"]);
+    const authorization = requiresScheduleUpdate(payload)
+      ? await requireScheduleAccess("schedule.update")
+      : await requireScheduleAccess(["schedule.update", "schedule.confirm"]);
 
-    return apiSuccess(await scheduleService.updateMember(id, memberScheduleId, payload, user.id));
+    return apiSuccess(
+      await scheduleService.updateMember(id, memberScheduleId, payload, authorization)
+    );
   } catch (error) {
     if (error instanceof ZodError) {
       return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
@@ -46,10 +48,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
-    const user = await requirePermission("schedule.delete");
+    const authorization = await requireScheduleAccess("schedule.delete");
     const { id, memberScheduleId } = await context.params;
 
-    return apiSuccess(await scheduleService.removeMember(id, memberScheduleId, user.id));
+    return apiSuccess(
+      await scheduleService.removeMember(id, memberScheduleId, authorization)
+    );
   } catch (error) {
     if (error instanceof AppError) {
       return apiError(error.message, error.statusCode, error.code);

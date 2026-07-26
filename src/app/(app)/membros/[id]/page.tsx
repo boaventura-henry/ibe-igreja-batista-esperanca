@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { AppError } from "@/lib/errors";
+import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { memberService } from "@/services";
 import { formatCep, formatCpf, formatPhone } from "@/utils";
 
@@ -78,7 +79,8 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
   const { id } = await params;
 
   try {
-    const member = await memberService.getById(id);
+    const authorization = await requireScheduleAccess("member.view");
+    const member = await memberService.getById(id, authorization);
     const address = [
       member.street,
       member.number,

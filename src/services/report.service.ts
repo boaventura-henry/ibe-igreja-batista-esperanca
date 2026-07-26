@@ -8,6 +8,7 @@ import {
   WeekDay
 } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
   createReportFilename,
   generateCsv,
@@ -286,8 +287,8 @@ export const reportService = {
     return result("Lista de ministerios", reportColumns.ministries, rows, data.total, input);
   },
 
-  async schedules(input: ScheduleReportInput) {
-    const data = await reportRepository.schedules(input);
+  async schedules(input: ScheduleReportInput, authorization: ScheduleAuthorization) {
+    const data = await reportRepository.schedules(input, authorization.accessContext);
     const rows = data.rows.map((schedule) => ({
       title: schedule.title,
       date: date(schedule.date),

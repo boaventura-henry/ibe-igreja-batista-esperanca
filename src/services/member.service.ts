@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import { memberRepository, type MemberDetail, type MemberListItem } from "@/repositories";
 import type { MemberListResult, MemberSummary } from "@/types";
 import type { MemberCreateInput, MemberListQueryInput, MemberUpdateInput } from "@/validators";
@@ -106,8 +107,8 @@ export const memberService = {
     };
   },
 
-  async getById(id: string) {
-    const member = await memberRepository.findById(id);
+  async getById(id: string, authorization: ScheduleAuthorization) {
+    const member = await memberRepository.findById(id, authorization.accessContext);
 
     if (!member) {
       throw new AppError("Membro nao encontrado.", 404, "MEMBER_NOT_FOUND");
@@ -132,12 +133,17 @@ export const memberService = {
     }
   },
 
-  async update(id: string, data: MemberUpdateInput, userId: string) {
-    await this.getById(id);
+  async update(id: string, data: MemberUpdateInput, authorization: ScheduleAuthorization) {
+    await this.getById(id, authorization);
     await ensureUniqueFields(data, id);
 
     try {
-      const member = await memberRepository.update(id, data, userId);
+      const member = await memberRepository.update(
+        id,
+        data,
+        authorization.user.id,
+        authorization.accessContext
+      );
 
       return serializeDetail(member);
     } catch (error) {
@@ -150,7 +156,11 @@ export const memberService = {
   },
 
   async remove(id: string, userId: string) {
-    await this.getById(id);
+    const member = await memberRepository.findExistingById(id);
+
+    if (!member) {
+      throw new AppError("Membro nao encontrado.", 404, "MEMBER_NOT_FOUND");
+    }
 
     return memberRepository.softDelete(id, userId);
   },

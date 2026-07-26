@@ -14,7 +14,8 @@ import type {
   PortalDashboardEvent,
   PortalDashboardNotice,
   PortalDashboardSchedule,
-  PortalDashboardWidgetCode
+  PortalDashboardWidgetCode,
+  ScheduleAccessContext
 } from "@/types";
 import { getMemberDisplayName } from "@/utils";
 
@@ -129,7 +130,11 @@ function serializePortalNotice(notice: { id: string; title: string; content: str
 }
 
 export const dashboardService = {
-  async getAdminDashboardForUser(input: { permissionCodes: readonly string[]; accessRoleId?: string | null }): Promise<AdminDashboardResponse> {
+  async getAdminDashboardForUser(input: {
+    permissionCodes: readonly string[];
+    accessRoleId?: string | null;
+    scheduleAccessContext: ScheduleAccessContext;
+  }): Promise<AdminDashboardResponse> {
     const [configurations, storedLayout] = await Promise.all([
       dashboardRepository.listWidgetConfiguration(input.accessRoleId),
       dashboardRepository.findRoleDashboardLayout(input.accessRoleId)
@@ -142,7 +147,9 @@ export const dashboardService = {
     const members = queryPlan.members ? dashboardRepository.getMembersSummary() : null;
     const birthdays = queryPlan.birthdays ? birthdayService.getDashboard() : null;
     const events = queryPlan.events ? dashboardRepository.getUpcomingEvents() : null;
-    const schedules = queryPlan.schedules ? dashboardRepository.getUpcomingSchedules() : null;
+    const schedules = queryPlan.schedules
+      ? dashboardRepository.getUpcomingSchedules(input.scheduleAccessContext)
+      : null;
     const financeSummary = queryPlan.financeSummary ? dashboardRepository.getMonthlyFinanceSummary() : null;
     const incomeOnly = queryPlan.incomeOnly ? dashboardRepository.getMonthlyIncome() : null;
     const contributions = queryPlan.contributions ? dashboardRepository.getLatestContributions() : null;

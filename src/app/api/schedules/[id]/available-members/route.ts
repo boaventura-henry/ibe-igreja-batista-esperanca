@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
-import { requirePermission } from "@/lib/session";
+import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { scheduleService } from "@/services";
 
 export const dynamic = "force-dynamic";
@@ -12,11 +12,11 @@ type RouteContext = {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    await requirePermission("schedule.update");
+    const authorization = await requireScheduleAccess("schedule.update");
     const { id } = await context.params;
     const allowMinistryException = request.nextUrl.searchParams.get("allowMinistryException") === "true";
 
-    return apiSuccess(await scheduleService.listAvailableMembers(id, allowMinistryException), {
+    return apiSuccess(await scheduleService.listAvailableMembers(id, allowMinistryException, authorization), {
       headers: { "Cache-Control": "no-store" }
     });
   } catch (error) {

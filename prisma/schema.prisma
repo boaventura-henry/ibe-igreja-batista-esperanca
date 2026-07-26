@@ -137,6 +137,11 @@ enum MemberMinistryStatus {
   LEFT
 }
 
+enum ScheduleScope {
+  ALL
+  MEMBER_MINISTRIES
+}
+
 enum ScheduleStatus {
   DRAFT
   PUBLISHED
@@ -457,6 +462,7 @@ model AccessRole {
   name             String                      @unique
   description      String?
   permissions      Permission[]                @relation("AccessRolePermissions")
+  scheduleScope    ScheduleScope               @default(MEMBER_MINISTRIES)
   isSystem         Boolean                     @default(false)
   isActive         Boolean                     @default(true)
   deletedAt        DateTime?

@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { ScheduleScope, type Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import type { AccessRoleCreateInput, AccessRoleUpdateInput } from "@/validators";
 
@@ -6,6 +6,7 @@ const accessRoleSelect = {
   id: true,
   name: true,
   description: true,
+  scheduleScope: true,
   permissions: {
     select: {
       id: true,
@@ -148,6 +149,7 @@ export const accessRoleRepository = {
       data: {
         name: data.name,
         description: data.description,
+        scheduleScope: data.scheduleScope,
         permissions: {
           connect: data.permissions.map((code) => ({ code }))
         },
@@ -177,6 +179,7 @@ export const accessRoleRepository = {
       data: {
         name: data.name,
         description: data.description,
+        scheduleScope: data.scheduleScope,
         permissions:
           data.permissions === undefined
             ? undefined
@@ -219,7 +222,12 @@ export const accessRoleRepository = {
     });
   },
 
-  upsertSystemRole(data: Omit<AccessRoleCreateInput, "dashboardWidgets" | "dashboardLayout"> & { isSystem?: boolean }) {
+  upsertSystemRole(
+    data: Omit<AccessRoleCreateInput, "dashboardWidgets" | "dashboardLayout"> & {
+      isSystem?: boolean;
+      scheduleScope: ScheduleScope;
+    }
+  ) {
     return prisma.accessRole.upsert({
       where: { name: data.name },
       update: {
@@ -228,6 +236,7 @@ export const accessRoleRepository = {
           set: data.permissions.map((code) => ({ code }))
         },
         isSystem: data.isSystem ?? true,
+        scheduleScope: data.scheduleScope,
         isActive: true,
         deletedAt: null
       },
@@ -238,6 +247,7 @@ export const accessRoleRepository = {
           connect: data.permissions.map((code) => ({ code }))
         },
         isSystem: data.isSystem ?? true,
+        scheduleScope: data.scheduleScope,
         isActive: true
       },
       select: accessRoleDetailSelect

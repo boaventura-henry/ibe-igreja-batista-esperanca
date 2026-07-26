@@ -7,6 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
+    "test:schedule-access": "tsx scripts/schedule-access-infrastructure-test.ts && tsx scripts/schedule-authorization-helper-test.ts && tsx scripts/access-role-schedule-scope-test.ts && tsx scripts/schedule-scope-crud-test.ts && tsx scripts/schedule-scope-endpoint-regression-test.ts && tsx scripts/schedule-derived-access-test.ts && tsx scripts/schedule-indirect-surfaces-test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",

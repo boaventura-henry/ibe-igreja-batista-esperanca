@@ -123,6 +123,7 @@ export type {
   SchedulePerson,
   ScheduleSummary
 } from "./schedule.types";
+export type { ScheduleAccessContext, ScheduleAccessUser } from "./schedule-access.types";
 export type { SongFormValues, SongListResult, SongOption, SongSummary } from "./song.types";
 export type { ScheduleRepertoireResult, ScheduleSongFormValues, ScheduleSongSummary } from "./schedule-song.types";
 export type { UserFormValues, UserListResult, UserStatusFilter, UserSummary } from "./user.types";

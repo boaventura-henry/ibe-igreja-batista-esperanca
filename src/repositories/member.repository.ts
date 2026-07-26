@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
+import type { ScheduleAccessContext } from "@/types";
 import type { MemberCreateInput, MemberListQueryInput, MemberUpdateInput } from "@/validators";
 
 const memberListSelect = {
@@ -169,6 +171,28 @@ const memberDetailSelect = {
 export type MemberListItem = Prisma.MemberGetPayload<{ select: typeof memberListSelect }>;
 export type MemberDetail = Prisma.MemberGetPayload<{ select: typeof memberDetailSelect }>;
 
+export function buildMemberScheduleHistoryWhere(
+  accessContext: ScheduleAccessContext
+): Prisma.ScheduleMemberWhereInput {
+  return {
+    deletedAt: null,
+    schedule: {
+      deletedAt: null,
+      ...buildScheduleScopeWhere(accessContext)
+    }
+  };
+}
+
+function getMemberDetailSelect(accessContext: ScheduleAccessContext) {
+  return {
+    ...memberDetailSelect,
+    scheduleMembers: {
+      ...memberDetailSelect.scheduleMembers,
+      where: buildMemberScheduleHistoryWhere(accessContext)
+    }
+  } satisfies Prisma.MemberSelect;
+}
+
 function dateOrNull(value?: string) {
   if (value === undefined) {
     return undefined;
@@ -287,10 +311,17 @@ export const memberRepository = {
     return { members, total };
   },
 
-  findById(id: string) {
+  findById(id: string, accessContext: ScheduleAccessContext) {
     return prisma.member.findFirst({
       where: { id, deletedAt: null },
-      select: memberDetailSelect
+      select: getMemberDetailSelect(accessContext)
+    });
+  },
+
+  findExistingById(id: string) {
+    return prisma.member.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true }
     });
   },
 
@@ -319,14 +350,19 @@ export const memberRepository = {
     });
   },
 
-  update(id: string, data: MemberUpdateInput, userId: string) {
+  update(
+    id: string,
+    data: MemberUpdateInput,
+    userId: string,
+    accessContext: ScheduleAccessContext
+  ) {
     return prisma.member.update({
       where: { id },
       data: {
         ...updateMemberData(data),
         updatedBy: { connect: { id: userId } }
       },
-      select: memberDetailSelect
+      select: getMemberDetailSelect(accessContext)
     });
   },
 

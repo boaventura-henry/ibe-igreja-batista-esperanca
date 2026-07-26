@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ScheduleScope } from "@prisma/client";
 import { permissionCodes } from "@/lib/permissions";
 import { dashboardWidgetCodes } from "@/config/dashboard-widgets";
 import { dashboardLayoutModes, dashboardWidgetSizes } from "@/config/dashboard-widget-enums";
@@ -17,6 +18,7 @@ export const accessRoleCreateSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do perfil."),
   description: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   permissions: z.array(z.enum(permissionCodes)).default([]),
+  scheduleScope: z.enum(ScheduleScope).default(ScheduleScope.MEMBER_MINISTRIES),
   isActive: z.boolean().default(true),
   dashboardWidgets: z.array(z.object({
     code: z.enum(dashboardWidgetCodes),
@@ -45,6 +47,7 @@ export const accessRoleCreateSchema = z.object({
 });
 
 export const accessRoleUpdateSchema = accessRoleCreateSchema.partial().extend({
+  scheduleScope: z.enum(ScheduleScope).optional(),
   confirmSystemChange: z.boolean().optional()
 });
 

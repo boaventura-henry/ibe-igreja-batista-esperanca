@@ -28,6 +28,7 @@ function serialize(role: AccessRoleListItem): AccessRoleSummary {
     name: role.name,
     description: role.description,
     permissions: role.permissions,
+    scheduleScope: role.scheduleScope,
     isSystem: role.isSystem,
     isActive: role.isActive,
     usersCount: role._count.users,

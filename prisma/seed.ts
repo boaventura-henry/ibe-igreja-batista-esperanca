@@ -6,7 +6,7 @@ import { availablePermissions, type PermissionCode } from "../src/lib/permission
 import { prisma } from "../src/prisma/client";
 import { ZodError } from "zod";
 import { createSlug } from "../src/utils/identity";
-import { FinancialEntryType, MinistryIcon } from "@prisma/client";
+import { FinancialEntryType, MinistryIcon, ScheduleScope } from "@prisma/client";
 import { dashboardWidgets } from "../src/config/dashboard-widgets";
 import { defaultDashboardLayout, type DashboardLayoutConfiguration } from "../src/config/dashboard-widget-enums";
 
@@ -19,11 +19,13 @@ const defaultAccessRoles: Array<{
   name: string;
   description: string;
   permissions: PermissionCode[];
+  scheduleScope: ScheduleScope;
 }> = [
   {
     name: "Administrador",
     description: "Acesso administrativo completo ao sistema.",
-    permissions: availablePermissions.map((permission) => permission.code)
+    permissions: availablePermissions.map((permission) => permission.code),
+    scheduleScope: ScheduleScope.ALL
   },
   {
     name: "Pastor",
@@ -59,7 +61,8 @@ const defaultAccessRoles: Array<{
       "memberAccount.update",
       "memberAccount.changePassword",
       "passwordResetRequest.view"
-    ]
+    ],
+    scheduleScope: ScheduleScope.ALL
   },
   {
     name: "Secretario",
@@ -120,7 +123,8 @@ const defaultAccessRoles: Array<{
       "passwordResetRequest.view",
       "passwordResetRequest.approve",
       "passwordResetRequest.reject"
-    ]
+    ],
+    scheduleScope: ScheduleScope.ALL
   },
   {
     name: "Membro",
@@ -145,7 +149,8 @@ const defaultAccessRoles: Array<{
       "accessRequest.view",
       "accessRequest.approve",
       "accessRequest.reject"
-    ]
+    ],
+    scheduleScope: ScheduleScope.ALL
   }
 ];
 

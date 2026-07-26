@@ -8,6 +8,8 @@ import {
   type Prisma
 } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
+import type { ScheduleAccessContext } from "@/types";
 
 const upcomingEventSelect = { id: true, title: true, startDate: true, startTime: true, location: true } satisfies Prisma.EventSelect;
 const upcomingScheduleSelect = {
@@ -33,6 +35,21 @@ export type AdminDashboardEventRecord = Prisma.EventGetPayload<{ select: typeof 
 export type AdminDashboardScheduleRecord = Prisma.ScheduleGetPayload<{ select: typeof upcomingScheduleSelect }>;
 export type AdminDashboardContributionRecord = Prisma.FinancialEntryGetPayload<{ select: typeof latestContributionSelect }>;
 export type PortalDashboardScheduleRecord = Prisma.ScheduleMemberGetPayload<{ select: typeof portalScheduleSelect }>;
+
+export function buildUpcomingSchedulesWhere(
+  accessContext: ScheduleAccessContext
+): Prisma.ScheduleWhereInput {
+  return {
+    AND: [
+      {
+        deletedAt: null,
+        status: { not: ScheduleStatus.CANCELED },
+        date: { gte: startOfUtcDay() }
+      },
+      buildScheduleScopeWhere(accessContext)
+    ]
+  };
+}
 
 function startOfUtcDay(value = new Date()) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
@@ -100,9 +117,9 @@ export const dashboardRepository = {
     });
   },
 
-  getUpcomingSchedules() {
+  getUpcomingSchedules(accessContext: ScheduleAccessContext) {
     return prisma.schedule.findMany({
-      where: { deletedAt: null, status: { not: ScheduleStatus.CANCELED }, date: { gte: startOfUtcDay() } },
+      where: buildUpcomingSchedulesWhere(accessContext),
       select: upcomingScheduleSelect,
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
       take: 5

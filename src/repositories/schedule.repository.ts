@@ -1,5 +1,7 @@
 import { MemberStatus, Prisma, ScheduleStatus } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
+import type { ScheduleAccessContext } from "@/types";
 import type {
   ScheduleCreateInput,
   ScheduleListQueryInput,
@@ -103,8 +105,15 @@ function scheduleMemberData(
   };
 }
 
-function buildWhere(filters: ScheduleListQueryInput): Prisma.ScheduleWhereInput {
+export function buildScheduleWhere(
+  filters: ScheduleListQueryInput,
+  accessContext?: ScheduleAccessContext
+): Prisma.ScheduleWhereInput {
   const and: Prisma.ScheduleWhereInput[] = [{ deletedAt: null }];
+
+  if (accessContext) {
+    and.push(buildScheduleScopeWhere(accessContext));
+  }
 
   if (filters.search) {
     and.push({
@@ -137,8 +146,8 @@ function buildWhere(filters: ScheduleListQueryInput): Prisma.ScheduleWhereInput 
 }
 
 export const scheduleRepository = {
-  async list(filters: ScheduleListQueryInput) {
-    const where = buildWhere(filters);
+  async list(filters: ScheduleListQueryInput, accessContext: ScheduleAccessContext) {
+    const where = buildScheduleWhere(filters, accessContext);
     const skip = (filters.page - 1) * filters.pageSize;
 
     const [schedules, total] = await prisma.$transaction([
@@ -155,8 +164,11 @@ export const scheduleRepository = {
     return { schedules, total };
   },
 
-  findById(id: string) {
-    return prisma.schedule.findFirst({ where: { id, deletedAt: null }, select: scheduleSelect });
+  findByIdWithinScope(id: string, accessContext: ScheduleAccessContext) {
+    return prisma.schedule.findFirst({
+      where: { id, deletedAt: null, ...buildScheduleScopeWhere(accessContext) },
+      select: scheduleSelect
+    });
   },
 
   findMinistryById(id: string) {
@@ -320,11 +332,31 @@ export const scheduleRepository = {
     });
   },
 
-  updateStatus(id: string, status: ScheduleStatus, userId: string) {
-    return prisma.schedule.update({
-      where: { id },
-      data: { status, updatedById: userId },
-      select: scheduleSelect
+  updateWithinScope(
+    id: string,
+    data: ScheduleUpdateInput,
+    userId: string,
+    accessContext: ScheduleAccessContext
+  ) {
+    const scopeWhere = buildScheduleScopeWhere(accessContext);
+
+    return prisma.$transaction(async (transaction) => {
+      const result = await transaction.schedule.updateMany({
+        where: { id, deletedAt: null, ...scopeWhere },
+        data: {
+          ...(updateData(data) as Prisma.ScheduleUncheckedUpdateManyInput),
+          updatedById: userId
+        }
+      });
+
+      if (result.count === 0) {
+        return null;
+      }
+
+      return transaction.schedule.findFirst({
+        where: { id, deletedAt: null, ...scopeWhere },
+        select: scheduleSelect
+      });
     });
   },
 
@@ -333,6 +365,21 @@ export const scheduleRepository = {
       where: { id },
       data: { deletedAt: new Date(), updatedById: userId },
       select: { id: true, deletedAt: true }
+    });
+  },
+
+  softDeleteWithinScope(id: string, userId: string, accessContext: ScheduleAccessContext) {
+    const deletedAt = new Date();
+
+    return prisma.schedule.updateMany({
+      where: { id, deletedAt: null, ...buildScheduleScopeWhere(accessContext) },
+      data: { deletedAt, updatedById: userId }
+    }).then((result) => {
+      if (result.count === 0) {
+        return null;
+      }
+
+      return { id, deletedAt };
     });
   },
 
@@ -365,9 +412,15 @@ export const scheduleRepository = {
     });
   },
 
-  listMinistries() {
+  listMinistries(accessContext: ScheduleAccessContext) {
     return prisma.ministry.findMany({
-      where: { deletedAt: null, isActive: true },
+      where: {
+        deletedAt: null,
+        isActive: true,
+        ...(accessContext.authorizedMinistryIds === null
+          ? {}
+          : { id: { in: [...accessContext.authorizedMinistryIds] } })
+      },
       select: { id: true, name: true, color: true },
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }]
     });
@@ -407,7 +460,7 @@ export const scheduleRepository = {
 
   listCalendar(filters: Pick<ScheduleListQueryInput, "dateFrom" | "dateTo" | "ministryId" | "status">) {
     return prisma.schedule.findMany({
-      where: buildWhere({
+      where: buildScheduleWhere({
         ...filters,
         page: 1,
         pageSize: 50,
@@ -422,7 +475,7 @@ export const scheduleRepository = {
   countByMinistry(filters: Pick<ScheduleListQueryInput, "dateFrom" | "dateTo" | "status"> = {}) {
     return prisma.schedule.groupBy({
       by: ["ministryId"],
-      where: buildWhere({
+      where: buildScheduleWhere({
         ...filters,
         page: 1,
         pageSize: 50,
@@ -438,7 +491,7 @@ export const scheduleRepository = {
       by: ["status"],
       where: {
         deletedAt: null,
-        schedule: buildWhere({
+        schedule: buildScheduleWhere({
           ...filters,
           page: 1,
           pageSize: 50,
@@ -458,7 +511,7 @@ export const scheduleRepository = {
       by: ["memberId"],
       where: {
         deletedAt: null,
-        schedule: buildWhere({
+        schedule: buildScheduleWhere({
           ...filters,
           page: 1,
           pageSize: 50,

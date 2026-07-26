@@ -8,6 +8,8 @@ import {
 } from "@prisma/client";
 import { endOfDate, parseDate } from "@/lib/report";
 import { prisma } from "@/prisma/client";
+import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
+import type { ScheduleAccessContext } from "@/types";
 import type {
   EventReportInput,
   FinancialReportInput,
@@ -31,6 +33,33 @@ function paginate(input: { page: number; pageSize: number; exportFormat: string 
 
 function sortBy<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
   return value && allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+export function buildScheduleReportWhere(
+  input: ScheduleReportInput,
+  accessContext: ScheduleAccessContext
+): Prisma.ScheduleWhereInput {
+  return {
+    AND: [
+      { deletedAt: null },
+      buildScheduleScopeWhere(accessContext),
+      {
+        ...(input.filters.ministryId ? { ministryId: input.filters.ministryId } : {}),
+        ...(input.filters.status ? { status: input.filters.status as ScheduleStatus } : {}),
+        ...(input.filters.memberId
+          ? { members: { some: { memberId: input.filters.memberId, deletedAt: null } } }
+          : {}),
+        ...((input.filters.startDate || input.filters.endDate)
+          ? {
+              date: {
+                gte: parseDate(input.filters.startDate),
+                lte: endOfDate(input.filters.endDate)
+              }
+            }
+          : {})
+      }
+    ]
+  };
 }
 
 export const reportRepository = {
@@ -129,23 +158,8 @@ export const reportRepository = {
     return { rows, total };
   },
 
-  async schedules(input: ScheduleReportInput) {
-    const where: Prisma.ScheduleWhereInput = {
-      deletedAt: null,
-      ...(input.filters.ministryId ? { ministryId: input.filters.ministryId } : {}),
-      ...(input.filters.status ? { status: input.filters.status as ScheduleStatus } : {}),
-      ...(input.filters.memberId
-        ? { members: { some: { memberId: input.filters.memberId, deletedAt: null } } }
-        : {}),
-      ...((input.filters.startDate || input.filters.endDate)
-        ? {
-            date: {
-              gte: parseDate(input.filters.startDate),
-              lte: endOfDate(input.filters.endDate)
-            }
-          }
-        : {})
-    };
+  async schedules(input: ScheduleReportInput, accessContext: ScheduleAccessContext) {
+    const where = buildScheduleReportWhere(input, accessContext);
     const orderBy = {
       [sortBy(input.sortBy, ["title", "date", "status", "createdAt"], "date")]: input.sortOrder
     } satisfies Prisma.ScheduleOrderByWithRelationInput;

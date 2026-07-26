@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { ScheduleScope } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
 import { AppError } from "@/lib/errors";
 import { hasPermission, type PermissionKey } from "@/lib/permissions";
@@ -31,6 +32,7 @@ export async function requireCurrentUser() {
     role: current.role,
     memberId: current.memberId,
     accessRoleId: current.accessRoleId,
+    scheduleScope: current.accessRole?.scheduleScope ?? ScheduleScope.MEMBER_MINISTRIES,
     mustChangePassword: current.mustChangePassword,
     permissions: current.accessRole?.permissions ?? [],
     permissionCodes: current.accessRole?.permissions.map((permission) => permission.code) ?? []

@@ -1,6 +1,7 @@
 import type { DashboardWidgetCode } from "@/config/dashboard-widgets";
 import type { DashboardLayoutConfiguration, DashboardWidgetIconKey, DashboardWidgetPriority, DashboardWidgetSensitivity, DashboardWidgetSize, DashboardWidgetVisualVariant } from "@/config/dashboard-widget-enums";
 import type { PermissionCode } from "@/lib/permissions";
+import type { ScheduleScope } from "@prisma/client";
 
 export type AccessRoleDashboardWidgetSetting = {
   code: DashboardWidgetCode;
@@ -16,6 +17,7 @@ export type AccessRoleFormValues = {
   name: string;
   description?: string;
   permissions: PermissionCode[];
+  scheduleScope: ScheduleScope;
   isActive: boolean;
   confirmSystemChange?: boolean;
   dashboardWidgets: AccessRoleDashboardWidgetSetting[];
@@ -27,6 +29,7 @@ export type AccessRoleSummary = {
   name: string;
   description: string | null;
   permissions: Array<{ id: string; code: string; name: string; label: string; module: string }>;
+  scheduleScope: ScheduleScope;
   isSystem: boolean;
   isActive: boolean;
   usersCount: number;

@@ -1,17 +1,18 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
-import { requirePermission } from "@/lib/session";
+import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { dashboardService } from "@/services";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const user = await requirePermission("dashboard.admin.view");
+    const authorization = await requireScheduleAccess("dashboard.admin.view");
     return apiSuccess(
       await dashboardService.getAdminDashboardForUser({
-        permissionCodes: user.permissionCodes,
-        accessRoleId: user.accessRoleId
+        permissionCodes: authorization.user.permissionCodes,
+        accessRoleId: authorization.user.accessRoleId,
+        scheduleAccessContext: authorization.accessContext
       }),
       { headers: { "Cache-Control": "no-store, max-age=0" } }
     );

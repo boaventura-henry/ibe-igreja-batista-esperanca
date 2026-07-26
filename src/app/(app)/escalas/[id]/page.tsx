@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { ScheduleDetailManager } from "@/components/schedules/ScheduleDetailManager";
 import { AppError } from "@/lib/errors";
+import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { scheduleService } from "@/services";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,8 @@ export default async function ScheduleDetailPage({ params }: ScheduleDetailPageP
   const { id } = await params;
 
   try {
-    const schedule = await scheduleService.getById(id);
+    const authorization = await requireScheduleAccess("schedule.view");
+    const schedule = await scheduleService.getById(id, authorization);
 
     return (
       <>

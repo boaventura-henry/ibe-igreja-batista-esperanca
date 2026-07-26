@@ -113,6 +113,7 @@ export const userRepository = {
           select: {
             isActive: true,
             deletedAt: true,
+            scheduleScope: true,
             permissions: {
               where: { isActive: true },
               select: { code: true, name: true, label: true, module: true },

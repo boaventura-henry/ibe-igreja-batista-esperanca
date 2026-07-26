@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
+import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { requirePermission } from "@/lib/session";
 import { memberService } from "@/services";
 import { memberUpdateSchema } from "@/validators";
@@ -18,10 +19,10 @@ type RouteContext = {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    await requirePermission("member.view");
+    const authorization = await requireScheduleAccess("member.view");
 
     const { id } = await context.params;
-    const member = await memberService.getById(id);
+    const member = await memberService.getById(id, authorization);
 
     return apiSuccess(member);
   } catch (error) {
@@ -37,10 +38,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    const user = await requirePermission("member.update");
+    const authorization = await requireScheduleAccess("member.update");
     const { id } = await context.params;
     const payload = memberUpdateSchema.parse(await request.json());
-    const member = await memberService.update(id, payload, user.id);
+    const member = await memberService.update(id, payload, authorization);
 
     return apiSuccess(member);
   } catch (error) {

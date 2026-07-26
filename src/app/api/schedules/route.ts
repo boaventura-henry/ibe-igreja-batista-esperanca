@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
-import { requirePermission } from "@/lib/session";
+import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { scheduleService } from "@/services";
 import { scheduleCreateSchema, scheduleListQuerySchema } from "@/validators";
 
@@ -14,10 +14,10 @@ function validationMessage(error: ZodError) {
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission("schedule.view");
+    const authorization = await requireScheduleAccess("schedule.view");
     const filters = scheduleListQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams.entries()));
 
-    return apiSuccess(await scheduleService.list(filters));
+    return apiSuccess(await scheduleService.list(filters, authorization));
   } catch (error) {
     if (error instanceof ZodError) {
       return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requirePermission("schedule.create");
+    const authorization = await requireScheduleAccess("schedule.create");
     const payload = scheduleCreateSchema.parse(await request.json());
 
-    return apiSuccess(await scheduleService.create(payload, user.id), { status: 201 });
+    return apiSuccess(await scheduleService.create(payload, authorization), { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) {
       return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
