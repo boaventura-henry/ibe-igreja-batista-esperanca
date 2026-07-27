@@ -65,6 +65,7 @@ function scheduleRecord(ministryId = "ministry-1"): ScheduleRecord {
       color: "#000000",
       isActive: true
     },
+    event: null,
     members: []
   };
 }
@@ -127,6 +128,7 @@ async function main() {
       return Promise.resolve([]);
     });
     replace("listMembers", () => Promise.resolve([]));
+    replace("listEvents", () => Promise.resolve([]));
 
     const allList = await scheduleService.list(filters, authorization(allContext));
     assert.equal(allList.schedules.length, 1, "4: ALL continua listando escalas");

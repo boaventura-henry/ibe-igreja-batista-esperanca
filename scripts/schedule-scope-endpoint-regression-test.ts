@@ -53,6 +53,7 @@ function scheduleRecord(id: string, ministryId: string): ScheduleRecord {
       color: "#000000",
       isActive: true
     },
+    event: null,
     members: []
   };
 }
@@ -202,6 +203,7 @@ async function main() {
       }
     );
     replace("listMinistries", () => Promise.resolve([]));
+    replace("listEvents", () => Promise.resolve([]));
     replace("listMembers", () => Promise.resolve([]));
     replace("findByIdWithinScope", (id: string, accessContext: ScheduleAccessContext) => {
       const schedule = store.get(id);

@@ -30,6 +30,7 @@ const emptyForm: ScheduleFormValues = {
   title: "",
   description: "",
   ministryId: "",
+  eventId: "",
   date: new Date().toISOString().slice(0, 10),
   startTime: "",
   endTime: "",
@@ -55,6 +56,7 @@ function normalizeForm(form: ScheduleFormValues) {
     title: form.title,
     description: form.description?.trim() || undefined,
     ministryId: form.ministryId,
+    eventId: form.eventId?.trim() || null,
     date: form.date,
     startTime: form.startTime?.trim() || undefined,
     endTime: form.endTime?.trim() || undefined,
@@ -157,6 +159,7 @@ export function ScheduleManager() {
       title: schedule.title,
       description: schedule.description ?? "",
       ministryId: schedule.ministry.id,
+      eventId: schedule.event?.id ?? "",
       date: formatDateForInput(schedule.date),
       startTime: schedule.startTime ?? "",
       endTime: schedule.endTime ?? "",
@@ -289,6 +292,7 @@ export function ScheduleManager() {
               <tr>
                 <th className="px-4 py-3">Escala</th>
                 <th className="px-4 py-3">Ministerio</th>
+                <th className="px-4 py-3">Evento</th>
                 <th className="px-4 py-3">Data</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Membros</th>
@@ -297,10 +301,10 @@ export function ScheduleManager() {
             </thead>
             <tbody className="divide-y divide-hope-100">
               {isLoading ? (
-                <tr><td className="px-4 py-8 text-center font-semibold text-ink-500" colSpan={6}>Carregando escalas...</td></tr>
+                <tr><td className="px-4 py-8 text-center font-semibold text-ink-500" colSpan={7}>Carregando escalas...</td></tr>
               ) : null}
               {!isLoading && data?.schedules.length === 0 ? (
-                <tr><td className="px-4 py-8 text-center font-semibold text-ink-500" colSpan={6}>Nenhuma escala encontrada.</td></tr>
+                <tr><td className="px-4 py-8 text-center font-semibold text-ink-500" colSpan={7}>Nenhuma escala encontrada.</td></tr>
               ) : null}
               {data?.schedules.map((schedule) => (
                 <tr key={schedule.id} className="align-top">
@@ -314,6 +318,7 @@ export function ScheduleManager() {
                       <span className="font-semibold text-ink-900">{schedule.ministry.name}</span>
                     </div>
                   </td>
+                  <td className="px-4 py-4 text-ink-700">{schedule.event?.title ?? "-"}</td>
                   <td className="px-4 py-4 text-ink-700">
                     <p>{formatDate(schedule.date)}</p>
                     <p className="text-xs text-ink-500">{[schedule.startTime, schedule.endTime].filter(Boolean).join(" - ") || "Horario nao informado"}</p>
@@ -367,6 +372,18 @@ export function ScheduleManager() {
                   <select required value={form.ministryId} onChange={(event) => updateForm("ministryId", event.target.value)} className={inputClass}>
                     <option value="">Selecione</option>
                     {data?.filters.ministries.map((ministry) => <option key={ministry.id} value={ministry.id}>{ministry.name}</option>)}
+                  </select>
+                </Field>
+                <Field label="Evento relacionado">
+                  <select value={form.eventId ?? ""} onChange={(event) => updateForm("eventId", event.target.value)} className={inputClass}>
+                    <option value="">Nenhum</option>
+                    {data?.filters.events
+                      .filter((event) => !event.ministryId || event.ministryId === form.ministryId)
+                      .map((event) => (
+                        <option key={event.id} value={event.id}>
+                          {event.title} - {formatDate(event.startDate)}
+                        </option>
+                      ))}
                   </select>
                 </Field>
                 <Field label="Status">

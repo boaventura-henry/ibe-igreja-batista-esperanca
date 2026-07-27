@@ -53,6 +53,12 @@ function serialize(schedule: ScheduleRecord): ScheduleSummary {
     status: schedule.status,
     observations: schedule.observations,
     ministry: schedule.ministry,
+    event: schedule.event
+      ? {
+          ...schedule.event,
+          startDate: schedule.event.startDate.toISOString()
+        }
+      : null,
     members: schedule.members.map(serializeMember),
     createdAt: schedule.createdAt.toISOString(),
     updatedAt: schedule.updatedAt.toISOString()
@@ -68,6 +74,29 @@ async function ensureActiveMinistry(ministryId: string) {
 
   if (!ministry.isActive) {
     throw new AppError("Escalas precisam estar vinculadas a um ministerio ativo.", 409, "MINISTRY_INACTIVE");
+  }
+}
+
+async function ensureCompatibleEvent(
+  eventId: string | null | undefined,
+  ministryId: string
+) {
+  if (!eventId) {
+    return;
+  }
+
+  const event = await scheduleRepository.findEventById(eventId);
+
+  if (!event) {
+    throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
+  }
+
+  if (event.ministryId && event.ministryId !== ministryId) {
+    throw new AppError(
+      "O evento deve pertencer ao mesmo ministerio da escala.",
+      409,
+      "SCHEDULE_EVENT_MINISTRY_MISMATCH"
+    );
   }
 }
 
@@ -247,10 +276,11 @@ export const scheduleService = {
     filters: ScheduleListQueryInput,
     authorization: ScheduleAuthorization
   ): Promise<ScheduleListResult> {
-    const [result, ministries, members] = await Promise.all([
+    const [result, ministries, members, events] = await Promise.all([
       scheduleRepository.list(filters, authorization.accessContext),
       scheduleRepository.listMinistries(authorization.accessContext),
-      scheduleRepository.listMembers()
+      scheduleRepository.listMembers(),
+      scheduleRepository.listEvents(authorization.accessContext)
     ]);
 
     return {
@@ -261,7 +291,14 @@ export const scheduleService = {
         total: result.total,
         totalPages: Math.max(1, Math.ceil(result.total / filters.pageSize))
       },
-      filters: { ministries, members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })) }
+      filters: {
+        ministries,
+        members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })),
+        events: events.map((event) => ({
+          ...event,
+          startDate: event.startDate.toISOString()
+        }))
+      }
     };
   },
 
@@ -280,7 +317,10 @@ export const scheduleService = {
 
   async create(data: ScheduleCreateInput, authorization: ScheduleAuthorization) {
     ensureAuthorizedMinistry(data.ministryId, authorization);
-    await ensureActiveMinistry(data.ministryId);
+    await Promise.all([
+      ensureActiveMinistry(data.ministryId),
+      ensureCompatibleEvent(data.eventId, data.ministryId)
+    ]);
 
     return serialize(await scheduleRepository.create(data, authorization.user.id));
   },
@@ -297,6 +337,13 @@ export const scheduleService = {
     if (data.ministryId) {
       ensureAuthorizedMinistry(data.ministryId, authorization);
       await ensureActiveMinistry(data.ministryId);
+    }
+
+    if (data.eventId !== undefined || data.ministryId) {
+      await ensureCompatibleEvent(
+        data.eventId === undefined ? current.event?.id : data.eventId,
+        data.ministryId ?? current.ministry.id
+      );
     }
 
     if (data.date || data.startTime !== undefined || data.endTime !== undefined || data.status) {

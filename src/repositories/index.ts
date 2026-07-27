@@ -50,6 +50,14 @@ export { scheduleRepository } from "./schedule.repository";
 export type { ScheduleMemberRecord, ScheduleRecord } from "./schedule.repository";
 export { songRepository } from "./song.repository";
 export type { SongRecord } from "./song.repository";
+export {
+  buildSongUsageHistoryWhere,
+  songUsageHistoryRepository
+} from "./song-usage-history.repository";
+export type {
+  SongUsageRecord,
+  SongUsageSummaryRecord
+} from "./song-usage-history.repository";
 export { scheduleSongRepository } from "./schedule-song.repository";
 export type { ScheduleSongRecord } from "./schedule-song.repository";
 export { userRepository } from "./user.repository";

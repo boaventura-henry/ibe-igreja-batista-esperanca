@@ -135,6 +135,8 @@ export type {
 } from "./schedule.validator";
 export { songCreateSchema, songListQuerySchema, songUpdateSchema } from "./song.validator";
 export type { SongCreateInput, SongListQueryInput, SongUpdateInput } from "./song.validator";
+export { songUsageHistoryQuerySchema } from "./song-usage-history.validator";
+export type { SongUsageHistoryQueryInput } from "./song-usage-history.validator";
 export { scheduleSongCopySchema, scheduleSongCreateSchema, scheduleSongUpdateSchema } from "./schedule-song.validator";
 export type { ScheduleSongCopyInput, ScheduleSongCreateInput, ScheduleSongUpdateInput } from "./schedule-song.validator";
 export {

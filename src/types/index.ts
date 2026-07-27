@@ -125,6 +125,11 @@ export type {
 } from "./schedule.types";
 export type { ScheduleAccessContext, ScheduleAccessUser } from "./schedule-access.types";
 export type { SongFormValues, SongListResult, SongOption, SongSummary } from "./song.types";
+export type {
+  SongUsageHistoryItem,
+  SongUsageHistoryResult,
+  SongUsageSummary
+} from "./song-usage-history.types";
 export type { ScheduleRepertoireResult, ScheduleSongFormValues, ScheduleSongSummary } from "./schedule-song.types";
 export type { UserFormValues, UserListResult, UserStatusFilter, UserSummary } from "./user.types";
 export { PUSH_FAILURE_WARNING_THRESHOLD } from "./push-notification.types";

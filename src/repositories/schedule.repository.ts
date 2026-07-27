@@ -43,6 +43,9 @@ const scheduleSelect = {
   ministry: {
     select: { id: true, name: true, color: true, isActive: true }
   },
+  event: {
+    select: { id: true, title: true, startDate: true, ministryId: true }
+  },
   members: {
     where: { deletedAt: null },
     select: scheduleMemberSelect,
@@ -69,6 +72,7 @@ function createData(data: ScheduleCreateInput): Prisma.ScheduleUncheckedCreateIn
     title: data.title,
     description: data.description,
     ministryId: data.ministryId,
+    eventId: data.eventId,
     date: dateFromInput(data.date),
     startTime: data.startTime,
     endTime: data.endTime,
@@ -83,6 +87,7 @@ function updateData(data: ScheduleUpdateInput): Prisma.ScheduleUncheckedUpdateIn
     title: data.title,
     description: data.description,
     ministryId: data.ministryId,
+    eventId: data.eventId,
     date: data.date ? dateFromInput(data.date) : undefined,
     startTime: data.startTime,
     endTime: data.endTime,
@@ -175,6 +180,13 @@ export const scheduleRepository = {
     return prisma.ministry.findFirst({
       where: { id, deletedAt: null },
       select: { id: true, name: true, isActive: true }
+    });
+  },
+
+  findEventById(id: string) {
+    return prisma.event.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, title: true, ministryId: true }
     });
   },
 
@@ -423,6 +435,25 @@ export const scheduleRepository = {
       },
       select: { id: true, name: true, color: true },
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }]
+    });
+  },
+
+  listEvents(accessContext: ScheduleAccessContext) {
+    return prisma.event.findMany({
+      where: {
+        deletedAt: null,
+        ...(accessContext.authorizedMinistryIds === null
+          ? {}
+          : {
+              OR: [
+                { ministryId: null },
+                { ministryId: { in: [...accessContext.authorizedMinistryIds] } }
+              ]
+            })
+      },
+      select: { id: true, title: true, startDate: true, ministryId: true },
+      orderBy: [{ startDate: "desc" }, { title: "asc" }],
+      take: 200
     });
   },
 

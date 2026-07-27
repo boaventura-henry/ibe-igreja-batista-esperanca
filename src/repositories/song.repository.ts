@@ -30,18 +30,33 @@ export const songRepository = {
       take: 500
     });
   },
-  async list(filters: SongListQueryInput) {
+  async list(filters: SongListQueryInput, orderedIds?: string[]) {
     const where: Prisma.SongWhereInput = { deletedAt: null, ...(filters.isActive === undefined ? {} : { isActive: filters.isActive }) };
     if (filters.search) where.OR = [{ title: { contains: filters.search, mode: "insensitive" } }, { artist: { contains: filters.search, mode: "insensitive" } }];
     if (filters.artist) where.artist = { contains: filters.artist, mode: "insensitive" };
     const skip = (filters.page - 1) * filters.pageSize;
-    const [songs, total, usage] = await prisma.$transaction([
-      prisma.song.findMany({ where, select: songSelect, orderBy: filters.sortBy === "lastUsedAt" ? { updatedAt: filters.sortOrder } : { [filters.sortBy]: filters.sortOrder }, skip, take: filters.pageSize }),
-      prisma.song.count({ where }),
-      prisma.scheduleSong.groupBy({ by: ["songId"], where: { deletedAt: null, schedule: { deletedAt: null } }, orderBy: { songId: "asc" }, _count: { _all: true }, _max: { createdAt: true, performanceKey: true } })
+    const songWhere = orderedIds ? { AND: [where, { id: { in: orderedIds } }] } : where;
+    const [songs, total] = await prisma.$transaction([
+      prisma.song.findMany({
+        where: songWhere,
+        select: songSelect,
+        ...(orderedIds
+          ? {}
+          : {
+              orderBy: { [filters.sortBy]: filters.sortOrder },
+              skip,
+              take: filters.pageSize
+            })
+      }),
+      prisma.song.count({ where })
     ]);
-    const usageBySong = new Map(usage.map((item) => [item.songId, item]));
-    return { songs: songs.map((song) => { const item = usageBySong.get(song.id) as { _count: { _all: number }; _max: { createdAt: Date | null; performanceKey: string | null } } | undefined; return { ...song, usageCount: item?._count._all ?? 0, lastUsedAt: item?._max.createdAt ?? null, lastPerformanceKey: item?._max.performanceKey ?? null }; }), total };
+    const order = new Map(orderedIds?.map((id, index) => [id, index]) ?? []);
+    return {
+      songs: orderedIds
+        ? songs.sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0))
+        : songs,
+      total
+    };
   },
   findById(id: string) { return prisma.song.findFirst({ where: { id, deletedAt: null }, select: songSelect }); },
   findDuplicate(title: string, artist: string | null | undefined, ignoreId?: string) { return prisma.song.findFirst({ where: { title: { equals: title, mode: "insensitive" }, artist: artist ? { equals: artist, mode: "insensitive" } : null, deletedAt: null, ...(ignoreId ? { id: { not: ignoreId } } : {}) }, select: { id: true } }); },

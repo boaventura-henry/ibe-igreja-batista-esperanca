@@ -13,6 +13,10 @@ const emptyToUndefined = (value: unknown) => {
 
 const optionalText = z.preprocess(emptyToUndefined, z.string().trim().optional());
 const optionalDateTime = z.preprocess(emptyToUndefined, z.string().datetime().optional());
+const optionalNullableCuid = z.preprocess(
+  (value) => (typeof value === "string" && !value.trim() ? null : value),
+  z.string().cuid().nullable().optional()
+);
 
 const timeSchema = z.preprocess(
   emptyToUndefined,
@@ -23,6 +27,7 @@ const scheduleBaseSchema = z.object({
   title: z.string().trim().min(3, "Informe o titulo da escala."),
   description: optionalText,
   ministryId: z.string().cuid("Informe um ministerio valido."),
+  eventId: optionalNullableCuid,
   date: z.string().date("Informe uma data valida."),
   startTime: timeSchema,
   endTime: timeSchema,

@@ -22,6 +22,7 @@ export { reportService } from "./report.service";
 export { resolveScheduleAccessContext } from "./schedule-access.service";
 export { scheduleService } from "./schedule.service";
 export { songService } from "./song.service";
+export { songUsageHistoryService } from "./song-usage-history.service";
 export { scheduleSongService } from "./schedule-song.service";
 export { userService } from "./user.service";
 export { systemDiagnosticsService } from "./system-diagnostics.service";

@@ -7,6 +7,13 @@ export type ScheduleMinistry = {
   isActive: boolean;
 };
 
+export type ScheduleEvent = {
+  id: string;
+  title: string;
+  startDate: string;
+  ministryId: string | null;
+};
+
 export type SchedulePerson = {
   id: string;
   name: string;
@@ -40,6 +47,7 @@ export type ScheduleSummary = {
   status: ScheduleStatus;
   observations: string | null;
   ministry: ScheduleMinistry;
+  event: ScheduleEvent | null;
   members: ScheduleMemberSummary[];
   createdAt: string;
   updatedAt: string;
@@ -56,6 +64,7 @@ export type ScheduleListResult = {
   filters: {
     ministries: Array<{ id: string; name: string; color: string }>;
     members: Array<{ id: string; name: string; nickname: string | null; displayName: string; status: string }>;
+    events: Array<{ id: string; title: string; startDate: string; ministryId: string | null }>;
   };
 };
 
@@ -63,6 +72,7 @@ export type ScheduleFormValues = {
   title: string;
   description?: string;
   ministryId: string;
+  eventId?: string;
   date: string;
   startTime?: string;
   endTime?: string;

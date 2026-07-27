@@ -52,6 +52,7 @@ function scheduleRecord(id: string, ministryId: string): ScheduleRecord {
       color: "#000000",
       isActive: true
     },
+    event: null,
     members: []
   };
 }

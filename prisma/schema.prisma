@@ -693,6 +693,7 @@ model Schedule {
   title        String
   description  String?
   ministryId   String
+  eventId      String?
   date         DateTime
   startTime    String?
   endTime      String?
@@ -703,6 +704,7 @@ model Schedule {
   updatedById  String?
   deletedAt    DateTime?
   ministry     Ministry         @relation(fields: [ministryId], references: [id], onDelete: Restrict)
+  event        Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
   members      ScheduleMember[]
   songs        ScheduleSong[]
   createdBy    User?            @relation("ScheduleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -712,6 +714,7 @@ model Schedule {
 
   @@index([title])
   @@index([ministryId])
+  @@index([eventId])
   @@index([date])
   @@index([status])
   @@index([deletedAt])
@@ -800,6 +803,7 @@ model ScheduleSong {
 
   @@index([scheduleId, position, deletedAt])
   @@index([songId])
+  @@index([songId, deletedAt])
   @@index([leadMemberId])
   @@index([deletedAt])
 }
@@ -947,6 +951,7 @@ model Event {
   deletedAt            DateTime?
   ministry             Ministry?        @relation(fields: [ministryId], references: [id], onDelete: SetNull)
   responsibleMember    Member?          @relation("EventResponsibleMember", fields: [responsibleMemberId], references: [id], onDelete: SetNull)
+  schedules             Schedule[]
   financialEntries     FinancialEntry[]
   createdBy            User?            @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy            User?            @relation("EventUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
