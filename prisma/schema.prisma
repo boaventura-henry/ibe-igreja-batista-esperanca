@@ -278,6 +278,14 @@ enum PushNotificationSkipReason {
   UNKNOWN
 }
 
+enum NotificationType {
+  SCHEDULE_PUBLISHED
+  SCHEDULE_REMINDER
+  NOTICE_CREATED
+  EVENT_CREATED
+  BIRTHDAY
+}
+
 model User {
   id                             String                      @id @default(cuid())
   name                           String
@@ -324,6 +332,9 @@ model User {
   processedPasswordResetRequests PasswordResetRequest[]      @relation("PasswordResetRequestProcessedBy")
   pushSubscriptions              PushSubscription[]
   notificationPreference         NotificationPreference?
+  notifications                  Notification[]                @relation("NotificationRecipient")
+  createdNotifications           Notification[]                @relation("NotificationCreatedBy")
+  inAppNotificationPreferences   InAppNotificationPreference[]
   createdPushNotificationLogs    PushNotificationLog[]       @relation("PushNotificationLogCreatedBy")
   retriedPushNotificationLogs    PushNotificationLog[]       @relation("PushNotificationLogRetriedBy")
   pushNotificationLogDevices     PushNotificationLogDevice[] @relation("PushNotificationLogDeviceUser")
@@ -373,6 +384,54 @@ model NotificationPreference {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id               String           @id @default(cuid())
+  userId           String
+  createdById      String?
+  type             NotificationType
+  title            String
+  message          String
+  entityType       String?
+  entityId         String?
+  actionUrl        String?
+  scheduledFor     DateTime?
+  expiresAt        DateTime?
+  sentAt           DateTime?
+  readAt           DateTime?
+  deduplicationKey String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  hiddenAt         DateTime?
+  cancelledAt      DateTime?
+  deletedAt        DateTime?
+  user             User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy        User?            @relation("NotificationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, deduplicationKey])
+  @@index([userId, deletedAt, createdAt])
+  @@index([userId, readAt, deletedAt])
+  @@index([userId, type, deletedAt])
+  @@index([scheduledFor, sentAt, deletedAt])
+  @@index([userId, hiddenAt, createdAt])
+  @@index([userId, readAt, hiddenAt])
+  @@index([userId, type, hiddenAt])
+  @@index([scheduledFor, sentAt, cancelledAt, expiresAt])
+}
+
+model InAppNotificationPreference {
+  id                  String           @id @default(cuid())
+  userId              String
+  type                NotificationType
+  inAppEnabled        Boolean          @default(true)
+  reminderHoursBefore Int?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
 }
 
 model PushNotificationLog {

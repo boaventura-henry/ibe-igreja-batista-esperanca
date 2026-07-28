@@ -96,6 +96,13 @@ export type {
 } from "./my-schedule.types";
 export type { PortalScheduleRepertoire } from "./my-schedule.types";
 export type {
+  EffectiveNotificationPreference,
+  NotificationListResult,
+  NotificationPreferenceResult,
+  NotificationStatusFilter,
+  NotificationSummary
+} from "./notification.types";
+export type {
   PasswordResetApprovalResult,
   PasswordResetRequestListResult,
   PasswordResetRequestSummary,

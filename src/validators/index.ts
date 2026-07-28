@@ -94,6 +94,20 @@ export type {
 export { myScheduleDeclineSchema } from "./my-schedule.validator";
 export type { MyScheduleDeclineInput } from "./my-schedule.validator";
 export {
+  isSafeInternalNotificationUrl,
+  notificationBulkCreateSchema,
+  notificationCreateSchema,
+  notificationIdSchema,
+  notificationListQuerySchema,
+  notificationPreferencesUpdateSchema
+} from "./notification.validator";
+export type {
+  NotificationBulkCreateInput,
+  NotificationCreateInput,
+  NotificationListQueryInput,
+  NotificationPreferencesUpdateInput
+} from "./notification.validator";
+export {
   passwordResetRequestCreateSchema,
   passwordResetRequestListQuerySchema,
   passwordResetRequestRejectSchema

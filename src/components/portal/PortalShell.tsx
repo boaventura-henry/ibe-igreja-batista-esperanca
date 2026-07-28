@@ -7,6 +7,7 @@ import { useMobileMenu } from "@/hooks";
 import { isRouteActive } from "@/utils";
 import { getFirstAllowedAdministrativeRoute } from "@/lib/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const portalNavigation = [
   { href: "/portal", label: "Inicio" },
@@ -30,8 +31,9 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f7faf8] text-ink-900">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-hope-100 bg-white shadow-soft lg:flex lg:flex-col">
-        <div className="shrink-0 px-5 py-6">
+        <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-6">
           <Brand />
+          <NotificationBell centerHref="/portal/notificacoes" />
         </div>
         <Navigation pathname={pathname} />
         <div className="grid shrink-0 gap-2 border-t border-hope-100 px-5 py-4">
@@ -46,14 +48,17 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-hope-100 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
         <Brand compact />
-        <button
-          type="button"
-          aria-label={mobileMenu.isOpen ? "Fechar menu" : "Abrir menu"}
-          onClick={mobileMenu.toggle}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-hope-100 text-sm font-semibold text-ink-900"
-        >
-          {mobileMenu.isOpen ? "Fechar" : "Menu"}
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificationBell centerHref="/portal/notificacoes" />
+          <button
+            type="button"
+            aria-label={mobileMenu.isOpen ? "Fechar menu" : "Abrir menu"}
+            onClick={mobileMenu.toggle}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-hope-100 text-sm font-semibold text-ink-900"
+          >
+            {mobileMenu.isOpen ? "Fechar" : "Menu"}
+          </button>
+        </div>
       </header>
 
       {mobileMenu.isOpen ? (
