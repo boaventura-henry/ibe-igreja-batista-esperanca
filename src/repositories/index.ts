@@ -37,6 +37,8 @@ export type {
 export { ministryRepository } from "./ministry.repository";
 export type { MinistryRecord } from "./ministry.repository";
 export { myScheduleRepository } from "./my-schedule.repository";
+export { notificationRepository } from "./notification.repository";
+export type { NotificationRecord } from "./notification.repository";
 export { passwordResetRequestRepository } from "./password-reset-request.repository";
 export type { SafePasswordResetRequest } from "./password-reset-request.repository";
 export { reportRepository } from "./report.repository";

@@ -63,7 +63,11 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    if (pathname.startsWith("/notificacoes") && !request.nextauth.token?.permissionCodes?.includes("push.logs.view")) {
+    if (
+      (pathname.startsWith("/notificacoes/historico") ||
+        pathname.startsWith("/notificacoes/saude")) &&
+      !request.nextauth.token?.permissionCodes?.includes("push.logs.view")
+    ) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
