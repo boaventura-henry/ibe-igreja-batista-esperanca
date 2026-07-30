@@ -1,8 +1,10 @@
 import {
   NotificationType,
+  Prisma,
   ScheduleMemberStatus,
   ScheduleStatus
 } from "@prisma/client";
+import { performance } from "node:perf_hooks";
 import { NOTIFICATION_ENTITY_TYPES } from "@/lib/notification-catalog";
 import {
   notificationRepository,
@@ -17,6 +19,34 @@ import { notificationPublisher } from "@/services/notification-publisher.service
 import type { NotificationCreateInput } from "@/validators/notification.validator";
 
 const SCHEDULE_TIME_ZONE = "America/Sao_Paulo";
+export const DEFAULT_SCHEDULE_REMINDER_BATCH_SIZE = 100;
+export const MAX_SCHEDULE_REMINDER_TRANSACTION_ATTEMPTS = 3;
+
+const TRANSIENT_TRANSACTION_CODES = new Set(["P2034", "40001", "40P01"]);
+
+type ProcessingReason = "already_running" | "empty_batch" | "processed";
+
+type ProcessingPhaseTimings = {
+  lockMs: number;
+  selectionMs: number;
+  validationMs: number;
+  updateMs: number;
+};
+
+export type ScheduleReminderProcessingResult = {
+  executed: boolean;
+  reason: ProcessingReason;
+  found: number;
+  sent: number;
+  cancelled: number;
+  skipped: number;
+  lockAcquired: boolean;
+  attempts: number;
+  timings: ProcessingPhaseTimings & {
+    transactionMs: number;
+    totalServiceMs: number;
+  };
+};
 
 type Recipient = {
   userId: string;
@@ -195,6 +225,170 @@ export function describeScheduleChanges(changes: ScheduleRelevantChange[]) {
     .join(", ")}.`;
 }
 
+export function reminderNotificationVersion(deduplicationKey: string | null) {
+  const match = deduplicationKey?.match(/^schedule:reminder:v(\d+):/);
+  return match ? Number(match[1]) : null;
+}
+
+function durationSince(startedAt: number) {
+  return Number((performance.now() - startedAt).toFixed(3));
+}
+
+function nestedErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const candidate = error as {
+    code?: unknown;
+    meta?: { code?: unknown } | null;
+    cause?: unknown;
+  };
+  if (typeof candidate.code === "string" && TRANSIENT_TRANSACTION_CODES.has(candidate.code)) {
+    return candidate.code;
+  }
+  if (
+    typeof candidate.meta?.code === "string" &&
+    TRANSIENT_TRANSACTION_CODES.has(candidate.meta.code)
+  ) {
+    return candidate.meta.code;
+  }
+  return candidate.cause ? nestedErrorCode(candidate.cause) : null;
+}
+
+export function transientScheduleReminderTransactionCode(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    TRANSIENT_TRANSACTION_CODES.has(error.code)
+  ) {
+    return error.code;
+  }
+  return nestedErrorCode(error);
+}
+
+async function processPendingReminderBatch(now: Date, batchSize: number) {
+  const phaseTimings: ProcessingPhaseTimings = {
+    lockMs: 0,
+    selectionMs: 0,
+    validationMs: 0,
+    updateMs: 0
+  };
+
+  return notificationRepository.transaction(async (database) => {
+    const lockStartedAt = performance.now();
+    const lockAcquired =
+      await notificationRepository.tryAcquireScheduleReminderProcessingLock(database);
+    phaseTimings.lockMs = durationSince(lockStartedAt);
+    if (!lockAcquired) {
+      return {
+        executed: false as const,
+        reason: "already_running" as const,
+        found: 0,
+        sent: 0,
+        cancelled: 0,
+        skipped: 0,
+        lockAcquired: false,
+        phaseTimings
+      };
+    }
+
+    const selectionStartedAt = performance.now();
+    const pending = await notificationRepository.listDueScheduled(
+      NotificationType.SCHEDULE_REMINDER,
+      now,
+      batchSize,
+      database
+    );
+    phaseTimings.selectionMs = durationSince(selectionStartedAt);
+    if (!pending.length) {
+      return {
+        executed: true as const,
+        reason: "empty_batch" as const,
+        found: 0,
+        sent: 0,
+        cancelled: 0,
+        skipped: 0,
+        lockAcquired: true,
+        phaseTimings
+      };
+    }
+
+    const validationStartedAt = performance.now();
+    const deliverable: string[] = [];
+    const cancelled: string[] = [];
+    const preferences = await notificationPublisher.preferences(
+      pending.map((item) => item.userId),
+      NotificationType.SCHEDULE_REMINDER,
+      database
+    );
+    const preferenceByUser = new Map(preferences.map((item) => [item.userId, item]));
+    const scheduleIds = [
+      ...new Set(
+        pending
+          .filter(
+            (item) =>
+              item.entityType === NOTIFICATION_ENTITY_TYPES.SCHEDULE && item.entityId
+          )
+          .map((item) => item.entityId as string)
+      )
+    ];
+    const userIds = [...new Set(pending.map((item) => item.userId))];
+    const recipientLinks = await scheduleRepository.listPublishedScheduleRecipientLinks(
+      scheduleIds,
+      userIds,
+      database
+    );
+    const eligiblePairs = new Set<string>();
+    const currentVersionBySchedule = new Map<string, number>();
+
+    for (const schedule of recipientLinks) {
+      currentVersionBySchedule.set(schedule.id, schedule.notificationVersion);
+      for (const participant of schedule.members) {
+        const userId =
+          participant.status === ScheduleMemberStatus.REPLACED
+            ? participant.replacedByMember?.user?.id
+            : participant.member.user?.id;
+        if (userId) eligiblePairs.add(`${schedule.id}:${userId}`);
+      }
+    }
+
+    for (const item of pending) {
+      const preference = preferenceByUser.get(item.userId);
+      const notificationVersion = reminderNotificationVersion(item.deduplicationKey);
+      if (
+        (!item.expiresAt || item.expiresAt > now) &&
+        preference?.active &&
+        preference.preference.inAppEnabled &&
+        item.entityType === NOTIFICATION_ENTITY_TYPES.SCHEDULE &&
+        item.entityId &&
+        notificationVersion !== null &&
+        currentVersionBySchedule.get(item.entityId) === notificationVersion &&
+        eligiblePairs.has(`${item.entityId}:${item.userId}`)
+      ) {
+        deliverable.push(item.id);
+      } else {
+        cancelled.push(item.id);
+      }
+    }
+    phaseTimings.validationMs = durationSince(validationStartedAt);
+
+    const updateStartedAt = performance.now();
+    const [sent, invalidated] = await Promise.all([
+      notificationRepository.markSent(deliverable, now, database),
+      notificationRepository.cancelScheduled(cancelled, database)
+    ]);
+    phaseTimings.updateMs = durationSince(updateStartedAt);
+
+    return {
+      executed: true as const,
+      reason: "processed" as const,
+      found: pending.length,
+      sent: sent.count,
+      cancelled: invalidated.count,
+      skipped: pending.length - sent.count - invalidated.count,
+      lockAcquired: true,
+      phaseTimings
+    };
+  });
+}
+
 export const scheduleNotificationService = {
   async publishInitial(
     schedule: ScheduleRecord,
@@ -349,71 +543,52 @@ export const scheduleNotificationService = {
     return notificationPublisher.publish(inputs, database);
   },
 
-  async processPendingReminders(now = new Date(), limit = 200) {
-    const pending = await notificationRepository.listDueScheduled(
-      NotificationType.SCHEDULE_REMINDER,
-      now,
-      limit
-    );
-    const deliverable: string[] = [];
-    const cancelled: string[] = [];
-    const preferences = await notificationPublisher.preferences(
-      pending.map((item) => item.userId),
-      NotificationType.SCHEDULE_REMINDER
-    );
-    const preferenceByUser = new Map(preferences.map((item) => [item.userId, item]));
-    const scheduleIds = [
-      ...new Set(
-        pending
-          .filter(
-            (item) =>
-              item.entityType === NOTIFICATION_ENTITY_TYPES.SCHEDULE && item.entityId
-          )
-          .map((item) => item.entityId as string)
-      )
-    ];
-    const userIds = [...new Set(pending.map((item) => item.userId))];
-    const recipientLinks = await scheduleRepository.listPublishedScheduleRecipientLinks(
-      scheduleIds,
-      userIds
-    );
-    const eligiblePairs = new Set<string>();
+  async processPendingReminders(
+    now = new Date(),
+    limit = DEFAULT_SCHEDULE_REMINDER_BATCH_SIZE
+  ): Promise<ScheduleReminderProcessingResult> {
+    const batchSize = Math.max(1, Math.floor(limit));
+    const serviceStartedAt = performance.now();
+    let transactionMs = 0;
 
-    for (const schedule of recipientLinks) {
-      for (const participant of schedule.members) {
-        const userId =
-          participant.status === ScheduleMemberStatus.REPLACED
-            ? participant.replacedByMember?.user?.id
-            : participant.member.user?.id;
-        if (userId) eligiblePairs.add(`${schedule.id}:${userId}`);
+    for (
+      let attempt = 1;
+      attempt <= MAX_SCHEDULE_REMINDER_TRANSACTION_ATTEMPTS;
+      attempt += 1
+    ) {
+      const transactionStartedAt = performance.now();
+      try {
+        const result = await processPendingReminderBatch(now, batchSize);
+        transactionMs += durationSince(transactionStartedAt);
+        return {
+          ...result,
+          attempts: attempt,
+          timings: {
+            ...result.phaseTimings,
+            transactionMs: Number(transactionMs.toFixed(3)),
+            totalServiceMs: durationSince(serviceStartedAt)
+          }
+        };
+      } catch (error) {
+        transactionMs += durationSince(transactionStartedAt);
+        const code = transientScheduleReminderTransactionCode(error);
+        if (!code || attempt === MAX_SCHEDULE_REMINDER_TRANSACTION_ATTEMPTS) {
+          if (code) {
+            console.warn("[ScheduleReminderCron] transient transaction retry exhausted.", {
+              attempt,
+              code
+            });
+          }
+          throw error;
+        }
+        console.warn("[ScheduleReminderCron] retrying transient transaction.", {
+          attempt,
+          nextAttempt: attempt + 1,
+          code
+        });
       }
     }
 
-    for (const item of pending) {
-      const preference = preferenceByUser.get(item.userId);
-      if (
-        (!item.expiresAt || item.expiresAt > now) &&
-        preference?.active &&
-        preference.preference.inAppEnabled &&
-        item.entityType === NOTIFICATION_ENTITY_TYPES.SCHEDULE &&
-        item.entityId &&
-        eligiblePairs.has(`${item.entityId}:${item.userId}`)
-      ) {
-        deliverable.push(item.id);
-      } else {
-        cancelled.push(item.id);
-      }
-    }
-
-    const [sent, invalidated] = await Promise.all([
-      notificationRepository.markSent(deliverable, now),
-      notificationRepository.cancelScheduled(cancelled)
-    ]);
-    return {
-      found: pending.length,
-      sent: sent.count,
-      cancelled: invalidated.count,
-      skipped: pending.length - sent.count - invalidated.count
-    };
+    throw new Error("Schedule reminder transaction attempts exhausted.");
   }
 };

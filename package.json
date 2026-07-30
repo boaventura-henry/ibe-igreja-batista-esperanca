@@ -12,6 +12,7 @@
     "test:song-usage-history": "tsx scripts/song-usage-history-test.ts",
     "test:notifications": "tsx scripts/notification-system-test.ts",
     "test:schedule-notifications": "tsx scripts/schedule-notifications-test.ts",
+    "test:schedule-reminders-cron": "tsx scripts/schedule-reminders-cron-test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",

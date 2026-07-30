@@ -321,13 +321,39 @@ async function main() {
     );
 
     replace(
+      "notification:transaction",
+      notificationRepo,
+      "transaction",
+      ((callback: (database: unknown) => Promise<unknown>) => callback({})) as never
+    );
+    replace(
+      "notification:tryAcquireScheduleReminderProcessingLock",
+      notificationRepo,
+      "tryAcquireScheduleReminderProcessingLock",
+      (() => Promise.resolve(true)) as never
+    );
+    replace(
       "notification:listDue",
       notificationRepo,
       "listDueScheduled",
       (() =>
         Promise.resolve([
-          { id: "notification-1", userId: "user-1", entityType: "SCHEDULE", entityId: "schedule-1" },
-          { id: "notification-2", userId: "user-2", entityType: "SCHEDULE", entityId: "schedule-2" }
+          {
+            id: "notification-1",
+            userId: "user-1",
+            entityType: "SCHEDULE",
+            entityId: "schedule-1",
+            expiresAt: null,
+            deduplicationKey: "schedule:reminder:v1:schedule-1:participant-1:202608021900"
+          },
+          {
+            id: "notification-2",
+            userId: "user-2",
+            entityType: "SCHEDULE",
+            entityId: "schedule-2",
+            expiresAt: null,
+            deduplicationKey: "schedule:reminder:v1:schedule-2:participant-2:202608021900"
+          }
         ])) as never
     );
     let eligibilityQueries = 0;
@@ -340,6 +366,7 @@ async function main() {
         return Promise.resolve([
           {
             id: "schedule-1",
+            notificationVersion: 1,
             members: [
               {
                 status: ScheduleMemberStatus.PENDING,

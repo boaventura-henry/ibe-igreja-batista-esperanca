@@ -569,12 +569,16 @@ export const scheduleRepository = {
     });
   },
 
-  listPublishedScheduleRecipientLinks(scheduleIds: string[], userIds: string[]) {
+  listPublishedScheduleRecipientLinks(
+    scheduleIds: string[],
+    userIds: string[],
+    database: ScheduleDatabase = prisma
+  ) {
     if (!scheduleIds.length || !userIds.length) {
       return Promise.resolve([]);
     }
 
-    return prisma.schedule.findMany({
+    return database.schedule.findMany({
       where: {
         id: { in: scheduleIds },
         status: ScheduleStatus.PUBLISHED,
@@ -583,6 +587,7 @@ export const scheduleRepository = {
       },
       select: {
         id: true,
+        notificationVersion: true,
         members: {
           where: {
             deletedAt: null,

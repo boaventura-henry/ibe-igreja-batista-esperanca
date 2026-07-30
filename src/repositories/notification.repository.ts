@@ -33,6 +33,19 @@ export type NotificationRecord = Prisma.NotificationGetPayload<{
 
 export type NotificationDatabase = Prisma.TransactionClient | typeof prisma;
 
+// 0x00494245 represents "IBE"; the second key identifies this specific internal job.
+export const INTERNAL_JOB_LOCK_NAMESPACE = 0x00494245;
+export const SCHEDULE_REMINDERS_CRON_LOCK_KEY = 1;
+
+export type DueScheduledNotificationRecord = {
+  id: string;
+  userId: string;
+  entityType: string | null;
+  entityId: string | null;
+  expiresAt: Date | null;
+  deduplicationKey: string | null;
+};
+
 export function buildNotificationListWhere(
   userId: string,
   filters: NotificationListQueryInput
@@ -75,6 +88,24 @@ export function buildNotificationCreateData(
 }
 
 export const notificationRepository = {
+  transaction<T>(callback: (database: Prisma.TransactionClient) => Promise<T>) {
+    return prisma.$transaction(callback, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 30_000
+    });
+  },
+
+  async tryAcquireScheduleReminderProcessingLock(database: NotificationDatabase) {
+    const [result] = await database.$queryRaw<Array<{ acquired: boolean }>>`
+      SELECT pg_try_advisory_xact_lock(
+        ${INTERNAL_JOB_LOCK_NAMESPACE},
+        ${SCHEDULE_REMINDERS_CRON_LOCK_KEY}
+      ) AS "acquired"
+    `;
+    return result?.acquired === true;
+  },
+
   async listForUser(userId: string, filters: NotificationListQueryInput) {
     const where = buildNotificationListWhere(userId, filters);
     const skip = (filters.page - 1) * filters.pageSize;
@@ -255,25 +286,31 @@ export const notificationRepository = {
     });
   },
 
-  listDueScheduled(type: NotificationType, now: Date, limit = 200) {
-    return prisma.notification.findMany({
-      where: {
-        type,
-        scheduledFor: { lte: now },
-        sentAt: null,
-        cancelledAt: null,
-        deletedAt: null
-      },
-      select: {
-        id: true,
-        userId: true,
-        entityType: true,
-        entityId: true,
-        expiresAt: true
-      },
-      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
-      take: limit
-    });
+  listDueScheduled(
+    type: NotificationType,
+    now: Date,
+    limit = 100,
+    database: NotificationDatabase = prisma
+  ) {
+    const batchSize = Math.max(1, Math.floor(limit));
+    return database.$queryRaw<DueScheduledNotificationRecord[]>(Prisma.sql`
+      SELECT
+        "id",
+        "userId",
+        "entityType",
+        "entityId",
+        "expiresAt",
+        "deduplicationKey"
+      FROM "Notification"
+      WHERE "type" = CAST(${type} AS "NotificationType")
+        AND "scheduledFor" <= ${now}
+        AND "sentAt" IS NULL
+        AND "cancelledAt" IS NULL
+        AND "deletedAt" IS NULL
+      ORDER BY "scheduledFor" ASC, "createdAt" ASC, "id" ASC
+      FOR UPDATE SKIP LOCKED
+      LIMIT ${batchSize}
+    `);
   },
 
   listPreferencesForUser(userId: string) {
