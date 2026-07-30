@@ -31,6 +31,8 @@ export type NotificationRecord = Prisma.NotificationGetPayload<{
   select: typeof notificationSelect;
 }>;
 
+export type NotificationDatabase = Prisma.TransactionClient | typeof prisma;
+
 export function buildNotificationListWhere(
   userId: string,
   filters: NotificationListQueryInput
@@ -122,29 +124,33 @@ export const notificationRepository = {
     });
   },
 
-  create(input: NotificationCreateInput) {
-    return prisma.notification.create({
+  create(input: NotificationCreateInput, database: NotificationDatabase = prisma) {
+    return database.notification.create({
       data: buildNotificationCreateData(input),
       select: notificationSelect
     });
   },
 
-  createMany(inputs: NotificationCreateInput[]) {
-    return prisma.notification.createMany({
+  createMany(inputs: NotificationCreateInput[], database: NotificationDatabase = prisma) {
+    return database.notification.createMany({
       data: inputs.map((input) => buildNotificationCreateData(input)),
       skipDuplicates: true
     });
   },
 
-  findActiveUsersByIds(userIds: string[]) {
-    return prisma.user.findMany({
+  findActiveUsersByIds(userIds: string[], database: NotificationDatabase = prisma) {
+    return database.user.findMany({
       where: { id: { in: userIds }, isActive: true },
       select: { id: true }
     });
   },
 
-  listPreferences(userIds: string[], types?: NotificationType[]) {
-    return prisma.inAppNotificationPreference.findMany({
+  listPreferences(
+    userIds: string[],
+    types?: NotificationType[],
+    database: NotificationDatabase = prisma
+  ) {
+    return database.inAppNotificationPreference.findMany({
       where: {
         userId: { in: userIds },
         ...(types?.length ? { type: { in: types } } : {})
@@ -202,8 +208,8 @@ export const notificationRepository = {
     });
   },
 
-  markSent(ids: string[], sentAt: Date) {
-    return prisma.notification.updateMany({
+  markSent(ids: string[], sentAt: Date, database: NotificationDatabase = prisma) {
+    return database.notification.updateMany({
       where: {
         id: { in: ids },
         sentAt: null,
@@ -219,11 +225,54 @@ export const notificationRepository = {
     });
   },
 
-  cancelScheduled(ids: string[]) {
+  cancelScheduled(ids: string[], database: NotificationDatabase = prisma) {
     const cancelledAt = new Date();
-    return prisma.notification.updateMany({
+    return database.notification.updateMany({
       where: { id: { in: ids }, sentAt: null, cancelledAt: null, deletedAt: null },
       data: { cancelledAt, deletedAt: cancelledAt }
+    });
+  },
+
+  cancelPendingByEntity(
+    entityType: string,
+    entityId: string,
+    type: NotificationType,
+    userIds?: string[],
+    database: NotificationDatabase = prisma
+  ) {
+    const cancelledAt = new Date();
+    return database.notification.updateMany({
+      where: {
+        entityType,
+        entityId,
+        type,
+        sentAt: null,
+        cancelledAt: null,
+        deletedAt: null,
+        ...(userIds?.length ? { userId: { in: userIds } } : {})
+      },
+      data: { cancelledAt, deletedAt: cancelledAt }
+    });
+  },
+
+  listDueScheduled(type: NotificationType, now: Date, limit = 200) {
+    return prisma.notification.findMany({
+      where: {
+        type,
+        scheduledFor: { lte: now },
+        sentAt: null,
+        cancelledAt: null,
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        userId: true,
+        entityType: true,
+        entityId: true,
+        expiresAt: true
+      },
+      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
+      take: limit
     });
   },
 

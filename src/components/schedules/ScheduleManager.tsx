@@ -35,7 +35,6 @@ const emptyForm: ScheduleFormValues = {
   startTime: "",
   endTime: "",
   location: "",
-  status: ScheduleStatus.DRAFT,
   observations: ""
 };
 
@@ -61,7 +60,6 @@ function normalizeForm(form: ScheduleFormValues) {
     startTime: form.startTime?.trim() || undefined,
     endTime: form.endTime?.trim() || undefined,
     location: form.location?.trim() || undefined,
-    status: form.status,
     observations: form.observations?.trim() || undefined
   };
 }
@@ -164,7 +162,6 @@ export function ScheduleManager() {
       startTime: schedule.startTime ?? "",
       endTime: schedule.endTime ?? "",
       location: schedule.location ?? "",
-      status: schedule.status,
       observations: schedule.observations ?? ""
     });
     setMessage("");
@@ -359,7 +356,7 @@ export function ScheduleManager() {
               <div className="flex items-start justify-between border-b border-hope-100 px-5 py-4">
                 <div>
                   <h2 className="text-lg font-bold text-ink-900">{editingId ? "Editar escala" : "Nova escala"}</h2>
-                  <p className="text-sm text-ink-500">Ministerio, data, local e status da escala.</p>
+                  <p className="text-sm text-ink-500">Ministerio, data e local da escala.</p>
                 </div>
                 <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-3 py-2 text-sm font-bold text-ink-700">Fechar</button>
               </div>
@@ -384,11 +381,6 @@ export function ScheduleManager() {
                           {event.title} - {formatDate(event.startDate)}
                         </option>
                       ))}
-                  </select>
-                </Field>
-                <Field label="Status">
-                  <select value={form.status} onChange={(event) => updateForm("status", event.target.value as ScheduleStatus)} className={inputClass}>
-                    {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
                   </select>
                 </Field>
                 <Field label="Data"><input required type="date" value={form.date} onChange={(event) => updateForm("date", event.target.value)} className={inputClass} /></Field>

@@ -73,7 +73,11 @@ async function main() {
 
   const mySchedulesRepository = readFileSync("src/repositories/my-schedule.repository.ts", "utf8");
   const portalRepository = readFileSync("src/repositories/member-portal.repository.ts", "utf8");
-  assert.match(mySchedulesRepository, /memberId,\s*deletedAt:\s*null/, "9: Minhas Escalas continua filtrando ScheduleMember.memberId");
+  assert.match(
+    mySchedulesRepository,
+    /OR:\s*\[\{ memberId \}, \{ replacedByMemberId: memberId \}\]/,
+    "9: Minhas Escalas isola o membro titular ou substituto da sessao"
+  );
   assert.match(portalRepository, /memberId,\s*deletedAt:\s*null,\s*schedule:/, "9: Portal continua filtrando ScheduleMember.memberId");
   assert(!mySchedulesRepository.includes("scheduleScope") && !portalRepository.includes("scheduleScope"), "9: escopo administrativo nao foi conectado ao Portal");
 

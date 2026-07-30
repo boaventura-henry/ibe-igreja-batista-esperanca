@@ -41,8 +41,9 @@ export const NOTIFICATION_ENTITY_CATALOG: Readonly<
   Record<NotificationEntityType, EntityDestinationEntry>
 > = {
   SCHEDULE: {
-    route: "/escalas/:id",
-    resolve: (entityId) => `/escalas/${encodeEntityId(entityId)}`
+    route: "/portal/minhas-escalas?schedule=:id",
+    resolve: (entityId) =>
+      `/portal/minhas-escalas?schedule=${encodeEntityId(entityId)}`
   },
   NOTICE: {
     route: "/portal/avisos?notification=:id",
@@ -77,7 +78,7 @@ export const NOTIFICATION_CATALOG: Readonly<
 > = {
   SCHEDULE_PUBLISHED: {
     type: NotificationType.SCHEDULE_PUBLISHED,
-    label: "Escala publicada",
+    label: "Escalas",
     icon: "calendar-check",
     supportsReminder: false,
     entityType: NOTIFICATION_ENTITY_TYPES.SCHEDULE,

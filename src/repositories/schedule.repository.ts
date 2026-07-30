@@ -1,4 +1,4 @@
-import { MemberStatus, Prisma, ScheduleStatus } from "@prisma/client";
+import { MemberStatus, Prisma, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
 import type { ScheduleAccessContext } from "@/types";
@@ -21,10 +21,22 @@ const scheduleMemberSelect = {
   createdAt: true,
   updatedAt: true,
   member: {
-    select: { id: true, name: true, nickname: true, status: true }
+    select: {
+      id: true,
+      name: true,
+      nickname: true,
+      status: true,
+      user: { select: { id: true } }
+    }
   },
   replacedByMember: {
-    select: { id: true, name: true, nickname: true, status: true }
+    select: {
+      id: true,
+      name: true,
+      nickname: true,
+      status: true,
+      user: { select: { id: true } }
+    }
   }
 } satisfies Prisma.ScheduleMemberSelect;
 
@@ -37,6 +49,8 @@ const scheduleSelect = {
   endTime: true,
   location: true,
   status: true,
+  publishedAt: true,
+  notificationVersion: true,
   observations: true,
   createdAt: true,
   updatedAt: true,
@@ -55,6 +69,7 @@ const scheduleSelect = {
 
 export type ScheduleRecord = Prisma.ScheduleGetPayload<{ select: typeof scheduleSelect }>;
 export type ScheduleMemberRecord = Prisma.ScheduleMemberGetPayload<{ select: typeof scheduleMemberSelect }>;
+export type ScheduleDatabase = Prisma.TransactionClient | typeof prisma;
 
 export type ScheduleTimeWindow = {
   id: string;
@@ -77,7 +92,7 @@ function createData(data: ScheduleCreateInput): Prisma.ScheduleUncheckedCreateIn
     startTime: data.startTime,
     endTime: data.endTime,
     location: data.location,
-    status: data.status,
+    status: ScheduleStatus.DRAFT,
     observations: data.observations
   };
 }
@@ -92,7 +107,6 @@ function updateData(data: ScheduleUpdateInput): Prisma.ScheduleUncheckedUpdateIn
     startTime: data.startTime,
     endTime: data.endTime,
     location: data.location,
-    status: data.status,
     observations: data.observations
   };
 }
@@ -151,6 +165,10 @@ export function buildScheduleWhere(
 }
 
 export const scheduleRepository = {
+  transaction<T>(callback: (database: Prisma.TransactionClient) => Promise<T>) {
+    return prisma.$transaction(callback);
+  },
+
   async list(filters: ScheduleListQueryInput, accessContext: ScheduleAccessContext) {
     const where = buildScheduleWhere(filters, accessContext);
     const skip = (filters.page - 1) * filters.pageSize;
@@ -169,8 +187,12 @@ export const scheduleRepository = {
     return { schedules, total };
   },
 
-  findByIdWithinScope(id: string, accessContext: ScheduleAccessContext) {
-    return prisma.schedule.findFirst({
+  findByIdWithinScope(
+    id: string,
+    accessContext: ScheduleAccessContext,
+    database: ScheduleDatabase = prisma
+  ) {
+    return database.schedule.findFirst({
       where: { id, deletedAt: null, ...buildScheduleScopeWhere(accessContext) },
       select: scheduleSelect
     });
@@ -190,21 +212,31 @@ export const scheduleRepository = {
     });
   },
 
-  findMemberById(id: string) {
-    return prisma.member.findFirst({
+  findMemberById(id: string, database: ScheduleDatabase = prisma) {
+    return database.member.findFirst({
       where: { id, deletedAt: null },
       select: { id: true, name: true, status: true }
     });
   },
 
-  findActiveScheduleMember(scheduleId: string, memberId: string, ignoreId?: string) {
-    return prisma.scheduleMember.findFirst({
+  findActiveScheduleMember(
+    scheduleId: string,
+    memberId: string,
+    ignoreId?: string,
+    database: ScheduleDatabase = prisma
+  ) {
+    return database.scheduleMember.findFirst({
       where: { scheduleId, memberId, deletedAt: null, ...(ignoreId ? { id: { not: ignoreId } } : {}) },
       select: { id: true }
     });
   },
 
-  findScheduleMemberTimeConflict(memberId: string, schedule: ScheduleTimeWindow, ignoreId?: string) {
+  findScheduleMemberTimeConflict(
+    memberId: string,
+    schedule: ScheduleTimeWindow,
+    ignoreId?: string,
+    database: ScheduleDatabase = prisma
+  ) {
     const sameDateWhere: Prisma.ScheduleWhereInput = {
       id: { not: schedule.id },
       date: schedule.date,
@@ -228,7 +260,7 @@ export const scheduleRepository = {
           }
         : {};
 
-    return prisma.scheduleMember.findFirst({
+    return database.scheduleMember.findFirst({
       where: {
         memberId,
         deletedAt: null,
@@ -308,15 +340,23 @@ export const scheduleRepository = {
     });
   },
 
-  findScheduleMemberById(id: string, scheduleId?: string) {
-    return prisma.scheduleMember.findFirst({
+  findScheduleMemberById(
+    id: string,
+    scheduleId?: string,
+    database: ScheduleDatabase = prisma
+  ) {
+    return database.scheduleMember.findFirst({
       where: { id, deletedAt: null, ...(scheduleId ? { scheduleId } : {}) },
       select: { ...scheduleMemberSelect, schedule: { select: { id: true, status: true, ministryId: true } } }
     });
   },
 
-  findActiveMemberMinistry(memberId: string, ministryId: string) {
-    return prisma.memberMinistry.findFirst({
+  findActiveMemberMinistry(
+    memberId: string,
+    ministryId: string,
+    database: ScheduleDatabase = prisma
+  ) {
+    return database.memberMinistry.findFirst({
       where: {
         memberId,
         ministryId,
@@ -348,12 +388,23 @@ export const scheduleRepository = {
     id: string,
     data: ScheduleUpdateInput,
     userId: string,
-    accessContext: ScheduleAccessContext
-  ) {
+    accessContext: ScheduleAccessContext,
+    database?: ScheduleDatabase
+  ): Promise<ScheduleRecord | null> {
+    if (!database) {
+      return prisma.$transaction((transaction) =>
+        this.updateWithinScope(
+          id,
+          data,
+          userId,
+          accessContext,
+          transaction
+        )
+      );
+    }
     const scopeWhere = buildScheduleScopeWhere(accessContext);
-
-    return prisma.$transaction(async (transaction) => {
-      const result = await transaction.schedule.updateMany({
+    return (async () => {
+      const result = await database.schedule.updateMany({
         where: { id, deletedAt: null, ...scopeWhere },
         data: {
           ...(updateData(data) as Prisma.ScheduleUncheckedUpdateManyInput),
@@ -365,11 +416,79 @@ export const scheduleRepository = {
         return null;
       }
 
-      return transaction.schedule.findFirst({
+      return database.schedule.findFirst({
         where: { id, deletedAt: null, ...scopeWhere },
         select: scheduleSelect
       });
+    })();
+  },
+
+  async transitionStatusWithinScope(
+    id: string,
+    fromStatuses: ScheduleStatus[],
+    status: ScheduleStatus,
+    userId: string,
+    accessContext: ScheduleAccessContext,
+    database: ScheduleDatabase,
+    options: { publishedAt?: Date; incrementNotificationVersion?: boolean } = {}
+  ) {
+    const scopeWhere = buildScheduleScopeWhere(accessContext);
+    const result = await database.schedule.updateMany({
+      where: {
+        id,
+        deletedAt: null,
+        status: { in: fromStatuses },
+        ...scopeWhere
+      },
+      data: {
+        status,
+        updatedById: userId,
+        ...(options.publishedAt ? { publishedAt: options.publishedAt } : {}),
+        ...(options.incrementNotificationVersion
+          ? { notificationVersion: { increment: 1 } }
+          : {})
+      }
     });
+    if (result.count === 0) return null;
+    return database.schedule.findFirst({
+      where: { id, deletedAt: null, ...scopeWhere },
+      select: scheduleSelect
+    });
+  },
+
+  async lockByIdWithinScope(
+    id: string,
+    accessContext: ScheduleAccessContext,
+    database: ScheduleDatabase
+  ) {
+    const authorizedMinistryIds = accessContext.authorizedMinistryIds;
+    if (authorizedMinistryIds !== null && authorizedMinistryIds.length === 0) {
+      return null;
+    }
+
+    const locked =
+      authorizedMinistryIds === null
+        ? await database.$queryRaw<Array<{ id: string }>>`
+            SELECT "id"
+            FROM "Schedule"
+            WHERE "id" = ${id}
+              AND "deletedAt" IS NULL
+            FOR UPDATE
+          `
+        : await database.$queryRaw<Array<{ id: string }>>`
+            SELECT "id"
+            FROM "Schedule"
+            WHERE "id" = ${id}
+              AND "deletedAt" IS NULL
+              AND "ministryId" IN (${Prisma.join([...authorizedMinistryIds])})
+            FOR UPDATE
+          `;
+
+    if (!locked.length) {
+      return null;
+    }
+
+    return this.findByIdWithinScope(id, accessContext, database);
   },
 
   softDelete(id: string, userId: string) {
@@ -380,12 +499,20 @@ export const scheduleRepository = {
     });
   },
 
-  softDeleteWithinScope(id: string, userId: string, accessContext: ScheduleAccessContext) {
+  softDeleteWithinScope(
+    id: string,
+    userId: string,
+    accessContext: ScheduleAccessContext,
+    database: ScheduleDatabase = prisma
+  ) {
     const deletedAt = new Date();
 
-    return prisma.schedule.updateMany({
+    return database.schedule.updateMany({
       where: { id, deletedAt: null, ...buildScheduleScopeWhere(accessContext) },
-      data: { deletedAt, updatedById: userId }
+      data: {
+        deletedAt,
+        updatedById: userId
+      }
     }).then((result) => {
       if (result.count === 0) {
         return null;
@@ -395,8 +522,13 @@ export const scheduleRepository = {
     });
   },
 
-  addMember(scheduleId: string, data: ScheduleMemberCreateInput, userId: string) {
-    return prisma.scheduleMember.create({
+  addMember(
+    scheduleId: string,
+    data: ScheduleMemberCreateInput,
+    userId: string,
+    database: ScheduleDatabase = prisma
+  ) {
+    return database.scheduleMember.create({
       data: {
         ...(scheduleMemberData(data) as Prisma.ScheduleMemberUncheckedCreateInput),
         scheduleId,
@@ -408,19 +540,74 @@ export const scheduleRepository = {
     });
   },
 
-  updateMember(id: string, data: ScheduleMemberUpdateInput, userId: string) {
-    return prisma.scheduleMember.update({
+  updateMember(
+    id: string,
+    data: ScheduleMemberUpdateInput,
+    userId: string,
+    database: ScheduleDatabase = prisma
+  ) {
+    return database.scheduleMember.update({
       where: { id },
       data: { ...scheduleMemberData(data), updatedById: userId },
       select: scheduleMemberSelect
     });
   },
 
-  softDeleteMember(id: string, userId: string) {
-    return prisma.scheduleMember.update({
+  softDeleteMember(id: string, userId: string, database: ScheduleDatabase = prisma) {
+    return database.scheduleMember.update({
       where: { id },
       data: { deletedAt: new Date(), updatedById: userId },
       select: { id: true, deletedAt: true }
+    });
+  },
+
+  incrementNotificationVersion(id: string, database: ScheduleDatabase) {
+    return database.schedule.update({
+      where: { id },
+      data: { notificationVersion: { increment: 1 } },
+      select: { notificationVersion: true }
+    });
+  },
+
+  listPublishedScheduleRecipientLinks(scheduleIds: string[], userIds: string[]) {
+    if (!scheduleIds.length || !userIds.length) {
+      return Promise.resolve([]);
+    }
+
+    return prisma.schedule.findMany({
+      where: {
+        id: { in: scheduleIds },
+        status: ScheduleStatus.PUBLISHED,
+        publishedAt: { not: null },
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        members: {
+          where: {
+            deletedAt: null,
+            OR: [
+              {
+                status: {
+                  in: [ScheduleMemberStatus.PENDING, ScheduleMemberStatus.CONFIRMED]
+                },
+                member: { user: { id: { in: userIds }, isActive: true } }
+              },
+              {
+                status: ScheduleMemberStatus.REPLACED,
+                replacedByMember: {
+                  user: { id: { in: userIds }, isActive: true }
+                }
+              }
+            ]
+          },
+          select: {
+            status: true,
+            member: { select: { user: { select: { id: true } } } },
+            replacedByMember: { select: { user: { select: { id: true } } } }
+          }
+        }
+      }
     });
   },
 

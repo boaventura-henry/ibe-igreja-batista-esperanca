@@ -45,6 +45,7 @@ export type ScheduleSummary = {
   endTime: string | null;
   location: string | null;
   status: ScheduleStatus;
+  publishedAt: string | null;
   observations: string | null;
   ministry: ScheduleMinistry;
   event: ScheduleEvent | null;
@@ -77,7 +78,6 @@ export type ScheduleFormValues = {
   startTime?: string;
   endTime?: string;
   location?: string;
-  status: ScheduleStatus;
   observations?: string;
 };
 

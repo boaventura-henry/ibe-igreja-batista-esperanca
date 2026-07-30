@@ -7,6 +7,7 @@ import {
 } from "@/lib/notification-catalog";
 import {
   notificationRepository,
+  type NotificationDatabase,
   type NotificationRecord
 } from "@/repositories/notification.repository";
 import type {
@@ -80,6 +81,67 @@ export function resolveEffectiveNotificationPreference(
 }
 
 export const notificationService = {
+  async getEffectivePreferencesForUsers(
+    userIds: string[],
+    type: NotificationType,
+    database?: NotificationDatabase
+  ) {
+    const uniqueUserIds = [...new Set(userIds)];
+    const [activeUsers, preferences] = await Promise.all([
+      notificationRepository.findActiveUsersByIds(uniqueUserIds, database),
+      notificationRepository.listPreferences(uniqueUserIds, [type], database)
+    ]);
+    const activeUserIds = new Set(activeUsers.map((user) => user.id));
+    const byUser = new Map(preferences.map((preference) => [preference.userId, preference]));
+
+    return uniqueUserIds.map((userId) => ({
+      userId,
+      active: activeUserIds.has(userId),
+      preference: resolveEffectiveNotificationPreference(type, byUser.get(userId))
+    }));
+  },
+
+  async createBatch(
+    rawInputs: NotificationCreateInput[],
+    database?: NotificationDatabase
+  ) {
+    const inputs = rawInputs.map((input) => notificationCreateSchema.parse(input));
+    if (!inputs.length) {
+      return { requested: 0, eligible: 0, created: 0, skipped: 0 };
+    }
+
+    const userIds = [...new Set(inputs.map((input) => input.userId))];
+    const types = [...new Set(inputs.map((input) => input.type))];
+    const [activeUsers, preferences] = await Promise.all([
+      notificationRepository.findActiveUsersByIds(userIds, database),
+      notificationRepository.listPreferences(userIds, types, database)
+    ]);
+    const activeUserIds = new Set(activeUsers.map((user) => user.id));
+    const preferenceByUserAndType = new Map(
+      preferences.map((preference) => [
+        `${preference.userId}:${preference.type}`,
+        preference
+      ])
+    );
+    const eligibleInputs = inputs.filter((input) => {
+      if (!activeUserIds.has(input.userId)) return false;
+      return resolveEffectiveNotificationPreference(
+        input.type,
+        preferenceByUserAndType.get(`${input.userId}:${input.type}`)
+      ).inAppEnabled;
+    });
+    const result = eligibleInputs.length
+      ? await notificationRepository.createMany(eligibleInputs, database)
+      : { count: 0 };
+
+    return {
+      requested: inputs.length,
+      eligible: eligibleInputs.length,
+      created: result.count,
+      skipped: inputs.length - eligibleInputs.length
+    };
+  },
+
   async listForUser(
     userId: string,
     filters: NotificationListQueryInput
@@ -226,15 +288,15 @@ export const notificationService = {
     return this.getPreferences(userId);
   },
 
-  async markSent(ids: string[]) {
+  async markSent(ids: string[], database?: NotificationDatabase) {
     if (!ids.length) return { updated: 0 };
-    const result = await notificationRepository.markSent([...new Set(ids)], new Date());
+    const result = await notificationRepository.markSent([...new Set(ids)], new Date(), database);
     return { updated: result.count };
   },
 
-  async cancelScheduled(ids: string[]) {
+  async cancelScheduled(ids: string[], database?: NotificationDatabase) {
     if (!ids.length) return { updated: 0 };
-    const result = await notificationRepository.cancelScheduled([...new Set(ids)]);
+    const result = await notificationRepository.cancelScheduled([...new Set(ids)], database);
     return { updated: result.count };
   }
 };

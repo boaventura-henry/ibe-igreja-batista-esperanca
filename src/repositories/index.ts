@@ -49,7 +49,11 @@ export {
   scheduleAccessRepository
 } from "./schedule-access.repository";
 export { scheduleRepository } from "./schedule.repository";
-export type { ScheduleMemberRecord, ScheduleRecord } from "./schedule.repository";
+export type {
+  ScheduleDatabase,
+  ScheduleMemberRecord,
+  ScheduleRecord
+} from "./schedule.repository";
 export { songRepository } from "./song.repository";
 export type { SongRecord } from "./song.repository";
 export {

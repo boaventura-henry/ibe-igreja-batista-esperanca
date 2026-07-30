@@ -65,7 +65,7 @@ export const myScheduleRepository = {
   listByMemberId(memberId: string) {
     return prisma.scheduleMember.findMany({
       where: {
-        memberId,
+        OR: [{ memberId }, { replacedByMemberId: memberId }],
         deletedAt: null,
         schedule: { deletedAt: null }
       },
@@ -78,7 +78,7 @@ export const myScheduleRepository = {
     return prisma.scheduleMember.findFirst({
       where: {
         id,
-        memberId,
+        OR: [{ memberId }, { replacedByMemberId: memberId }],
         deletedAt: null,
         schedule: { deletedAt: null }
       },
@@ -88,7 +88,12 @@ export const myScheduleRepository = {
 
   findRepertoireForMember(id: string, memberId: string) {
     return prisma.scheduleMember.findFirst({
-      where: { id, memberId, deletedAt: null, schedule: { deletedAt: null } },
+      where: {
+        id,
+        OR: [{ memberId }, { replacedByMemberId: memberId }],
+        deletedAt: null,
+        schedule: { deletedAt: null }
+      },
       select: {
         schedule: {
           select: {

@@ -758,6 +758,8 @@ model Schedule {
   endTime      String?
   location     String?
   status       ScheduleStatus   @default(DRAFT)
+  publishedAt  DateTime?
+  notificationVersion Int       @default(0)
   observations String?
   createdById  String?
   updatedById  String?
@@ -776,6 +778,7 @@ model Schedule {
   @@index([eventId])
   @@index([date])
   @@index([status])
+  @@index([status, date, publishedAt, deletedAt])
   @@index([deletedAt])
 }
 

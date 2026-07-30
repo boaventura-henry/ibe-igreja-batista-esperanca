@@ -56,6 +56,8 @@ function scheduleRecord(ministryId = "ministry-1"): ScheduleRecord {
     endTime: "10:00",
     location: "Templo",
     status: ScheduleStatus.DRAFT,
+    publishedAt: null,
+    notificationVersion: 0,
     observations: null,
     createdAt: new Date("2026-07-23T00:00:00.000Z"),
     updatedAt: new Date("2026-07-23T00:00:00.000Z"),
@@ -145,15 +147,16 @@ async function main() {
     await scheduleService.list(filters, authorization(emptyContext));
     assert.equal(listContext, emptyContext, "6: usuario sem Member usa contexto vazio");
 
-    replace("findByIdWithinScope", (id: string, context: ScheduleAccessContext) =>
+    const scopedLookup = (id: string, context: ScheduleAccessContext) =>
       Promise.resolve(
         id === "schedule-1" && context.authorizedMinistryIds?.includes("ministry-1")
           ? scheduleRecord()
           : context.scope === ScheduleScope.ALL && id === "schedule-1"
             ? scheduleRecord()
             : null
-      )
-    );
+      );
+    replace("findByIdWithinScope", scopedLookup);
+    replace("lockByIdWithinScope", scopedLookup);
 
     const authorized = await scheduleService.getById(
       "schedule-1",
@@ -229,9 +232,10 @@ async function main() {
       ScheduleScope.MEMBER_MINISTRIES,
       ["ministry-1", "ministry-2"]
     );
-    replace("findByIdWithinScope", (id: string) =>
-      Promise.resolve(id === "schedule-1" ? scheduleRecord() : null)
-    );
+    const destinationLookup = (id: string) =>
+      Promise.resolve(id === "schedule-1" ? scheduleRecord() : null);
+    replace("findByIdWithinScope", destinationLookup);
+    replace("lockByIdWithinScope", destinationLookup);
     replace(
       "updateWithinScope",
       (_id: string, data: ScheduleUpdateInput) => {
@@ -258,6 +262,7 @@ async function main() {
     assert.equal(forbiddenUpdate.statusCode, 403, "14: troca para ministerio sem acesso retorna 403");
 
     replace("findByIdWithinScope", () => Promise.resolve(null));
+    replace("lockByIdWithinScope", () => Promise.resolve(null));
     const outsideUpdate = await captureError(() =>
       scheduleService.update(
         "schedule-outside",
@@ -269,6 +274,7 @@ async function main() {
 
     let deleteCalls = 0;
     replace("findByIdWithinScope", () => Promise.resolve(scheduleRecord()));
+    replace("lockByIdWithinScope", () => Promise.resolve(scheduleRecord()));
     replace(
       "softDeleteWithinScope",
       (_id: string, userId: string, context: ScheduleAccessContext) => {
@@ -283,6 +289,7 @@ async function main() {
     assert.equal(deleteCalls, 1, "16: exclusao autorizada usa soft delete com escopo");
 
     replace("findByIdWithinScope", () => Promise.resolve(null));
+    replace("lockByIdWithinScope", () => Promise.resolve(null));
     const outsideDelete = await captureError(() =>
       scheduleService.remove("schedule-outside", authorization(restrictedContext))
     );

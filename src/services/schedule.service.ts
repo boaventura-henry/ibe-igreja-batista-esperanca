@@ -1,7 +1,17 @@
 import { MemberStatus, ScheduleMemberStatus, ScheduleScope, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
-import { scheduleRepository, type ScheduleMemberRecord, type ScheduleRecord } from "@/repositories";
+import {
+  scheduleRepository,
+  type ScheduleDatabase,
+  type ScheduleMemberRecord,
+  type ScheduleRecord
+} from "@/repositories";
+import {
+  activeScheduleRecipients,
+  scheduleNotificationService,
+  type ScheduleRelevantChange
+} from "@/services/schedule-notification.service";
 import type { ScheduleListResult, ScheduleMemberSummary, ScheduleSummary } from "@/types";
 import type {
   ScheduleCreateInput,
@@ -26,6 +36,20 @@ function serializeDate(value: Date | null) {
 }
 
 function serializeMember(member: ScheduleMemberRecord): ScheduleMemberSummary {
+  const safeMember = {
+    id: member.member.id,
+    name: member.member.name,
+    nickname: member.member.nickname,
+    status: member.member.status
+  };
+  const safeReplacement = member.replacedByMember
+    ? {
+        id: member.replacedByMember.id,
+        name: member.replacedByMember.name,
+        nickname: member.replacedByMember.nickname,
+        status: member.replacedByMember.status
+      }
+    : null;
   return {
     id: member.id,
     role: member.role,
@@ -34,8 +58,10 @@ function serializeMember(member: ScheduleMemberRecord): ScheduleMemberSummary {
     declinedAt: serializeDate(member.declinedAt),
     declineReason: member.declineReason,
     observations: member.observations,
-    member: { ...member.member, displayName: getMemberDisplayName(member.member) },
-    replacedByMember: member.replacedByMember ? { ...member.replacedByMember, displayName: getMemberDisplayName(member.replacedByMember) } : null,
+    member: { ...safeMember, displayName: getMemberDisplayName(member.member) },
+    replacedByMember: safeReplacement
+      ? { ...safeReplacement, displayName: getMemberDisplayName(safeReplacement) }
+      : null,
     createdAt: member.createdAt.toISOString(),
     updatedAt: member.updatedAt.toISOString()
   };
@@ -51,6 +77,7 @@ function serialize(schedule: ScheduleRecord): ScheduleSummary {
     endTime: schedule.endTime,
     location: schedule.location,
     status: schedule.status,
+    publishedAt: serializeDate(schedule.publishedAt),
     observations: schedule.observations,
     ministry: schedule.ministry,
     event: schedule.event
@@ -63,6 +90,54 @@ function serialize(schedule: ScheduleRecord): ScheduleSummary {
     createdAt: schedule.createdAt.toISOString(),
     updatedAt: schedule.updatedAt.toISOString()
   };
+}
+
+function getRelevantScheduleChanges(
+  current: ScheduleRecord,
+  data: ScheduleUpdateInput
+): ScheduleRelevantChange[] {
+  const changes: ScheduleRelevantChange[] = [];
+  const currentDate = current.date.toISOString().slice(0, 10);
+  const comparisons: Array<[ScheduleRelevantChange, unknown, unknown]> = [
+    ["title", current.title, data.title],
+    ["description", current.description ?? undefined, data.description],
+    ["date", currentDate, data.date],
+    ["startTime", current.startTime ?? undefined, data.startTime],
+    ["endTime", current.endTime ?? undefined, data.endTime],
+    ["location", current.location ?? undefined, data.location],
+    ["ministryId", current.ministry.id, data.ministryId],
+    ["observations", current.observations ?? undefined, data.observations]
+  ];
+
+  for (const [field, previous, next] of comparisons) {
+    if (next !== undefined && next !== previous) changes.push(field);
+  }
+  return changes;
+}
+
+function hasNonNotifiableScheduleChange(
+  current: ScheduleRecord,
+  data: ScheduleUpdateInput
+) {
+  return (
+    data.eventId !== undefined &&
+    data.eventId !== (current.event?.id ?? null)
+  );
+}
+
+function hasRelevantMemberChange(
+  current: ScheduleMemberRecord,
+  data: ScheduleMemberUpdateInput
+) {
+  return (
+    (data.memberId !== undefined && data.memberId !== current.member.id) ||
+    (data.role !== undefined && data.role !== current.role) ||
+    (data.status !== undefined && data.status !== current.status) ||
+    (data.replacedByMemberId !== undefined &&
+      data.replacedByMemberId !== (current.replacedByMember?.id ?? null)) ||
+    (data.observations !== undefined &&
+      data.observations !== (current.observations ?? undefined))
+  );
 }
 
 async function ensureActiveMinistry(ministryId: string) {
@@ -114,8 +189,11 @@ function ensureAuthorizedMinistry(ministryId: string, authorization: ScheduleAut
   }
 }
 
-async function ensureActiveMember(memberId: string) {
-  const member = await scheduleRepository.findMemberById(memberId);
+async function ensureActiveMember(
+  memberId: string,
+  database?: ScheduleDatabase
+) {
+  const member = await scheduleRepository.findMemberById(memberId, database);
 
   if (!member) {
     throw new AppError("Membro nao encontrado.", 404, "MEMBER_NOT_FOUND");
@@ -148,12 +226,17 @@ function buildScheduleWindow(schedule: ScheduleRecord, data?: ScheduleUpdateInpu
     date: data?.date ? new Date(`${data.date}T00:00:00.000Z`) : schedule.date,
     startTime: data?.startTime === undefined ? schedule.startTime : data.startTime ?? null,
     endTime: data?.endTime === undefined ? schedule.endTime : data.endTime ?? null,
-    status: data?.status ?? schedule.status,
+    status: schedule.status,
     ministry: schedule.ministry
   };
 }
 
-async function ensureNoTimeConflict(memberId: string, schedule: ScheduleWindow, currentScheduleMemberId?: string) {
+async function ensureNoTimeConflict(
+  memberId: string,
+  schedule: ScheduleWindow,
+  currentScheduleMemberId?: string,
+  database?: ScheduleDatabase
+) {
   if (schedule.status === ScheduleStatus.CANCELED) {
     return;
   }
@@ -161,7 +244,8 @@ async function ensureNoTimeConflict(memberId: string, schedule: ScheduleWindow, 
   const conflict = await scheduleRepository.findScheduleMemberTimeConflict(
     memberId,
     schedule,
-    currentScheduleMemberId
+    currentScheduleMemberId,
+    database
   );
 
   if (conflict) {
@@ -194,9 +278,14 @@ async function ensureNoExistingMembersTimeConflict(schedule: ScheduleRecord, dat
 async function ensureMemberHasMinistryLinkOrException(
   memberId: string,
   ministryId: string,
-  allowMinistryException: boolean | undefined
+  allowMinistryException: boolean | undefined,
+  database?: ScheduleDatabase
 ) {
-  const ministryLink = await scheduleRepository.findActiveMemberMinistry(memberId, ministryId);
+  const ministryLink = await scheduleRepository.findActiveMemberMinistry(
+    memberId,
+    ministryId,
+    database
+  );
 
   if (!ministryLink && !allowMinistryException) {
     throw new AppError(
@@ -215,6 +304,7 @@ async function ensureMemberRules(
     currentStatus?: ScheduleMemberStatus;
     currentMemberId?: string;
     currentReplacedByMemberId?: string | null;
+    database?: ScheduleDatabase;
   } = {},
 ) {
   const isCreate = !options.currentId;
@@ -226,9 +316,14 @@ async function ensureMemberRules(
   const shouldValidateReplacement = data.replacedByMemberId !== undefined;
 
   if (nextMemberId && shouldValidatePrimaryMember) {
-    await ensureActiveMember(nextMemberId);
+    await ensureActiveMember(nextMemberId, options.database);
 
-    const duplicated = await scheduleRepository.findActiveScheduleMember(schedule.id, nextMemberId, options.currentId);
+    const duplicated = await scheduleRepository.findActiveScheduleMember(
+      schedule.id,
+      nextMemberId,
+      options.currentId,
+      options.database
+    );
 
     if (duplicated) {
       throw new AppError("Este membro ja esta nesta escala.", 409, "SCHEDULE_MEMBER_DUPLICATED");
@@ -241,9 +336,14 @@ async function ensureMemberRules(
       endTime: schedule.endTime,
       status: schedule.status,
       ministry: schedule.ministry
-    }, options.currentId);
+    }, options.currentId, options.database);
 
-    await ensureMemberHasMinistryLinkOrException(nextMemberId, schedule.ministry.id, data.allowMinistryException);
+    await ensureMemberHasMinistryLinkOrException(
+      nextMemberId,
+      schedule.ministry.id,
+      data.allowMinistryException,
+      options.database
+    );
   }
 
   if (nextStatus === ScheduleMemberStatus.REPLACED && !nextReplacedByMemberId) {
@@ -259,7 +359,7 @@ async function ensureMemberRules(
   }
 
   if (nextReplacedByMemberId && shouldValidateReplacement) {
-    await ensureActiveMember(nextReplacedByMemberId);
+    await ensureActiveMember(nextReplacedByMemberId, options.database);
     await ensureNoTimeConflict(nextReplacedByMemberId, {
       id: schedule.id,
       date: new Date(schedule.date),
@@ -267,8 +367,13 @@ async function ensureMemberRules(
       endTime: schedule.endTime,
       status: schedule.status,
       ministry: schedule.ministry
-    });
-    await ensureMemberHasMinistryLinkOrException(nextReplacedByMemberId, schedule.ministry.id, data.allowMinistryException);
+    }, undefined, options.database);
+    await ensureMemberHasMinistryLinkOrException(
+      nextReplacedByMemberId,
+      schedule.ministry.id,
+      data.allowMinistryException,
+      options.database
+    );
   }
 }
 export const scheduleService = {
@@ -346,16 +451,60 @@ export const scheduleService = {
       );
     }
 
-    if (data.date || data.startTime !== undefined || data.endTime !== undefined || data.status) {
+    if (data.date || data.startTime !== undefined || data.endTime !== undefined) {
       await ensureNoExistingMembersTimeConflict(current, data);
     }
 
-    const updated = await scheduleRepository.updateWithinScope(
-      id,
-      data,
-      authorization.user.id,
-      authorization.accessContext
-    );
+    const updated = await scheduleRepository.transaction(async (database) => {
+      const transactionalCurrent = await scheduleRepository.lockByIdWithinScope(
+        id,
+        authorization.accessContext,
+        database
+      );
+      if (!transactionalCurrent) return null;
+      ensureScheduleCanBeEdited(transactionalCurrent, data);
+      const changes = getRelevantScheduleChanges(transactionalCurrent, data);
+      const hasNonNotifiableChange = hasNonNotifiableScheduleChange(
+        transactionalCurrent,
+        data
+      );
+      if (!changes.length && !hasNonNotifiableChange) return transactionalCurrent;
+      const result = await scheduleRepository.updateWithinScope(
+        id,
+        data,
+        authorization.user.id,
+        authorization.accessContext,
+        database
+      );
+      if (!result) return null;
+      if (
+        changes.length &&
+        result.status === ScheduleStatus.PUBLISHED &&
+        result.publishedAt !== null
+      ) {
+        const version = await scheduleRepository.incrementNotificationVersion(
+          id,
+          database
+        );
+        const versionedResult = {
+          ...result,
+          notificationVersion: version.notificationVersion
+        };
+        await scheduleNotificationService.updated(
+          versionedResult,
+          changes,
+          authorization.user.id,
+          database
+        );
+        await scheduleNotificationService.rescheduleReminders(
+          versionedResult,
+          authorization.user.id,
+          database
+        );
+        return versionedResult;
+      }
+      return result;
+    });
 
     if (!updated) {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
@@ -365,13 +514,35 @@ export const scheduleService = {
   },
 
   async remove(id: string, authorization: ScheduleAuthorization) {
-    await this.getById(id, authorization);
-
-    const removed = await scheduleRepository.softDeleteWithinScope(
-      id,
-      authorization.user.id,
-      authorization.accessContext
-    );
+    const removed = await scheduleRepository.transaction(async (database) => {
+      const current = await scheduleRepository.lockByIdWithinScope(
+        id,
+        authorization.accessContext,
+        database
+      );
+      if (!current) return null;
+      const wasPublished = current.publishedAt !== null;
+      const versioned = wasPublished
+        ? await scheduleRepository.incrementNotificationVersion(id, database)
+        : null;
+      const notificationSchedule = versioned
+        ? { ...current, notificationVersion: versioned.notificationVersion }
+        : current;
+      const result = await scheduleRepository.softDeleteWithinScope(
+        id,
+        authorization.user.id,
+        authorization.accessContext,
+        database
+      );
+      if (result && wasPublished) {
+        await scheduleNotificationService.cancelled(
+          notificationSchedule,
+          authorization.user.id,
+          database
+        );
+      }
+      return result;
+    });
 
     if (!removed) {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
@@ -381,13 +552,48 @@ export const scheduleService = {
   },
 
   async publish(id: string, authorization: ScheduleAuthorization) {
-    await this.getById(id, authorization);
-    const schedule = await scheduleRepository.updateWithinScope(
-      id,
-      { status: ScheduleStatus.PUBLISHED },
-      authorization.user.id,
-      authorization.accessContext
-    );
+    const schedule = await scheduleRepository.transaction(async (database) => {
+      const current = await scheduleRepository.lockByIdWithinScope(
+        id,
+        authorization.accessContext,
+        database
+      );
+      if (!current) return null;
+      if (current.status === ScheduleStatus.PUBLISHED && current.publishedAt) return current;
+      if (current.status !== ScheduleStatus.DRAFT) {
+        throw new AppError(
+          "Somente escalas em rascunho podem ser publicadas.",
+          409,
+          "SCHEDULE_NOT_DRAFT"
+        );
+      }
+      const published = await scheduleRepository.transitionStatusWithinScope(
+        id,
+        [ScheduleStatus.DRAFT],
+        ScheduleStatus.PUBLISHED,
+        authorization.user.id,
+        authorization.accessContext,
+        database,
+        { publishedAt: new Date(), incrementNotificationVersion: true }
+      );
+      if (!published) {
+        const concurrent = await scheduleRepository.findByIdWithinScope(
+          id,
+          authorization.accessContext,
+          database
+        );
+        if (concurrent?.status === ScheduleStatus.PUBLISHED && concurrent.publishedAt) {
+          return concurrent;
+        }
+        return null;
+      }
+      await scheduleNotificationService.publishInitial(
+        published,
+        authorization.user.id,
+        database
+      );
+      return published;
+    });
 
     if (!schedule) {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
@@ -397,13 +603,33 @@ export const scheduleService = {
   },
 
   async cancel(id: string, authorization: ScheduleAuthorization) {
-    await this.getById(id, authorization);
-    const schedule = await scheduleRepository.updateWithinScope(
-      id,
-      { status: ScheduleStatus.CANCELED },
-      authorization.user.id,
-      authorization.accessContext
-    );
+    const schedule = await scheduleRepository.transaction(async (database) => {
+      const current = await scheduleRepository.lockByIdWithinScope(
+        id,
+        authorization.accessContext,
+        database
+      );
+      if (!current) return null;
+      if (current.status === ScheduleStatus.CANCELED) return current;
+      const wasPublished = current.publishedAt !== null;
+      const cancelled = await scheduleRepository.transitionStatusWithinScope(
+        id,
+        [ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED, ScheduleStatus.COMPLETED],
+        ScheduleStatus.CANCELED,
+        authorization.user.id,
+        authorization.accessContext,
+        database,
+        { incrementNotificationVersion: wasPublished }
+      );
+      if (cancelled && wasPublished) {
+        await scheduleNotificationService.cancelled(
+          cancelled,
+          authorization.user.id,
+          database
+        );
+      }
+      return cancelled;
+    });
 
     if (!schedule) {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
@@ -413,13 +639,42 @@ export const scheduleService = {
   },
 
   async complete(id: string, authorization: ScheduleAuthorization) {
-    await this.getById(id, authorization);
-    const schedule = await scheduleRepository.updateWithinScope(
-      id,
-      { status: ScheduleStatus.COMPLETED },
-      authorization.user.id,
-      authorization.accessContext
-    );
+    const schedule = await scheduleRepository.transaction(async (database) => {
+      const current = await scheduleRepository.lockByIdWithinScope(
+        id,
+        authorization.accessContext,
+        database
+      );
+      if (!current) return null;
+      if (current.status === ScheduleStatus.COMPLETED) return current;
+      if (current.status === ScheduleStatus.CANCELED) {
+        throw new AppError("Escala cancelada nao pode ser concluida.", 409, "SCHEDULE_CANCELED");
+      }
+      const wasPublished = current.publishedAt !== null;
+      const completed = await scheduleRepository.transitionStatusWithinScope(
+        id,
+        [ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED],
+        ScheduleStatus.COMPLETED,
+        authorization.user.id,
+        authorization.accessContext,
+        database,
+        { incrementNotificationVersion: wasPublished }
+      );
+      if (completed && wasPublished) {
+        await scheduleNotificationService.updated(
+          completed,
+          ["status"],
+          authorization.user.id,
+          database
+        );
+        await scheduleNotificationService.rescheduleReminders(
+          completed,
+          authorization.user.id,
+          database
+        );
+      }
+      return completed;
+    });
 
     if (!schedule) {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
@@ -448,13 +703,41 @@ export const scheduleService = {
     data: ScheduleMemberCreateInput,
     authorization: ScheduleAuthorization
   ) {
-    const schedule = await this.getById(scheduleId, authorization);
-    ensureScheduleCanReceiveMembers(schedule);
-    await ensureMemberRules(schedule, data);
-
-    return serializeMember(
-      await scheduleRepository.addMember(scheduleId, data, authorization.user.id)
-    );
+    const participant = await scheduleRepository.transaction(async (database) => {
+      const transactionalSchedule = await scheduleRepository.lockByIdWithinScope(
+        scheduleId,
+        authorization.accessContext,
+        database
+      );
+      if (!transactionalSchedule) {
+        throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+      }
+      ensureScheduleCanReceiveMembers(transactionalSchedule);
+      await ensureMemberRules(transactionalSchedule, data, { database });
+      const created = await scheduleRepository.addMember(
+        scheduleId,
+        data,
+        authorization.user.id,
+        database
+      );
+      if (
+        transactionalSchedule.status === ScheduleStatus.PUBLISHED &&
+        transactionalSchedule.publishedAt
+      ) {
+        const version = await scheduleRepository.incrementNotificationVersion(
+          scheduleId,
+          database
+        );
+        await scheduleNotificationService.participantAdded(
+          { ...transactionalSchedule, notificationVersion: version.notificationVersion },
+          created,
+          authorization.user.id,
+          database
+        );
+      }
+      return created;
+    });
+    return serializeMember(participant);
   },
 
   async updateMember(
@@ -463,27 +746,115 @@ export const scheduleService = {
     data: ScheduleMemberUpdateInput,
     authorization: ScheduleAuthorization
   ) {
-    const schedule = await this.getById(scheduleId, authorization);
-    const current = await scheduleRepository.findScheduleMemberById(memberScheduleId, scheduleId);
+    const updated = await scheduleRepository.transaction(async (database) => {
+      const transactionalSchedule = await scheduleRepository.lockByIdWithinScope(
+        scheduleId,
+        authorization.accessContext,
+        database
+      );
+      const transactionalCurrent = await scheduleRepository.findScheduleMemberById(
+        memberScheduleId,
+        scheduleId,
+        database
+      );
+      if (!transactionalSchedule) {
+        throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+      }
+      if (!transactionalCurrent) {
+        throw new AppError("Membro da escala nao encontrado.", 404, "SCHEDULE_MEMBER_NOT_FOUND");
+      }
+      if (
+        transactionalSchedule.status === ScheduleStatus.COMPLETED &&
+        Object.keys(data).some((key) => key !== "observations")
+      ) {
+        throw new AppError(
+          "Escala concluida permite alterar apenas observacoes.",
+          409,
+          "SCHEDULE_COMPLETED"
+        );
+      }
+      await ensureMemberRules(transactionalSchedule, data, {
+        currentId: memberScheduleId,
+        currentMemberId: transactionalCurrent.member.id,
+        currentStatus: transactionalCurrent.status,
+        currentReplacedByMemberId:
+          transactionalCurrent.replacedByMember?.id ?? null,
+        database
+      });
+      const changed = hasRelevantMemberChange(transactionalCurrent, data);
+      if (!changed) return transactionalCurrent;
+      const result = await scheduleRepository.updateMember(
+        memberScheduleId,
+        data,
+        authorization.user.id,
+        database
+      );
+      if (
+        transactionalSchedule.status === ScheduleStatus.PUBLISHED &&
+        transactionalSchedule.publishedAt
+      ) {
+        const version = await scheduleRepository.incrementNotificationVersion(
+          scheduleId,
+          database
+        );
+        const versionedSchedule = {
+          ...transactionalSchedule,
+          notificationVersion: version.notificationVersion
+        };
+        const previousRecipients = activeScheduleRecipients([transactionalCurrent]);
+        const nextRecipients = activeScheduleRecipients([result]);
+        const previousUserId = previousRecipients[0]?.userId;
+        const nextUserId = nextRecipients[0]?.userId;
 
-    if (!current) {
-      throw new AppError("Membro da escala nao encontrado.", 404, "SCHEDULE_MEMBER_NOT_FOUND");
-    }
-
-    if (schedule.status === ScheduleStatus.COMPLETED && Object.keys(data).some((key) => key !== "observations")) {
-      throw new AppError("Escala concluida permite alterar apenas observacoes.", 409, "SCHEDULE_COMPLETED");
-    }
-
-    await ensureMemberRules(schedule, data, {
-      currentId: memberScheduleId,
-      currentMemberId: current.member.id,
-      currentStatus: current.status,
-      currentReplacedByMemberId: current.replacedByMember?.id ?? null
+        if (previousUserId !== nextUserId) {
+          if (previousUserId) {
+            await scheduleNotificationService.participantRemoved(
+              versionedSchedule,
+              transactionalCurrent,
+              authorization.user.id,
+              database
+            );
+          }
+          if (nextUserId) {
+            await scheduleNotificationService.participantAdded(
+              versionedSchedule,
+              result,
+              authorization.user.id,
+              database
+            );
+          }
+        } else if (nextUserId) {
+          const participantChanges: ScheduleRelevantChange[] = [];
+          if (data.role !== undefined && data.role !== transactionalCurrent.role) {
+            participantChanges.push("role");
+          }
+          if (data.status !== undefined && data.status !== transactionalCurrent.status) {
+            participantChanges.push("status");
+          }
+          if (
+            data.observations !== undefined &&
+            data.observations !== (transactionalCurrent.observations ?? undefined)
+          ) {
+            participantChanges.push("observations");
+          }
+          await scheduleNotificationService.updated(
+            versionedSchedule,
+            participantChanges,
+            authorization.user.id,
+            database,
+            nextRecipients
+          );
+          await scheduleNotificationService.refreshParticipantReminder(
+            versionedSchedule,
+            result,
+            authorization.user.id,
+            database
+          );
+        }
+      }
+      return result;
     });
-
-    return serializeMember(
-      await scheduleRepository.updateMember(memberScheduleId, data, authorization.user.id)
-    );
+    return serializeMember(updated);
   },
 
   async removeMember(
@@ -491,14 +862,44 @@ export const scheduleService = {
     memberScheduleId: string,
     authorization: ScheduleAuthorization
   ) {
-    await this.getById(scheduleId, authorization);
-    const current = await scheduleRepository.findScheduleMemberById(memberScheduleId, scheduleId);
-
-    if (!current) {
-      throw new AppError("Membro da escala nao encontrado.", 404, "SCHEDULE_MEMBER_NOT_FOUND");
-    }
-
-    return scheduleRepository.softDeleteMember(memberScheduleId, authorization.user.id);
+    return scheduleRepository.transaction(async (database) => {
+      const transactionalSchedule = await scheduleRepository.lockByIdWithinScope(
+        scheduleId,
+        authorization.accessContext,
+        database
+      );
+      const transactionalCurrent = await scheduleRepository.findScheduleMemberById(
+        memberScheduleId,
+        scheduleId,
+        database
+      );
+      if (!transactionalSchedule) {
+        throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+      }
+      if (!transactionalCurrent) {
+        throw new AppError("Membro da escala nao encontrado.", 404, "SCHEDULE_MEMBER_NOT_FOUND");
+      }
+      const shouldNotify =
+        transactionalSchedule.status === ScheduleStatus.PUBLISHED &&
+        transactionalSchedule.publishedAt !== null;
+      const version = shouldNotify
+        ? await scheduleRepository.incrementNotificationVersion(scheduleId, database)
+        : null;
+      const removed = await scheduleRepository.softDeleteMember(
+        memberScheduleId,
+        authorization.user.id,
+        database
+      );
+      if (shouldNotify && version) {
+        await scheduleNotificationService.participantRemoved(
+          { ...transactionalSchedule, notificationVersion: version.notificationVersion },
+          transactionalCurrent,
+          authorization.user.id,
+          database
+        );
+      }
+      return removed;
+    });
   },
 
   async confirmMember(

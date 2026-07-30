@@ -32,7 +32,6 @@ const scheduleBaseSchema = z.object({
   startTime: timeSchema,
   endTime: timeSchema,
   location: optionalText,
-  status: z.enum(ScheduleStatus).default(ScheduleStatus.DRAFT),
   observations: optionalText
 });
 
@@ -49,7 +48,9 @@ function validateScheduleTimes<T extends { startTime?: string; endTime?: string 
   }
 }
 
-export const scheduleCreateSchema = scheduleBaseSchema.superRefine(validateScheduleTimes);
+export const scheduleCreateSchema = scheduleBaseSchema
+  .extend({ status: z.literal(ScheduleStatus.DRAFT).default(ScheduleStatus.DRAFT) })
+  .superRefine(validateScheduleTimes);
 export const scheduleUpdateSchema = scheduleBaseSchema.partial().superRefine(validateScheduleTimes);
 
 export const scheduleListQuerySchema = z.object({

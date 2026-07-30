@@ -44,6 +44,8 @@ function scheduleRecord(id: string, ministryId: string): ScheduleRecord {
     endTime: "10:00",
     location: "Templo",
     status: ScheduleStatus.DRAFT,
+    publishedAt: null,
+    notificationVersion: 0,
     observations: null,
     createdAt: new Date("2026-07-23T00:00:00.000Z"),
     updatedAt: new Date("2026-07-23T00:00:00.000Z"),
@@ -205,10 +207,12 @@ async function main() {
     replace("listMinistries", () => Promise.resolve([]));
     replace("listEvents", () => Promise.resolve([]));
     replace("listMembers", () => Promise.resolve([]));
-    replace("findByIdWithinScope", (id: string, accessContext: ScheduleAccessContext) => {
+    const scopedLookup = (id: string, accessContext: ScheduleAccessContext) => {
       const schedule = store.get(id);
       return Promise.resolve(canAccess(schedule, accessContext) ? schedule?.record ?? null : null);
-    });
+    };
+    replace("findByIdWithinScope", scopedLookup);
+    replace("lockByIdWithinScope", scopedLookup);
     replace("findMinistryById", (id: string) =>
       Promise.resolve({ id, name: `Ministerio ${id}`, isActive: true })
     );
@@ -266,14 +270,15 @@ async function main() {
       assert(!routes.includes("resolveScheduleAccessContext"));
     });
 
-    await test("Services por ID convergem em findByIdWithinScope", () => {
+    await test("Services por ID convergem no acesso escopado", () => {
       const service = readFileSync("src/services/schedule.service.ts", "utf8");
       const repository = readFileSync("src/repositories/schedule.repository.ts", "utf8");
 
       assert.match(service, /getById[\s\S]*findByIdWithinScope/);
-      assert.match(service, /update[\s\S]*findByIdWithinScope/);
-      assert.match(service, /remove[\s\S]*this\.getById\(id, authorization\)/);
+      assert.match(service, /update[\s\S]*lockByIdWithinScope/);
+      assert.match(service, /remove[\s\S]*lockByIdWithinScope/);
       assert.match(repository, /findByIdWithinScope[\s\S]*buildScheduleScopeWhere/);
+      assert.match(repository, /lockByIdWithinScope[\s\S]*FOR UPDATE/);
     });
 
     await test("Listagem restrita retorna somente a Escala A", async () => {

@@ -117,7 +117,7 @@ async function main() {
   );
   check(
     resolveEntityDestination(NOTIFICATION_ENTITY_TYPES.SCHEDULE, "schedule/1") ===
-      "/escalas/schedule%2F1" &&
+      "/portal/minhas-escalas?schedule=schedule%2F1" &&
       resolveNotificationDestination({
         entityType: NOTIFICATION_ENTITY_TYPES.NOTICE,
         entityId: "notice-80",

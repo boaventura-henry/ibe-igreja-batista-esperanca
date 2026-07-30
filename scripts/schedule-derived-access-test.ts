@@ -43,6 +43,8 @@ function scheduleRecord(id: string, ministryId: string): ScheduleRecord {
     endTime: "10:00",
     location: "Templo",
     status: ScheduleStatus.DRAFT,
+    publishedAt: null,
+    notificationVersion: 0,
     observations: null,
     createdAt: new Date("2026-07-23T00:00:00.000Z"),
     updatedAt: new Date("2026-07-23T00:00:00.000Z"),
@@ -219,12 +221,29 @@ async function main() {
   ];
 
   try {
+    replace("schedule", "transaction", (callback: (database: unknown) => Promise<unknown>) =>
+      callback({})
+    );
+    const scopedLookup = (id: string, context: ScheduleAccessContext) => {
+      const stored = store.get(id);
+      return Promise.resolve(canAccess(stored, context) ? stored?.record ?? null : null);
+    };
+    replace("schedule", "findByIdWithinScope", scopedLookup);
+    replace("schedule", "lockByIdWithinScope", scopedLookup);
     replace(
       "schedule",
-      "findByIdWithinScope",
-      (id: string, context: ScheduleAccessContext) => {
+      "transitionStatusWithinScope",
+      (
+        id: string,
+        _fromStatuses: ScheduleStatus[],
+        status: ScheduleStatus,
+        _userId: string,
+        context: ScheduleAccessContext
+      ) => {
         const stored = store.get(id);
-        return Promise.resolve(canAccess(stored, context) ? stored?.record ?? null : null);
+        if (!canAccess(stored, context) || !stored) return Promise.resolve(null);
+        stored.record = { ...stored.record, status, updatedAt: new Date() };
+        return Promise.resolve(stored.record);
       }
     );
     replace(
@@ -381,6 +400,8 @@ async function main() {
       ["concluir", (id: string) => scheduleService.complete(id, restricted)]
     ] as const) {
       await test(`${operation[0]} escala autorizada continua funcionando`, async () => {
+        store.get("schedule-a")!.record.status = ScheduleStatus.DRAFT;
+        store.get("schedule-a")!.record.publishedAt = null;
         const result = await operation[1]("schedule-a");
         assert.equal(result.id, "schedule-a");
       });
