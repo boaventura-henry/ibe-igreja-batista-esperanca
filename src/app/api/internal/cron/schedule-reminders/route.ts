@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { Prisma } from "@prisma/client";
-import { apiError, apiSuccess } from "@/lib/api-response";
+import { NextResponse } from "next/server";
+import { apiError } from "@/lib/api-response";
 import { authorizeCronRequest } from "@/lib/cron-auth";
 import {
   scheduleNotificationService,
@@ -13,6 +14,19 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" };
+
+type ScheduleReminderSuccessData = Awaited<
+  ReturnType<typeof scheduleNotificationService.processPendingReminders>
+> & {
+  executionId: string;
+};
+
+function scheduleReminderSuccess(data: ScheduleReminderSuccessData) {
+  return NextResponse.json<{ success: true; data: ScheduleReminderSuccessData }>(
+    { success: true, data },
+    { headers: noStoreHeaders }
+  );
+}
 
 function sanitizeDiagnosticText(value: string) {
   return value
@@ -97,13 +111,10 @@ export async function GET(request: Request) {
       requestDurationMs: Number((performance.now() - requestStartedAt).toFixed(3))
     });
 
-    return apiSuccess(
-      {
-        executionId,
-        ...result
-      },
-      { headers: noStoreHeaders }
-    );
+    return scheduleReminderSuccess({
+      executionId,
+      ...result
+    });
   } catch (error) {
     const processingError = scheduleReminderProcessingErrorContext(error);
     const originalError = processingError.error;

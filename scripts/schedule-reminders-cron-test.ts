@@ -141,6 +141,12 @@ async function main() {
       skipped: 0,
       lockAcquired: true,
       attempts: 1,
+      phaseTimings: {
+        lockMs: 0.1,
+        selectionMs: 0.2,
+        validationMs: 0.3,
+        updateMs: 0.4
+      },
       timings: {
         lockMs: 0.1,
         selectionMs: 0.2,
@@ -149,6 +155,46 @@ async function main() {
         transactionMs: 1,
         totalServiceMs: 1.1
       }
+    };
+    const checkSuccessEnvelope = (
+      body: Record<string, unknown>,
+      expectedReason: string,
+      label: string
+    ) => {
+      const data = body.data as Record<string, unknown> | undefined;
+      check(
+        body.success === true && data !== undefined,
+        `${label} possui success apenas no envelope e data presente`
+      );
+      assert(data);
+      check(
+        Object.keys(body).length === 2 && Object.keys(body).filter((key) => key === "data").length === 1,
+        `${label} possui data uma unica vez sem payload duplicado`
+      );
+      check(
+        [
+          "executionId",
+          "executed",
+          "reason",
+          "found",
+          "sent",
+          "cancelled",
+          "skipped",
+          "lockAcquired",
+          "phaseTimings",
+          "attempts",
+          "timings"
+        ].every((key) => !(key in body)),
+        `${label} nao expoe dados operacionais na raiz`
+      );
+      check(
+        typeof data.executionId === "string" &&
+          data.reason === expectedReason &&
+          typeof data.timings === "object" &&
+          typeof data.phaseTimings === "object",
+        `${label} preserva o contrato operacional dentro de data`
+      );
+      return data;
     };
     scheduleNotifications.processPendingReminders = (() => {
       serviceCalls += 1;
@@ -170,15 +216,16 @@ async function main() {
     process.env.CRON_SECRET = "route-secret";
     const success = await GET(request("Bearer route-secret"));
     const successBody = await responseBody(success);
+    const successData = checkSuccessEnvelope(successBody, "processed", "processed");
     check(success.status === 200, "rota autenticada retorna 200");
     check(serviceCalls === 1, "rota chama o processador uma unica vez por requisicao");
     check(
-      successBody.found === 2 &&
-        successBody.executed === true &&
-        successBody.reason === "processed" &&
-        successBody.sent === 1 &&
-        successBody.cancelled === 1 &&
-        successBody.skipped === 0,
+      successData.found === 2 &&
+        successData.executed === true &&
+        successData.reason === "processed" &&
+        successData.sent === 1 &&
+        successData.cancelled === 1 &&
+        successData.skipped === 0,
       "rota preserva o retorno tipado do processador"
     );
     check(success.headers.get("cache-control")?.includes("no-store"), "rota desabilita cache");
@@ -197,16 +244,21 @@ async function main() {
     };
     const alreadyRunning = await GET(request("Bearer route-secret"));
     const alreadyRunningBody = await responseBody(alreadyRunning);
+    const alreadyRunningData = checkSuccessEnvelope(
+      alreadyRunningBody,
+      "already_running",
+      "already_running"
+    );
     check(
       alreadyRunning.status === 200 &&
-        alreadyRunningBody.executed === false &&
-        alreadyRunningBody.reason === "already_running",
+        alreadyRunningData.executed === false &&
+        alreadyRunningData.reason === "already_running",
       "rota diferencia lock ocupado com already_running"
     );
     check(
-      alreadyRunningBody.found === 0 &&
-        alreadyRunningBody.sent === 0 &&
-        alreadyRunningBody.cancelled === 0,
+      alreadyRunningData.found === 0 &&
+        alreadyRunningData.sent === 0 &&
+        alreadyRunningData.cancelled === 0,
       "lock ocupado retorna contadores zerados"
     );
 
@@ -218,10 +270,15 @@ async function main() {
     };
     const emptyRoute = await GET(request("Bearer route-secret"));
     const emptyRouteBody = await responseBody(emptyRoute);
+    const emptyRouteData = checkSuccessEnvelope(
+      emptyRouteBody,
+      "empty_batch",
+      "empty_batch"
+    );
     check(
       emptyRoute.status === 200 &&
-        emptyRouteBody.executed === true &&
-        emptyRouteBody.reason === "empty_batch",
+        emptyRouteData.executed === true &&
+        emptyRouteData.reason === "empty_batch",
       "rota diferencia lote vazio com empty_batch"
     );
 
@@ -232,6 +289,17 @@ async function main() {
     const failure = await GET(request("Bearer route-secret"));
     const failureBody = await responseBody(failure);
     check(failure.status === 500, "falha estrutural do service retorna 500");
+    check(
+      JSON.stringify(failureBody) ===
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "SCHEDULE_REMINDER_PROCESSING_FAILED",
+            message: "Nao foi possivel processar os lembretes."
+          }
+        }),
+      "resposta de erro permanece inalterada"
+    );
     check(
       !JSON.stringify(failureBody).includes("database detail"),
       "resposta 500 nao expoe detalhe tecnico"
