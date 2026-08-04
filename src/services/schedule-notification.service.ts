@@ -26,6 +26,44 @@ const TRANSIENT_TRANSACTION_CODES = new Set(["P2034", "40001", "40P01"]);
 
 type ProcessingReason = "already_running" | "empty_batch" | "processed";
 
+export type ScheduleReminderProcessingPhase =
+  | "acquire_advisory_lock"
+  | "select_batch"
+  | "validate_eligibility"
+  | "update_reminders"
+  | "commit_transaction";
+
+export class ScheduleReminderProcessingError extends Error {
+  constructor(
+    public readonly originalError: unknown,
+    public readonly phase: ScheduleReminderProcessingPhase,
+    public readonly attempt: number
+  ) {
+    super(
+      originalError instanceof Error
+        ? originalError.message
+        : "Schedule reminder processing failed."
+    );
+    this.name = "ScheduleReminderProcessingError";
+    this.cause = originalError;
+  }
+}
+
+export function scheduleReminderProcessingErrorContext(error: unknown) {
+  if (error instanceof ScheduleReminderProcessingError) {
+    return {
+      error: error.originalError,
+      phase: error.phase,
+      attempt: error.attempt
+    };
+  }
+  return {
+    error,
+    phase: "commit_transaction" as const,
+    attempt: 1
+  };
+}
+
 type ProcessingPhaseTimings = {
   lockMs: number;
   selectionMs: number;
@@ -263,130 +301,145 @@ export function transientScheduleReminderTransactionCode(error: unknown) {
   return nestedErrorCode(error);
 }
 
-async function processPendingReminderBatch(now: Date, batchSize: number) {
+async function processPendingReminderBatch(
+  now: Date,
+  batchSize: number,
+  attempt: number
+) {
   const phaseTimings: ProcessingPhaseTimings = {
     lockMs: 0,
     selectionMs: 0,
     validationMs: 0,
     updateMs: 0
   };
+  let phase: ScheduleReminderProcessingPhase = "acquire_advisory_lock";
 
-  return notificationRepository.transaction(async (database) => {
-    const lockStartedAt = performance.now();
-    const lockAcquired =
-      await notificationRepository.tryAcquireScheduleReminderProcessingLock(database);
-    phaseTimings.lockMs = durationSince(lockStartedAt);
-    if (!lockAcquired) {
-      return {
-        executed: false as const,
-        reason: "already_running" as const,
-        found: 0,
-        sent: 0,
-        cancelled: 0,
-        skipped: 0,
-        lockAcquired: false,
-        phaseTimings
-      };
-    }
+  try {
+    return await notificationRepository.transaction(async (database) => {
+      phase = "acquire_advisory_lock";
+      const lockStartedAt = performance.now();
+      const lockAcquired =
+        await notificationRepository.tryAcquireScheduleReminderProcessingLock(database);
+      phaseTimings.lockMs = durationSince(lockStartedAt);
+      if (!lockAcquired) {
+        return {
+          executed: false as const,
+          reason: "already_running" as const,
+          found: 0,
+          sent: 0,
+          cancelled: 0,
+          skipped: 0,
+          lockAcquired: false,
+          phaseTimings
+        };
+      }
 
-    const selectionStartedAt = performance.now();
-    const pending = await notificationRepository.listDueScheduled(
-      NotificationType.SCHEDULE_REMINDER,
-      now,
-      batchSize,
-      database
-    );
-    phaseTimings.selectionMs = durationSince(selectionStartedAt);
-    if (!pending.length) {
+      phase = "select_batch";
+      const selectionStartedAt = performance.now();
+      const pending = await notificationRepository.listDueScheduled(
+        NotificationType.SCHEDULE_REMINDER,
+        now,
+        batchSize,
+        database
+      );
+      phaseTimings.selectionMs = durationSince(selectionStartedAt);
+      if (!pending.length) {
+        phase = "commit_transaction";
+        return {
+          executed: true as const,
+          reason: "empty_batch" as const,
+          found: 0,
+          sent: 0,
+          cancelled: 0,
+          skipped: 0,
+          lockAcquired: true,
+          phaseTimings
+        };
+      }
+
+      phase = "validate_eligibility";
+      const validationStartedAt = performance.now();
+      const deliverable: string[] = [];
+      const cancelled: string[] = [];
+      const preferences = await notificationPublisher.preferences(
+        pending.map((item) => item.userId),
+        NotificationType.SCHEDULE_REMINDER,
+        database
+      );
+      const preferenceByUser = new Map(preferences.map((item) => [item.userId, item]));
+      const scheduleIds = [
+        ...new Set(
+          pending
+            .filter(
+              (item) =>
+                item.entityType === NOTIFICATION_ENTITY_TYPES.SCHEDULE && item.entityId
+            )
+            .map((item) => item.entityId as string)
+        )
+      ];
+      const userIds = [...new Set(pending.map((item) => item.userId))];
+      const recipientLinks = await scheduleRepository.listPublishedScheduleRecipientLinks(
+        scheduleIds,
+        userIds,
+        database
+      );
+      const eligiblePairs = new Set<string>();
+      const currentVersionBySchedule = new Map<string, number>();
+
+      for (const schedule of recipientLinks) {
+        currentVersionBySchedule.set(schedule.id, schedule.notificationVersion);
+        for (const participant of schedule.members) {
+          const userId =
+            participant.status === ScheduleMemberStatus.REPLACED
+              ? participant.replacedByMember?.user?.id
+              : participant.member.user?.id;
+          if (userId) eligiblePairs.add(`${schedule.id}:${userId}`);
+        }
+      }
+
+      for (const item of pending) {
+        const preference = preferenceByUser.get(item.userId);
+        const notificationVersion = reminderNotificationVersion(item.deduplicationKey);
+        if (
+          (!item.expiresAt || item.expiresAt > now) &&
+          preference?.active &&
+          preference.preference.inAppEnabled &&
+          item.entityType === NOTIFICATION_ENTITY_TYPES.SCHEDULE &&
+          item.entityId &&
+          notificationVersion !== null &&
+          currentVersionBySchedule.get(item.entityId) === notificationVersion &&
+          eligiblePairs.has(`${item.entityId}:${item.userId}`)
+        ) {
+          deliverable.push(item.id);
+        } else {
+          cancelled.push(item.id);
+        }
+      }
+      phaseTimings.validationMs = durationSince(validationStartedAt);
+
+      phase = "update_reminders";
+      const updateStartedAt = performance.now();
+      const [sent, invalidated] = await Promise.all([
+        notificationRepository.markSent(deliverable, now, database),
+        notificationRepository.cancelScheduled(cancelled, database)
+      ]);
+      phaseTimings.updateMs = durationSince(updateStartedAt);
+
+      phase = "commit_transaction";
       return {
         executed: true as const,
-        reason: "empty_batch" as const,
-        found: 0,
-        sent: 0,
-        cancelled: 0,
-        skipped: 0,
+        reason: "processed" as const,
+        found: pending.length,
+        sent: sent.count,
+        cancelled: invalidated.count,
+        skipped: pending.length - sent.count - invalidated.count,
         lockAcquired: true,
         phaseTimings
       };
-    }
-
-    const validationStartedAt = performance.now();
-    const deliverable: string[] = [];
-    const cancelled: string[] = [];
-    const preferences = await notificationPublisher.preferences(
-      pending.map((item) => item.userId),
-      NotificationType.SCHEDULE_REMINDER,
-      database
-    );
-    const preferenceByUser = new Map(preferences.map((item) => [item.userId, item]));
-    const scheduleIds = [
-      ...new Set(
-        pending
-          .filter(
-            (item) =>
-              item.entityType === NOTIFICATION_ENTITY_TYPES.SCHEDULE && item.entityId
-          )
-          .map((item) => item.entityId as string)
-      )
-    ];
-    const userIds = [...new Set(pending.map((item) => item.userId))];
-    const recipientLinks = await scheduleRepository.listPublishedScheduleRecipientLinks(
-      scheduleIds,
-      userIds,
-      database
-    );
-    const eligiblePairs = new Set<string>();
-    const currentVersionBySchedule = new Map<string, number>();
-
-    for (const schedule of recipientLinks) {
-      currentVersionBySchedule.set(schedule.id, schedule.notificationVersion);
-      for (const participant of schedule.members) {
-        const userId =
-          participant.status === ScheduleMemberStatus.REPLACED
-            ? participant.replacedByMember?.user?.id
-            : participant.member.user?.id;
-        if (userId) eligiblePairs.add(`${schedule.id}:${userId}`);
-      }
-    }
-
-    for (const item of pending) {
-      const preference = preferenceByUser.get(item.userId);
-      const notificationVersion = reminderNotificationVersion(item.deduplicationKey);
-      if (
-        (!item.expiresAt || item.expiresAt > now) &&
-        preference?.active &&
-        preference.preference.inAppEnabled &&
-        item.entityType === NOTIFICATION_ENTITY_TYPES.SCHEDULE &&
-        item.entityId &&
-        notificationVersion !== null &&
-        currentVersionBySchedule.get(item.entityId) === notificationVersion &&
-        eligiblePairs.has(`${item.entityId}:${item.userId}`)
-      ) {
-        deliverable.push(item.id);
-      } else {
-        cancelled.push(item.id);
-      }
-    }
-    phaseTimings.validationMs = durationSince(validationStartedAt);
-
-    const updateStartedAt = performance.now();
-    const [sent, invalidated] = await Promise.all([
-      notificationRepository.markSent(deliverable, now, database),
-      notificationRepository.cancelScheduled(cancelled, database)
-    ]);
-    phaseTimings.updateMs = durationSince(updateStartedAt);
-
-    return {
-      executed: true as const,
-      reason: "processed" as const,
-      found: pending.length,
-      sent: sent.count,
-      cancelled: invalidated.count,
-      skipped: pending.length - sent.count - invalidated.count,
-      lockAcquired: true,
-      phaseTimings
-    };
-  });
+    });
+  } catch (error) {
+    throw new ScheduleReminderProcessingError(error, phase, attempt);
+  }
 }
 
 export const scheduleNotificationService = {
@@ -558,7 +611,7 @@ export const scheduleNotificationService = {
     ) {
       const transactionStartedAt = performance.now();
       try {
-        const result = await processPendingReminderBatch(now, batchSize);
+        const result = await processPendingReminderBatch(now, batchSize, attempt);
         transactionMs += durationSince(transactionStartedAt);
         return {
           ...result,

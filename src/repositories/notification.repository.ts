@@ -99,8 +99,8 @@ export const notificationRepository = {
   async tryAcquireScheduleReminderProcessingLock(database: NotificationDatabase) {
     const [result] = await database.$queryRaw<Array<{ acquired: boolean }>>`
       SELECT pg_try_advisory_xact_lock(
-        ${INTERNAL_JOB_LOCK_NAMESPACE},
-        ${SCHEDULE_REMINDERS_CRON_LOCK_KEY}
+        CAST(${INTERNAL_JOB_LOCK_NAMESPACE} AS INTEGER),
+        CAST(${SCHEDULE_REMINDERS_CRON_LOCK_KEY} AS INTEGER)
       ) AS "acquired"
     `;
     return result?.acquired === true;

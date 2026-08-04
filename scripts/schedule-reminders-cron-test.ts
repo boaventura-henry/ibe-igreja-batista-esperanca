@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
-import { NotificationType, ScheduleMemberStatus } from "@prisma/client";
+import { NotificationType, Prisma, ScheduleMemberStatus } from "@prisma/client";
 import { authorizeCronRequest } from "../src/lib/cron-auth";
 import {
   INTERNAL_JOB_LOCK_NAMESPACE,
@@ -15,6 +15,7 @@ import {
   MAX_SCHEDULE_REMINDER_TRANSACTION_ATTEMPTS,
   reminderNotificationVersion,
   scheduleNotificationService,
+  ScheduleReminderProcessingError,
   transientScheduleReminderTransactionCode
 } from "../src/services/schedule-notification.service";
 import { GET } from "../src/app/api/internal/cron/schedule-reminders/route";
@@ -234,6 +235,73 @@ async function main() {
     check(
       !JSON.stringify(failureBody).includes("database detail"),
       "resposta 500 nao expoe detalhe tecnico"
+    );
+
+    const prismaFailure = new Prisma.PrismaClientKnownRequestError(
+      "Raw query failed. DATABASE_URL=postgresql://sensitive-value Authorization: Bearer sensitive-token",
+      {
+        code: "P2010",
+        clientVersion: "6.19.3",
+        meta: {
+          code: "42883",
+          message: "function pg_try_advisory_xact_lock(bigint, bigint) does not exist",
+          query: "sensitive query parameters"
+        }
+      }
+    );
+    scheduleNotifications.processPendingReminders = (() => {
+      throw new ScheduleReminderProcessingError(
+        prismaFailure,
+        "acquire_advisory_lock",
+        2
+      );
+    }) as never;
+    const prismaFailureResponse = await GET(request("Bearer route-secret"));
+    const prismaFailureBody = await responseBody(prismaFailureResponse);
+    const failureLog = operationalLogs.find(
+      ([message, details]) =>
+        message === "[ScheduleReminderCron] execution failed." &&
+        typeof details === "object" &&
+        details !== null &&
+        (details as { phase?: unknown }).phase === "acquire_advisory_lock"
+    );
+    const failureDetails = failureLog?.[1] as
+      | {
+          phase?: string;
+          attempt?: number;
+          error?: {
+            name?: string;
+            code?: string | null;
+            message?: string;
+            meta?: Record<string, unknown> | null;
+            clientVersion?: string | null;
+          };
+        }
+      | undefined;
+    check(
+      prismaFailureResponse.status === 500 &&
+        prismaFailureBody.error !== undefined &&
+        !JSON.stringify(prismaFailureBody).includes("P2010") &&
+        !JSON.stringify(prismaFailureBody).includes("42883"),
+      "resposta Prisma permanece generica e nao expoe diagnostico"
+    );
+    check(
+      failureDetails?.phase === "acquire_advisory_lock" &&
+        failureDetails.attempt === 2,
+      "log associa fase e tentativa ao executionId"
+    );
+    check(
+      failureDetails?.error?.name === "PrismaClientKnownRequestError" &&
+        failureDetails.error.code === "P2010" &&
+        failureDetails.error.clientVersion === "6.19.3" &&
+        failureDetails.error.meta?.code === "42883",
+      "log registra diagnostico tipado do Prisma"
+    );
+    check(
+      !JSON.stringify(failureDetails).includes("sensitive-value") &&
+        !JSON.stringify(failureDetails).includes("sensitive-token") &&
+        !JSON.stringify(failureDetails).includes("sensitive query parameters"),
+      "log sanitiza URLs, Authorization e parametros sensiveis"
     );
     scheduleNotifications.processPendingReminders = actualProcessor;
 
@@ -569,7 +637,10 @@ async function main() {
     const callsBeforeExhaustion = transactionCalls;
     await assert.rejects(
       () => scheduleNotificationService.processPendingReminders(),
-      (error) => error === exhaustedError
+      (error) =>
+        error instanceof ScheduleReminderProcessingError &&
+        error.originalError === exhaustedError &&
+        error.attempt === MAX_SCHEDULE_REMINDER_TRANSACTION_ATTEMPTS
     );
     check(
       transactionCalls - callsBeforeExhaustion ===
@@ -589,7 +660,10 @@ async function main() {
     const callsBeforeStructural = transactionCalls;
     await assert.rejects(
       () => scheduleNotificationService.processPendingReminders(),
-      (error) => error === structuralError
+      (error) =>
+        error instanceof ScheduleReminderProcessingError &&
+        error.originalError === structuralError &&
+        error.attempt === 1
     );
     check(
       transactionCalls - callsBeforeStructural === 1,
@@ -740,6 +814,15 @@ async function main() {
     );
     check(repositorySource.includes("pg_try_advisory_xact_lock"), "concorrencia usa advisory lock no PostgreSQL");
     check(
+      repositorySource.includes(
+        "CAST(${INTERNAL_JOB_LOCK_NAMESPACE} AS INTEGER)"
+      ) &&
+        repositorySource.includes(
+          "CAST(${SCHEDULE_REMINDERS_CRON_LOCK_KEY} AS INTEGER)"
+        ),
+      "advisory lock usa a assinatura PostgreSQL integer, integer"
+    );
+    check(
       INTERNAL_JOB_LOCK_NAMESPACE === 0x00494245 &&
         SCHEDULE_REMINDERS_CRON_LOCK_KEY === 1,
       "namespace e chave do job sao explicitos e estaveis"
@@ -778,14 +861,16 @@ async function main() {
     );
 
     const vercel = JSON.parse(readFileSync("vercel.json", "utf8")) as {
-      crons?: Array<{ path: string; schedule: string }>;
+      crons?: unknown[];
     };
-    check(vercel.crons?.length === 1, "Vercel possui um unico Cron de reminders");
     check(
-      vercel.crons?.[0]?.path === "/api/internal/cron/schedule-reminders",
-      "Cron aponta exclusivamente para a rota interna"
+      !vercel.crons?.length,
+      "Vercel nao registra Cron nativo no plano Hobby"
     );
-    check(vercel.crons?.[0]?.schedule === "*/15 * * * *", "Cron executa a cada 15 minutos");
+    check(
+      routeSource.includes("export async function GET"),
+      "rota interna permanece disponivel para o agendador externo"
+    );
     check(
       readFileSync(".env.example", "utf8").includes("CRON_SECRET="),
       "variavel CRON_SECRET esta documentada sem valor"
