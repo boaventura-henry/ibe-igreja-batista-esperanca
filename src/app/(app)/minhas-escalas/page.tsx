@@ -1,13 +1,14 @@
 import { PageHeader } from "@/components/PageHeader";
 import { MyScheduleManager } from "@/components/my-schedules/MyScheduleManager";
+import { MemberLinkRequired } from "@/components/portal/MemberLinkRequired";
+import { loadMySchedulesPageData } from "@/lib/my-schedules-page";
 import { requirePermission } from "@/lib/session";
-import { myScheduleService } from "@/services";
 
 export const dynamic = "force-dynamic";
 
 export default async function MySchedulesPage() {
   const user = await requirePermission("mySchedule.view");
-  const data = await myScheduleService.list(user);
+  const result = await loadMySchedulesPageData(user);
 
   return (
     <>
@@ -17,7 +18,11 @@ export default async function MySchedulesPage() {
         description="Acompanhe suas participacoes e confirme sua presenca nas escalas."
       />
 
-      <MyScheduleManager initialData={data} />
+      {result.kind === "member-link-required" ? (
+        <MemberLinkRequired message="Seu usuario esta autenticado, mas ainda nao esta vinculado a um cadastro de membro. Entre em contato com a administracao para acessar suas escalas." />
+      ) : (
+        <MyScheduleManager initialData={result.data} />
+      )}
     </>
   );
 }

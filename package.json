@@ -14,6 +14,7 @@
     "test:schedule-notifications": "tsx scripts/schedule-notifications-test.ts",
     "test:schedule-reminders-cron": "tsx scripts/schedule-reminders-cron-test.ts",
     "test:expired-lifecycle": "tsx scripts/expired-lifecycle-test.ts",
+    "test:my-schedules-page": "tsx scripts/my-schedules-page-test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
