@@ -286,6 +286,27 @@ export const notificationRepository = {
     });
   },
 
+  cancelPendingByEntities(
+    entityType: string,
+    entityIds: string[],
+    type: NotificationType,
+    database: NotificationDatabase = prisma
+  ) {
+    if (entityIds.length === 0) return Promise.resolve({ count: 0 });
+    const cancelledAt = new Date();
+    return database.notification.updateMany({
+      where: {
+        entityType,
+        entityId: { in: entityIds },
+        type,
+        sentAt: null,
+        cancelledAt: null,
+        deletedAt: null
+      },
+      data: { cancelledAt, deletedAt: cancelledAt }
+    });
+  },
+
   listDueScheduled(
     type: NotificationType,
     now: Date,

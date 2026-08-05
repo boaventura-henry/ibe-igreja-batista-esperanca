@@ -1,5 +1,6 @@
 import { AnnouncementAudience, AnnouncementStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { applicationDayStart } from "@/lib/application-time";
 import type {
   AnnouncementCreateInput,
   AnnouncementListQueryInput,
@@ -58,19 +59,27 @@ function activePortalAudienceWhere(memberId: string | null | undefined): Prisma.
 }
 
 function activePortalAnnouncementWhere(memberId: string | null | undefined, now = new Date()): Prisma.AnnouncementWhereInput {
+  const todayStart = applicationDayStart(now);
   return {
     AND: [
       { deletedAt: null },
       { status: AnnouncementStatus.PUBLISHED },
       { OR: [{ publishAt: null }, { publishAt: { lte: now } }] },
-      { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+      { OR: [{ expiresAt: null }, { expiresAt: { gte: todayStart } }] },
       activePortalAudienceWhere(memberId)
     ]
   };
 }
 
-function buildWhere(filters: AnnouncementListQueryInput): Prisma.AnnouncementWhereInput {
+export function buildAnnouncementWhere(filters: AnnouncementListQueryInput): Prisma.AnnouncementWhereInput {
   const and: Prisma.AnnouncementWhereInput[] = [{ deletedAt: null }];
+
+  if (!filters.includeArchived) {
+    and.push(
+      { status: { not: AnnouncementStatus.ARCHIVED } },
+      { OR: [{ expiresAt: null }, { expiresAt: { gte: applicationDayStart() } }] }
+    );
+  }
 
   if (filters.search) {
     and.push({
@@ -125,7 +134,7 @@ function updateData(data: AnnouncementUpdateInput): Prisma.AnnouncementUnchecked
 
 export const announcementRepository = {
   async list(filters: AnnouncementListQueryInput) {
-    const where = buildWhere(filters);
+    const where = buildAnnouncementWhere(filters);
     const skip = (filters.page - 1) * filters.pageSize;
     const orderBy = { [filters.sortBy]: filters.sortDirection } satisfies Prisma.AnnouncementOrderByWithRelationInput;
 

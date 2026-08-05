@@ -186,6 +186,7 @@ enum EventStatus {
   PUBLISHED
   CANCELED
   COMPLETED
+  ARCHIVED
 }
 
 enum FinancialEntryType {
@@ -1030,6 +1031,7 @@ model Event {
   @@index([endDate])
   @@index([isPublic])
   @@index([deletedAt])
+  @@index([status, endDate, startDate, deletedAt])
 }
 
 model FinancialCategory {

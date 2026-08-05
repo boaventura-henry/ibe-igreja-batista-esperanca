@@ -8,6 +8,7 @@ import {
   type Prisma
 } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { applicationDateOnlyCutoff, applicationDayStart } from "@/lib/application-time";
 import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
 import type { ScheduleAccessContext } from "@/types";
 
@@ -43,7 +44,7 @@ export function buildUpcomingSchedulesWhere(
     AND: [
       {
         deletedAt: null,
-        status: { not: ScheduleStatus.CANCELED },
+        status: { notIn: [ScheduleStatus.CANCELED, ScheduleStatus.COMPLETED] },
         date: { gte: startOfUtcDay() }
       },
       buildScheduleScopeWhere(accessContext)
@@ -52,7 +53,7 @@ export function buildUpcomingSchedulesWhere(
 }
 
 function startOfUtcDay(value = new Date()) {
-  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+  return applicationDateOnlyCutoff(value);
 }
 
 function currentMonthRange(value = new Date()) {
@@ -161,7 +162,7 @@ export const dashboardRepository = {
   async getAnnouncementSummary() {
     const now = new Date();
     const published = { deletedAt: null, status: AnnouncementStatus.PUBLISHED };
-    const active = { ...published, OR: [{ publishAt: null }, { publishAt: { lte: now } }], AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }] };
+    const active = { ...published, OR: [{ publishAt: null }, { publishAt: { lte: now } }], AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gte: applicationDayStart(now) } }] }] };
     const [publishedAnnouncements, activeAnnouncements, pinnedAnnouncements] = await prisma.$transaction([
       prisma.announcement.count({ where: published }),
       prisma.announcement.count({ where: active }),
@@ -172,7 +173,7 @@ export const dashboardRepository = {
 
   findNextScheduleForMember(memberId: string) {
     return prisma.scheduleMember.findFirst({
-      where: { memberId, deletedAt: null, schedule: { deletedAt: null, status: { not: ScheduleStatus.CANCELED }, date: { gte: startOfUtcDay() } } },
+      where: { memberId, deletedAt: null, schedule: { deletedAt: null, status: { notIn: [ScheduleStatus.CANCELED, ScheduleStatus.COMPLETED] }, date: { gte: startOfUtcDay() } } },
       select: portalScheduleSelect,
       orderBy: [{ schedule: { date: "asc" } }, { schedule: { startTime: "asc" } }]
     });

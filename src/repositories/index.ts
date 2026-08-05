@@ -15,6 +15,7 @@ export type {
   PortalDashboardScheduleRecord
 } from "./dashboard.repository";
 export { eventRepository } from "./event.repository";
+export { lifecycleRepository } from "./lifecycle.repository";
 export type { EventRecord } from "./event.repository";
 export { financialCategoryRepository } from "./financial-category.repository";
 export type { FinancialCategoryRecord } from "./financial-category.repository";

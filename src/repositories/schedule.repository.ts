@@ -1,5 +1,6 @@
 import { MemberStatus, Prisma, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { applicationDateOnlyCutoff } from "@/lib/application-time";
 import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
 import type { ScheduleAccessContext } from "@/types";
 import type {
@@ -129,6 +130,13 @@ export function buildScheduleWhere(
   accessContext?: ScheduleAccessContext
 ): Prisma.ScheduleWhereInput {
   const and: Prisma.ScheduleWhereInput[] = [{ deletedAt: null }];
+
+  if (!filters.includeCompleted) {
+    and.push({
+      date: { gte: applicationDateOnlyCutoff() },
+      status: { notIn: [ScheduleStatus.COMPLETED, ScheduleStatus.CANCELED] }
+    });
+  }
 
   if (accessContext) {
     and.push(buildScheduleScopeWhere(accessContext));

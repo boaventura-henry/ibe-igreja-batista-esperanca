@@ -46,12 +46,16 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
   const [data, setData] = useState(initialData);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [includeCompleted, setIncludeCompleted] = useState(false);
 
   const loadSchedules = useCallback(async () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/my-schedules", { cache: "no-store" });
+      const response = await fetch(
+        `/api/my-schedules?includeCompleted=${includeCompleted}`,
+        { cache: "no-store" }
+      );
       const payload = (await response.json()) as ApiResponse<MyScheduleListResult>;
 
       if (!payload.success) {
@@ -64,7 +68,7 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [includeCompleted]);
 
   useEffect(() => {
     void loadSchedules();
@@ -107,9 +111,15 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
       {message ? <div className="rounded-md border border-hope-100 bg-hope-50 px-4 py-3 text-sm font-semibold text-ink-800">{message}</div> : null}
 
       <section className="overflow-hidden rounded-md border border-hope-100 bg-white shadow-sm">
-        <div className="border-b border-hope-100 px-4 py-3">
-          <p className="text-sm font-bold text-ink-900">Minhas participacoes</p>
-          <p className="text-xs text-ink-500">{data.schedules.length} escala(s)</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hope-100 px-4 py-3">
+          <div>
+            <p className="text-sm font-bold text-ink-900">Minhas participacoes</p>
+            <p className="text-xs text-ink-500">{data.schedules.length} escala(s)</p>
+          </div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+            <input type="checkbox" checked={includeCompleted} onChange={(event) => setIncludeCompleted(event.target.checked)} />
+            Apresentar todos
+          </label>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-hope-100 text-sm">

@@ -97,6 +97,10 @@ export const announcementService = {
       throw new AppError("Comunicado nao encontrado.", 404, "ANNOUNCEMENT_NOT_FOUND");
     }
 
+    if (current.status === AnnouncementStatus.ARCHIVED) {
+      throw new AppError("Comunicado arquivado e somente para consulta.", 409, "ANNOUNCEMENT_ARCHIVED");
+    }
+
     const nextAudience = data.audience ?? current.audience;
     const nextMinistryId = data.ministryId === undefined ? current.ministry?.id : data.ministryId;
     const nextPublishAt = data.publishAt === undefined ? current.publishAt : data.publishAt;
@@ -109,7 +113,10 @@ export const announcementService = {
   },
 
   async remove(id: string, userId: string) {
-    await this.getById(id);
+    const current = await this.getById(id);
+    if (current.status === AnnouncementStatus.ARCHIVED) {
+      throw new AppError("Comunicado arquivado e somente para consulta.", 409, "ANNOUNCEMENT_ARCHIVED");
+    }
 
     return announcementRepository.softDelete(id, userId);
   },

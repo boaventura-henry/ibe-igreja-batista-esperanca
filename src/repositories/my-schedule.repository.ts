@@ -1,5 +1,7 @@
-import { Prisma, ScheduleMemberStatus } from "@prisma/client";
+import { Prisma, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { applicationDateOnlyCutoff } from "@/lib/application-time";
+import type { MyScheduleListQueryInput } from "@/validators";
 
 const myScheduleMemberSelect = {
   id: true,
@@ -61,14 +63,29 @@ const myScheduleMemberSelect = {
 
 export type MyScheduleRecord = Prisma.ScheduleMemberGetPayload<{ select: typeof myScheduleMemberSelect }>;
 
+export function buildMyScheduleWhere(
+  memberId: string,
+  filters: MyScheduleListQueryInput
+): Prisma.ScheduleMemberWhereInput {
+  return {
+    OR: [{ memberId }, { replacedByMemberId: memberId }],
+    deletedAt: null,
+    schedule: {
+      deletedAt: null,
+      ...(filters.includeCompleted
+        ? {}
+        : {
+            date: { gte: applicationDateOnlyCutoff() },
+            status: { notIn: [ScheduleStatus.COMPLETED, ScheduleStatus.CANCELED] }
+          })
+    }
+  };
+}
+
 export const myScheduleRepository = {
-  listByMemberId(memberId: string) {
+  listByMemberId(memberId: string, filters: MyScheduleListQueryInput) {
     return prisma.scheduleMember.findMany({
-      where: {
-        OR: [{ memberId }, { replacedByMemberId: memberId }],
-        deletedAt: null,
-        schedule: { deletedAt: null }
-      },
+      where: buildMyScheduleWhere(memberId, filters),
       select: myScheduleMemberSelect,
       orderBy: [{ schedule: { date: "asc" } }, { status: "asc" }]
     });

@@ -91,8 +91,8 @@ export type {
   MinistryListQueryInput,
   MinistryUpdateInput
 } from "./ministry.validator";
-export { myScheduleDeclineSchema } from "./my-schedule.validator";
-export type { MyScheduleDeclineInput } from "./my-schedule.validator";
+export { myScheduleDeclineSchema, myScheduleListQuerySchema } from "./my-schedule.validator";
+export type { MyScheduleDeclineInput, MyScheduleListQueryInput } from "./my-schedule.validator";
 export {
   isSafeInternalNotificationUrl,
   notificationBulkCreateSchema,

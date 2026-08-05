@@ -59,6 +59,10 @@ export const scheduleListQuerySchema = z.object({
   status: z.enum(ScheduleStatus).optional(),
   dateFrom: z.preprocess(emptyToUndefined, z.string().date().optional()),
   dateTo: z.preprocess(emptyToUndefined, z.string().date().optional()),
+  includeCompleted: z.preprocess(
+    (value) => value === "true" ? true : value === "false" || value === undefined ? false : value,
+    z.boolean().optional()
+  ),
   sortBy: z.enum(["date", "title", "status", "createdAt", "updatedAt"]).default("date"),
   sortOrder: z.enum(["asc", "desc"]).default("asc"),
   page: z.coerce.number().int().min(1).default(1),

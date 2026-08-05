@@ -521,6 +521,9 @@ export const scheduleService = {
         database
       );
       if (!current) return null;
+      if (current.status === ScheduleStatus.COMPLETED) {
+        throw new AppError("Escala concluida e somente para consulta.", 409, "SCHEDULE_COMPLETED");
+      }
       const wasPublished = current.publishedAt !== null;
       const versioned = wasPublished
         ? await scheduleRepository.incrementNotificationVersion(id, database)
@@ -614,7 +617,7 @@ export const scheduleService = {
       const wasPublished = current.publishedAt !== null;
       const cancelled = await scheduleRepository.transitionStatusWithinScope(
         id,
-        [ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED, ScheduleStatus.COMPLETED],
+        [ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED],
         ScheduleStatus.CANCELED,
         authorization.user.id,
         authorization.accessContext,
@@ -650,28 +653,16 @@ export const scheduleService = {
       if (current.status === ScheduleStatus.CANCELED) {
         throw new AppError("Escala cancelada nao pode ser concluida.", 409, "SCHEDULE_CANCELED");
       }
-      const wasPublished = current.publishedAt !== null;
       const completed = await scheduleRepository.transitionStatusWithinScope(
         id,
         [ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED],
         ScheduleStatus.COMPLETED,
         authorization.user.id,
         authorization.accessContext,
-        database,
-        { incrementNotificationVersion: wasPublished }
+        database
       );
-      if (completed && wasPublished) {
-        await scheduleNotificationService.updated(
-          completed,
-          ["status"],
-          authorization.user.id,
-          database
-        );
-        await scheduleNotificationService.rescheduleReminders(
-          completed,
-          authorization.user.id,
-          database
-        );
+      if (completed && current.publishedAt !== null) {
+        await scheduleNotificationService.cancelPendingReminders(completed.id, database);
       }
       return completed;
     });

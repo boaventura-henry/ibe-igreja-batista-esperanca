@@ -79,6 +79,7 @@ export function ScheduleManager() {
     status: "",
     dateFrom: "",
     dateTo: "",
+    includeCompleted: "",
     sortBy: "date",
     sortOrder: "asc",
     page: "1"
@@ -253,6 +254,12 @@ export function ScheduleManager() {
         </label>
         <FilterInput label="De" type="date" value={filters.dateFrom} onChange={(value) => updateFilter("dateFrom", value)} />
         <FilterInput label="Ate" type="date" value={filters.dateTo} onChange={(value) => updateFilter("dateTo", value)} />
+        <label className={`${filterLabelClass} self-end normal-case`}>
+          <span className="flex items-center gap-2 py-2 text-sm font-semibold text-ink-700">
+            <input type="checkbox" checked={filters.includeCompleted === "true"} onChange={(event) => updateFilter("includeCompleted", event.target.checked ? "true" : "")} />
+            Apresentar todos
+          </span>
+        </label>
         <label className={filterLabelClass}>
           Ordenar por
           <select value={filters.sortBy} onChange={(event) => updateFilter("sortBy", event.target.value)} className={filterInputClass}>
@@ -325,11 +332,11 @@ export function ScheduleManager() {
                   <td className="px-4 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
                       <Link href={`/escalas/${schedule.id}`} className={actionClass}>Detalhes</Link>
-                      {canUpdate ? <ActionButton onClick={() => openEditForm(schedule)}>Editar</ActionButton> : null}
+                      {canUpdate && schedule.status !== ScheduleStatus.COMPLETED && schedule.status !== ScheduleStatus.CANCELED ? <ActionButton onClick={() => openEditForm(schedule)}>Editar</ActionButton> : null}
                       {canPublish && schedule.status === ScheduleStatus.DRAFT ? <ActionButton onClick={() => postAction(schedule.id, "publish", "Escala publicada.")}>Publicar</ActionButton> : null}
-                      {canComplete && schedule.status !== ScheduleStatus.COMPLETED ? <ActionButton onClick={() => postAction(schedule.id, "complete", "Escala concluida.")}>Concluir</ActionButton> : null}
-                      {canCancel && schedule.status !== ScheduleStatus.CANCELED ? <ActionButton onClick={() => postAction(schedule.id, "cancel", "Escala cancelada.")}>Cancelar</ActionButton> : null}
-                      {canDelete ? <ActionButton onClick={() => handleDelete(schedule.id)}>Remover</ActionButton> : null}
+                      {canComplete && schedule.status === ScheduleStatus.PUBLISHED ? <ActionButton onClick={() => postAction(schedule.id, "complete", "Escala concluida.")}>Concluir</ActionButton> : null}
+                      {canCancel && (schedule.status === ScheduleStatus.DRAFT || schedule.status === ScheduleStatus.PUBLISHED) ? <ActionButton onClick={() => postAction(schedule.id, "cancel", "Escala cancelada.")}>Cancelar</ActionButton> : null}
+                      {canDelete && schedule.status !== ScheduleStatus.COMPLETED ? <ActionButton onClick={() => handleDelete(schedule.id)}>Remover</ActionButton> : null}
                     </div>
                   </td>
                 </tr>

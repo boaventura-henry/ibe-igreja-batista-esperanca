@@ -1,5 +1,6 @@
 import { EventStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { applicationDateOnlyCutoff } from "@/lib/application-time";
 import type { EventCreateInput, EventListQueryInput, EventUpdateInput } from "@/validators";
 
 const eventSelect = {
@@ -46,8 +47,16 @@ function dateOnly(value: Date) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 }
 
-function buildWhere(filters: EventListQueryInput): Prisma.EventWhereInput {
+export function buildEventWhere(filters: EventListQueryInput): Prisma.EventWhereInput {
   const and: Prisma.EventWhereInput[] = [{ deletedAt: null }];
+
+  if (!filters.includeArchived) {
+    const today = applicationDateOnlyCutoff();
+    and.push(
+      { status: { notIn: [EventStatus.ARCHIVED, EventStatus.CANCELED, EventStatus.COMPLETED] } },
+      { OR: [{ endDate: { gte: today } }, { endDate: null, startDate: { gte: today } }] }
+    );
+  }
 
   if (filters.search) {
     and.push({
@@ -140,7 +149,7 @@ function updateData(data: EventUpdateInput & { slug?: string }): Prisma.EventUnc
 
 export const eventRepository = {
   async list(filters: EventListQueryInput) {
-    const where = buildWhere(filters);
+    const where = buildEventWhere(filters);
     const skip = (filters.page - 1) * filters.pageSize;
     const orderBy = {
       [filters.sortBy]: filters.sortDirection
@@ -161,11 +170,13 @@ export const eventRepository = {
   },
 
   listPublicPublished(limit = 50) {
+    const today = applicationDateOnlyCutoff();
     return prisma.event.findMany({
       where: {
         deletedAt: null,
         isPublic: true,
-        status: EventStatus.PUBLISHED
+        status: EventStatus.PUBLISHED,
+        OR: [{ endDate: { gte: today } }, { endDate: null, startDate: { gte: today } }]
       },
       select: eventSelect,
       orderBy: [{ startDate: "asc" }, { startTime: "asc" }],

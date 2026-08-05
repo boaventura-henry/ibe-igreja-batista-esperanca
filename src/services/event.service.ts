@@ -105,6 +105,10 @@ function ensureEditableFields(current: EventRecord, data: EventUpdateInput) {
     );
   }
 
+  if (current.status === EventStatus.ARCHIVED) {
+    throw new AppError("Evento arquivado e somente para consulta.", 409, "EVENT_ARCHIVED");
+  }
+
   if (current.status === EventStatus.COMPLETED) {
     const changedFields = Object.keys(data).filter((key) => key !== "observations");
 
@@ -216,7 +220,10 @@ export const eventService = {
   },
 
   async remove(id: string, userId: string) {
-    await this.getById(id);
+    const current = await this.getById(id);
+    if (current.status === EventStatus.ARCHIVED) {
+      throw new AppError("Evento arquivado e somente para consulta.", 409, "EVENT_ARCHIVED");
+    }
 
     return eventRepository.softDelete(id, userId);
   },
@@ -232,6 +239,10 @@ export const eventService = {
       throw new AppError("Evento concluido nao pode ser publicado.", 409, "EVENT_COMPLETED");
     }
 
+    if (current.status === EventStatus.ARCHIVED) {
+      throw new AppError("Evento arquivado nao pode ser publicado.", 409, "EVENT_ARCHIVED");
+    }
+
     return serialize(await eventRepository.updateStatus(id, EventStatus.PUBLISHED, userId));
   },
 
@@ -242,11 +253,19 @@ export const eventService = {
       throw new AppError("Evento concluido nao pode ser cancelado.", 409, "EVENT_COMPLETED");
     }
 
+    if (current.status === EventStatus.ARCHIVED) {
+      throw new AppError("Evento arquivado nao pode ser cancelado.", 409, "EVENT_ARCHIVED");
+    }
+
     return serialize(await eventRepository.updateStatus(id, EventStatus.CANCELED, userId));
   },
 
   async complete(id: string, userId: string) {
-    await this.getById(id);
+    const current = await this.getById(id);
+
+    if (current.status === EventStatus.CANCELED || current.status === EventStatus.ARCHIVED) {
+      throw new AppError("Evento cancelado ou arquivado nao pode ser concluido.", 409, "EVENT_NOT_COMPLETABLE");
+    }
 
     return serialize(await eventRepository.updateStatus(id, EventStatus.COMPLETED, userId));
   }

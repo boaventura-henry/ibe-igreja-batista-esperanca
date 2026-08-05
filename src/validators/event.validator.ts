@@ -85,6 +85,10 @@ export const eventListQuerySchema = z.object({
   startDate: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
   endDate: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
   isPublic: z.preprocess(emptyToUndefined, z.coerce.boolean().optional()),
+  includeArchived: z.preprocess(
+    (value) => value === "true" ? true : value === "false" || value === undefined ? false : value,
+    z.boolean().optional()
+  ),
   sortBy: z.enum(["title", "startDate", "endDate", "createdAt", "updatedAt", "status", "type"]).default("startDate"),
   sortDirection: z.enum(["asc", "desc"]).default("asc"),
   page: z.coerce.number().int().min(1).default(1),

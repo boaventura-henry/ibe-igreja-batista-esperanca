@@ -421,6 +421,7 @@ async function main() {
     let participantAddedCalls = 0;
     let participantRemovedCalls = 0;
     let cancellationCalls = 0;
+    let pendingReminderCancellationCalls = 0;
     let failNotificationWrites = false;
     let deleted = false;
     const lifecycleMembers = new Map<string, ScheduleMemberRecord>();
@@ -581,6 +582,15 @@ async function main() {
         reminderRefreshCalls += 1;
         latestReminderVersion = current.notificationVersion;
         return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0 });
+      }) as never
+    );
+    replace(
+      "lifecycle:cancelPendingReminders",
+      scheduleNotifications,
+      "cancelPendingReminders",
+      (() => {
+        pendingReminderCancellationCalls += 1;
+        return Promise.resolve({ cancelled: 1 });
       }) as never
     );
     replace(
@@ -830,7 +840,33 @@ async function main() {
     const updatesBeforeComplete = updateNotificationCalls;
     await scheduleService.complete("schedule-1", authorization);
     check(lifecycleSchedule.status === ScheduleStatus.COMPLETED, "conclusao preserva o ciclo de status");
-    check(updateNotificationCalls === updatesBeforeComplete + 1, "conclusao publicada gera atualizacao");
+    check(updateNotificationCalls === updatesBeforeComplete, "conclusao publicada nao gera notificacao de alteracao");
+    check(pendingReminderCancellationCalls === 1, "conclusao cancela somente lembretes pendentes");
+    const versionAfterComplete = lifecycleSchedule.notificationVersion;
+    const notificationsAfterComplete = participantAddedCalls;
+    await scheduleService.update("schedule-1", { observations: "Registro posterior" }, authorization);
+    const participantAfterComplete = await scheduleService.addMember(
+      "schedule-1",
+      { ...createMemberInput, memberId: "member-after-complete" },
+      authorization
+    );
+    await scheduleService.updateMember(
+      "schedule-1",
+      participantAfterComplete.id,
+      { observations: "Observacao posterior" },
+      authorization
+    );
+    await scheduleService.complete("schedule-1", authorization);
+    check(
+      lifecycleSchedule.status === ScheduleStatus.COMPLETED,
+      "salvar escala e participante depois da conclusao nao reabre o status"
+    );
+    check(
+      lifecycleSchedule.notificationVersion === versionAfterComplete &&
+        participantAddedCalls === notificationsAfterComplete &&
+        pendingReminderCancellationCalls === 1,
+      "operacoes posteriores a conclusao nao recriam notificacoes ou lembretes"
+    );
 
     lifecycleSchedule = {
       ...lifecycleSchedule,

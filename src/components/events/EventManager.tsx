@@ -47,7 +47,8 @@ const statusLabels: Record<EventStatus, string> = {
   DRAFT: "Rascunho",
   PUBLISHED: "Publicado",
   CANCELED: "Cancelado",
-  COMPLETED: "Concluido"
+  COMPLETED: "Concluido",
+  ARCHIVED: "Arquivado"
 };
 
 const sortOptions = [
@@ -113,6 +114,7 @@ export function EventManager() {
     startDate: "",
     endDate: "",
     isPublic: "",
+    includeArchived: "",
     sortBy: "startDate",
     sortDirection: "asc",
     page: "1"
@@ -360,6 +362,12 @@ export function EventManager() {
           <option value="true">Sim</option>
           <option value="false">Nao</option>
         </SelectFilter>
+        <label className="grid self-end text-sm font-semibold text-ink-700">
+          <span className="flex items-center gap-2 py-2">
+            <input type="checkbox" checked={filters.includeArchived === "true"} onChange={(event) => updateFilter("includeArchived", event.target.checked ? "true" : "")} />
+            Apresentar todos
+          </span>
+        </label>
         <SelectFilter label="Ordenar" value={filters.sortBy} onChange={(value) => updateFilter("sortBy", value)}>
           {sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </SelectFilter>
@@ -415,11 +423,11 @@ export function EventManager() {
                   <td className="px-4 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
                       <ActionButton onClick={() => openView(event.id)}>Ver</ActionButton>
-                      {canUpdate ? <ActionButton onClick={() => openEditForm(event.id)}>Editar</ActionButton> : null}
-                      {canPublish && event.status !== EventStatus.PUBLISHED ? <ActionButton onClick={() => runAction(event, "publish", "Evento publicado.")}>Publicar</ActionButton> : null}
-                      {canCancel && event.status !== EventStatus.CANCELED ? <ActionButton onClick={() => runAction(event, "cancel", "Evento cancelado.")}>Cancelar</ActionButton> : null}
-                      {canComplete && event.status !== EventStatus.COMPLETED ? <ActionButton onClick={() => runAction(event, "complete", "Evento concluido.")}>Concluir</ActionButton> : null}
-                      {canDelete ? <ActionButton onClick={() => handleDelete(event)}>Remover</ActionButton> : null}
+                      {canUpdate && event.status !== EventStatus.ARCHIVED ? <ActionButton onClick={() => openEditForm(event.id)}>Editar</ActionButton> : null}
+                      {canPublish && event.status === EventStatus.DRAFT ? <ActionButton onClick={() => runAction(event, "publish", "Evento publicado.")}>Publicar</ActionButton> : null}
+                      {canCancel && (event.status === EventStatus.DRAFT || event.status === EventStatus.PUBLISHED) ? <ActionButton onClick={() => runAction(event, "cancel", "Evento cancelado.")}>Cancelar</ActionButton> : null}
+                      {canComplete && event.status === EventStatus.PUBLISHED ? <ActionButton onClick={() => runAction(event, "complete", "Evento concluido.")}>Concluir</ActionButton> : null}
+                      {canDelete && event.status !== EventStatus.ARCHIVED ? <ActionButton onClick={() => handleDelete(event)}>Remover</ActionButton> : null}
                     </div>
                   </td>
                 </tr>

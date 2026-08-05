@@ -88,6 +88,7 @@ export function AnnouncementManager() {
     status: "",
     audience: "",
     ministryId: "",
+    includeArchived: "",
     sortBy: "createdAt",
     sortDirection: "desc",
     page: "1"
@@ -252,6 +253,12 @@ export function AnnouncementManager() {
           <option value="desc">Decrescente</option>
           <option value="asc">Crescente</option>
         </SelectFilter>
+        <label className="grid self-end text-sm font-semibold text-ink-700">
+          <span className="flex items-center gap-2 py-2">
+            <input type="checkbox" checked={filters.includeArchived === "true"} onChange={(event) => updateFilter("includeArchived", event.target.checked ? "true" : "")} />
+            Apresentar todos
+          </span>
+        </label>
       </div>
 
       {message ? <div className="rounded-md border border-hope-100 bg-hope-50 px-4 py-3 text-sm font-semibold text-ink-800">{message}</div> : null}
@@ -298,10 +305,10 @@ export function AnnouncementManager() {
                   <td className="px-4 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
                       <ActionButton onClick={() => setViewing(announcement)}>Ver</ActionButton>
-                      {canUpdate ? <ActionButton onClick={() => openEditForm(announcement.id)}>Editar</ActionButton> : null}
-                      {canPublish && announcement.status !== AnnouncementStatus.PUBLISHED ? <ActionButton onClick={() => runAction(announcement, "publish", "Comunicado publicado.")}>Publicar</ActionButton> : null}
+                      {canUpdate && announcement.status !== AnnouncementStatus.ARCHIVED ? <ActionButton onClick={() => openEditForm(announcement.id)}>Editar</ActionButton> : null}
+                      {canPublish && announcement.status === AnnouncementStatus.DRAFT ? <ActionButton onClick={() => runAction(announcement, "publish", "Comunicado publicado.")}>Publicar</ActionButton> : null}
                       {canArchive && announcement.status !== AnnouncementStatus.ARCHIVED ? <ActionButton onClick={() => runAction(announcement, "archive", "Comunicado arquivado.")}>Arquivar</ActionButton> : null}
-                      {canDelete ? <ActionButton onClick={() => handleDelete(announcement)}>Remover</ActionButton> : null}
+                      {canDelete && announcement.status !== AnnouncementStatus.ARCHIVED ? <ActionButton onClick={() => handleDelete(announcement)}>Remover</ActionButton> : null}
                     </div>
                   </td>
                 </tr>

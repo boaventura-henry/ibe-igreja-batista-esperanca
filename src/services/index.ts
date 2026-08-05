@@ -6,6 +6,8 @@ export { authService } from "./auth.service";
 export { appReleaseService } from "./app-release.service";
 export { dashboardService } from "./dashboard.service";
 export { eventService } from "./event.service";
+export { lifecycleService } from "./lifecycle.service";
+export { scheduledJobsService } from "./scheduled-jobs.service";
 export { financialCategoryService } from "./financial-category.service";
 export { financialClosingService } from "./financial-closing.service";
 export { financialEntryService } from "./financial-entry.service";

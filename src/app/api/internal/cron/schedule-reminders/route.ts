@@ -5,9 +5,9 @@ import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-response";
 import { authorizeCronRequest } from "@/lib/cron-auth";
 import {
-  scheduleNotificationService,
   scheduleReminderProcessingErrorContext
 } from "@/services/schedule-notification.service";
+import { scheduledJobsService } from "@/services/scheduled-jobs.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export const maxDuration = 60;
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" };
 
 type ScheduleReminderSuccessData = Awaited<
-  ReturnType<typeof scheduleNotificationService.processPendingReminders>
+  ReturnType<typeof scheduledJobsService.run>
 > & {
   executionId: string;
 };
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
   });
 
   try {
-    const result = await scheduleNotificationService.processPendingReminders();
+    const result = await scheduledJobsService.run();
     console.info("[ScheduleReminderCron] execution completed.", {
       executionId,
       executed: result.executed,
@@ -108,6 +108,7 @@ export async function GET(request: Request) {
       lockAcquired: result.lockAcquired,
       attempts: result.attempts,
       timings: result.timings,
+      lifecycle: result.lifecycle,
       requestDurationMs: Number((performance.now() - requestStartedAt).toFixed(3))
     });
 

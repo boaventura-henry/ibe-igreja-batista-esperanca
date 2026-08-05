@@ -119,7 +119,9 @@ async function main() {
   await test("Dashboard mantem regras de data, cancelamento e soft delete", () => {
     const clauses = andClauses(buildUpcomingSchedulesWhere(restricted));
     assert.equal(clauses[0].deletedAt, null);
-    assert.deepEqual(clauses[0].status, { not: ScheduleStatus.CANCELED });
+    assert.deepEqual(clauses[0].status, {
+      notIn: [ScheduleStatus.CANCELED, ScheduleStatus.COMPLETED]
+    });
     assert("date" in clauses[0]);
   });
 

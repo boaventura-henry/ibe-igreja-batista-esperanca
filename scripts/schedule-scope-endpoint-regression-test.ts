@@ -31,7 +31,8 @@ const filters: ScheduleListQueryInput = {
   page: 1,
   pageSize: 10,
   sortBy: "date",
-  sortOrder: "asc"
+  sortOrder: "asc",
+  includeCompleted: true
 };
 
 function scheduleRecord(id: string, ministryId: string): ScheduleRecord {

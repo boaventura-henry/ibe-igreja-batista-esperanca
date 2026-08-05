@@ -1,5 +1,6 @@
 import { Prisma, ScheduleStatus } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { applicationDateOnlyCutoff } from "@/lib/application-time";
 import type { MemberPortalUpdateProfileInput } from "@/validators";
 
 const portalProfileSelect = {
@@ -130,7 +131,7 @@ export const memberPortalRepository = {
         schedule: {
           deletedAt: null,
           status: { notIn: [ScheduleStatus.CANCELED, ScheduleStatus.COMPLETED] },
-          date: { gte: new Date(new Date().toISOString().slice(0, 10)) }
+          date: { gte: applicationDateOnlyCutoff() }
         }
       },
       select: portalSchedulePreviewSelect,

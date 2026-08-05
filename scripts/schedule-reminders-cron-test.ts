@@ -18,6 +18,7 @@ import {
   ScheduleReminderProcessingError,
   transientScheduleReminderTransactionCode
 } from "../src/services/schedule-notification.service";
+import { scheduledJobsService } from "../src/services/scheduled-jobs.service";
 import { GET } from "../src/app/api/internal/cron/schedule-reminders/route";
 
 type MutableMethods = Record<string, (...args: never[]) => unknown>;
@@ -33,7 +34,7 @@ type DueReminder = {
 const notificationRepo = notificationRepository as unknown as MutableMethods;
 const scheduleRepo = scheduleRepository as unknown as MutableMethods;
 const publisher = notificationPublisher as unknown as MutableMethods;
-const scheduleNotifications = scheduleNotificationService as unknown as MutableMethods;
+const scheduledJobs = scheduledJobsService as unknown as MutableMethods;
 const originals = new Map<string, { target: MutableMethods; method: string; value: MutableMethods[string] }>();
 
 function replace(
@@ -131,7 +132,7 @@ async function main() {
     );
 
     let serviceCalls = 0;
-    const actualProcessor = scheduleNotifications.processPendingReminders;
+    const actualScheduledJobsRun = scheduledJobs.run;
     let routeResult = {
       executed: true,
       reason: "processed",
@@ -196,7 +197,7 @@ async function main() {
       );
       return data;
     };
-    scheduleNotifications.processPendingReminders = (() => {
+    scheduledJobs.run = (() => {
       serviceCalls += 1;
       return Promise.resolve(routeResult);
     }) as never;
@@ -282,7 +283,7 @@ async function main() {
       "rota diferencia lote vazio com empty_batch"
     );
 
-    scheduleNotifications.processPendingReminders = (() => {
+    scheduledJobs.run = (() => {
       serviceCalls += 1;
       throw new TypeError("database detail");
     }) as never;
@@ -317,7 +318,7 @@ async function main() {
         }
       }
     );
-    scheduleNotifications.processPendingReminders = (() => {
+    scheduledJobs.run = (() => {
       throw new ScheduleReminderProcessingError(
         prismaFailure,
         "acquire_advisory_lock",
@@ -371,7 +372,7 @@ async function main() {
         !JSON.stringify(failureDetails).includes("sensitive query parameters"),
       "log sanitiza URLs, Authorization e parametros sensiveis"
     );
-    scheduleNotifications.processPendingReminders = actualProcessor;
+    scheduledJobs.run = actualScheduledJobsRun;
 
     const routeSource = readFileSync(
       "src/app/api/internal/cron/schedule-reminders/route.ts",
@@ -379,7 +380,7 @@ async function main() {
     );
     check(routeSource.includes("export async function GET"), "rota expoe GET exigido pelo Vercel Cron");
     check(!routeSource.includes("export async function POST"), "rota nao expoe metodo alternativo");
-    check(routeSource.includes("await scheduleNotificationService.processPendingReminders()"), "rota aguarda a conclusao do processamento");
+    check(routeSource.includes("await scheduledJobsService.run()"), "rota aguarda a conclusao do orquestrador");
     check(!routeSource.includes("setTimeout") && !routeSource.includes("setInterval"), "rota nao usa timer em memoria");
 
     let lockOwner: unknown = null;

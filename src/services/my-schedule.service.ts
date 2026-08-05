@@ -2,7 +2,7 @@ import { ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { myScheduleRepository, type MyScheduleRecord } from "@/repositories";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
-import type { MyScheduleDeclineInput } from "@/validators";
+import type { MyScheduleDeclineInput, MyScheduleListQueryInput } from "@/validators";
 import { getMemberDisplayName } from "@/utils";
 
 type MyScheduleSessionUser = {
@@ -81,9 +81,12 @@ function ensureCanSelfRespond(scheduleMember: MyScheduleSummary, action: "confir
 }
 
 export const myScheduleService = {
-  async list(user: MyScheduleSessionUser): Promise<MyScheduleListResult> {
+  async list(
+    user: MyScheduleSessionUser,
+    filters: MyScheduleListQueryInput = { includeCompleted: false }
+  ): Promise<MyScheduleListResult> {
     const memberId = getSessionMemberId(user);
-    const schedules = await myScheduleRepository.listByMemberId(memberId);
+    const schedules = await myScheduleRepository.listByMemberId(memberId, filters);
 
     return { schedules: schedules.map(serialize) };
   },

@@ -577,6 +577,18 @@ export const scheduleNotificationService = {
     return notificationPublisher.publish(inputs, database);
   },
 
+  async cancelPendingReminders(
+    scheduleId: string,
+    database: NotificationDatabase
+  ) {
+    return notificationPublisher.cancelPendingForEntity({
+      entityType: NOTIFICATION_ENTITY_TYPES.SCHEDULE,
+      entityId: scheduleId,
+      type: NotificationType.SCHEDULE_REMINDER,
+      database
+    });
+  },
+
   async refreshParticipantReminder(
     schedule: ScheduleRecord,
     participant: ScheduleMemberRecord,

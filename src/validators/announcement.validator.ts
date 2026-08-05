@@ -84,6 +84,10 @@ export const announcementListQuerySchema = z.object({
   status: z.preprocess(emptyToUndefined, z.enum(AnnouncementStatus).optional()),
   audience: z.preprocess(emptyToUndefined, z.enum(AnnouncementAudience).optional()),
   ministryId: optionalFilterCuid,
+  includeArchived: z.preprocess(
+    (value) => value === "true" ? true : value === "false" || value === undefined ? false : value,
+    z.boolean().optional()
+  ),
   sortBy: z.enum(["title", "status", "audience", "publishAt", "expiresAt", "createdAt", "updatedAt"]).default("createdAt"),
   sortDirection: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().min(1).default(1),

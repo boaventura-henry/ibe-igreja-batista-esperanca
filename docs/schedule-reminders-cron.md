@@ -3,14 +3,20 @@
 ## Objetivo
 
 Executar periodicamente os lembretes internos de escalas que ja foram criados pelo
-lifecycle de notificacoes. O Cron nao cria reminders, nao cria novas regras de
+lifecycle de notificacoes e os processadores de encerramento automatico. O
+processador de reminders nao cria reminders nem novas regras de
 antecedencia e nao envia e-mail ou Web Push.
 
 ## Fluxo
 
 ```text
-Vercel Cron
+Agendador externo
   -> GET /api/internal/cron/schedule-reminders
+  -> scheduledJobsService
+     -> reminders
+     -> escalas vencidas
+     -> eventos vencidos
+     -> comunicados vencidos
   -> ScheduleNotificationService
   -> NotificationRepository / ScheduleRepository
   -> PostgreSQL

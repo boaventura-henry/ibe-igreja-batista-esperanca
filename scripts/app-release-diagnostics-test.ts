@@ -17,9 +17,16 @@ const publishedReleases: AppRelease[] = [
 
 async function main() {
 
-assert.equal(appReleases.find((release) => release.version === "0.2.0")?.status, "UNRELEASED", "1: 0.2.0 permanece nao publicada");
-assert.equal(getLatestPublishedRelease(appReleases), null, "1: release nao publicada nao gera modal");
-await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "0.2.0" }), /nao foi publicada/i, "1: release nao publicada nao pode ser marcada");
+assert.equal(appReleases.find((release) => release.version === "0.2.0")?.status, "PUBLISHED", "1: 0.2.0 permanece publicada");
+assert.equal(getLatestPublishedRelease(appReleases)?.version, "0.2.0", "1: catalogo retorna a ultima release publicada");
+const catalogSeen = await markPublishedReleaseAsSeen(
+  { userId: "user-1", version: "0.2.0" },
+  {
+    releases: appReleases,
+    update: async (input) => ({ id: input.userId, lastSeenAppVersion: input.version })
+  }
+);
+assert.equal(catalogSeen.version, "0.2.0", "1: release publicada pode ser marcada sem alterar outros dados");
 
 assert.equal(getPendingPublishedRelease("0.1.0", publishedReleases)?.version, "0.2.0", "2: usuario recebe a ultima release publicada pendente");
 assert.equal(getPendingPublishedRelease("0.2.0", publishedReleases), null, "3: release ja visualizada nao reaparece");
@@ -32,7 +39,7 @@ assert.deepEqual(persisted, { userId: "user-1", version: "0.2.0" }, "5: confirma
 assert.deepEqual(unrelatedUserState, { name: "Usuario", email: "user@example.test" }, "5: outros campos permanecem intactos");
 
 await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "9.9.9" }, { releases: publishedReleases }), /nao encontrada/i, "6: versao inexistente e rejeitada");
-await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "0.2.0" }), /nao foi publicada/i, "7: versao futura nao publicada e rejeitada");
+await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "0.2.1" }), /nao foi publicada/i, "7: versao futura nao publicada e rejeitada");
 assert.equal(releaseSeenSchema.safeParse({ userId: "outro-usuario", version: "0.2.0" }).success, false, "8: payload nao aceita manipulacao de userId");
 
 assert(compareSemanticVersions("0.2.0", "0.1.0") > 0 && compareSemanticVersions("0.10.0", "0.9.0") > 0 && compareSemanticVersions("1.0.0", "0.99.0") > 0, "9: comparacao SemVer e numerica");
@@ -49,7 +56,7 @@ assert.equal(hasPermission(denied, "system.diagnostics.view"), false, "13: usuar
 
 assert.equal(resolveSchemaAlignment(EXPECTED_DATABASE_SCHEMA.latestMigration), "UP_TO_DATE", "14: schema correspondente esta atualizado");
 assert.equal(resolveSchemaAlignment("20260720143000_add_push_retry_attempt_unique_constraint"), "OUTDATED", "15: migration anterior indica banco atrasado");
-assert.equal(resolveSchemaAlignment("20260721999999_future_migration"), "AHEAD", "16: migration posterior indica banco adiantado");
+assert.equal(resolveSchemaAlignment("99999999999999_future_migration"), "AHEAD", "16: migration posterior indica banco adiantado");
 
 const unavailable = buildUnavailableDatabaseDiagnostics(false);
 assert.equal(unavailable.status, "ERROR", "17: banco indisponivel produz diagnostico seguro sem interromper a pagina");

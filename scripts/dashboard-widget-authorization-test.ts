@@ -95,8 +95,12 @@ assert.equal(accessRoleCreateSchema.safeParse({ name: "Teste", dashboardWidgets:
 const versionInfo = getAppVersionInfo();
 assert.equal(APP_VERSION, packageJson.version, "18: package.json e a fonte unica da versao");
 assert(/^\d+\.\d+\.\d+/.test(APP_VERSION) && shortCommitHash("ABCDEF123456") === "abcdef1" && versionInfo.commitHash?.length !== 40, "18: SemVer e hash curto nao expõem revisao completa");
-assert(appReleases.some((release) => release.version === APP_VERSION && release.status === "UNRELEASED" && release.type === "MINOR"), "18: entrega planejada nao finge publicacao");
-assert.equal(appFeatures.find((feature) => feature.code === "dashboard.widget-rbac")?.introducedIn, APP_VERSION, "19: feature RBAC identifica a versao planejada");
+assert(
+  appReleases.some((release) => release.version === "0.2.0" && release.status === "PUBLISHED" && release.type === "MINOR") &&
+    appReleases.some((release) => release.version === APP_VERSION && release.status === "UNRELEASED" && release.type === "PATCH"),
+  "18: catalogo preserva a release publicada e a entrega patch planejada"
+);
+assert.equal(appFeatures.find((feature) => feature.code === "dashboard.widget-rbac")?.introducedIn, "0.2.0", "19: feature RBAC identifica a versao publicada de origem");
 const nonFinancialPlan = getDashboardQueryPlan(new Set<DashboardWidgetCode>(["members.summary", "events.upcoming"]));
 assert.equal(nonFinancialPlan.financeSummary || nonFinancialPlan.incomeOnly || nonFinancialPlan.contributions, false, "20: perfil sem permissao financeira nao agenda consulta financeira");
 
