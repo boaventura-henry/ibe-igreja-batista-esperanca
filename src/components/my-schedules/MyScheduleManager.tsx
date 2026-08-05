@@ -4,6 +4,7 @@ import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prism
 import { useCallback, useEffect, useState } from "react";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
 import { PortalScheduleRepertoire } from "@/components/portal/PortalScheduleRepertoire";
+import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -18,14 +19,6 @@ const roleLabels: Record<ScheduleMemberRole, string> = {
   CHILDREN: "Infantil",
   SUPPORT: "Apoio",
   OTHER: "Outro"
-};
-
-const statusLabels: Record<ScheduleMemberStatus, string> = {
-  PENDING: "Pendente",
-  CONFIRMED: "Confirmada",
-  DECLINED: "Recusada",
-  REPLACED: "Substituida",
-  ABSENT: "Ausente"
 };
 
 function formatDate(value: string) {
@@ -155,7 +148,7 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
                   </td>
                   <td className="px-4 py-4 font-semibold text-hope-700">{schedule.title}<PortalScheduleRepertoire scheduleMemberId={schedule.id} /></td>
                   <td className="px-4 py-4 text-ink-700">{roleLabels[schedule.role]}</td>
-                  <td className="px-4 py-4"><StatusBadge status={schedule.status} /></td>
+                  <td className="px-4 py-4"><ScheduleMemberStatusBadge status={schedule.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{schedule.location || "-"}</td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
@@ -174,10 +167,6 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
 }
 
 const actionClass = "rounded-md border border-hope-100 px-3 py-2 text-xs font-bold text-ink-700 hover:bg-hope-50";
-
-function StatusBadge({ status }: { status: ScheduleMemberStatus }) {
-  return <span className="rounded-md bg-hope-50 px-2 py-1 text-xs font-bold text-hope-700">{statusLabels[status]}</span>;
-}
 
 function ActionButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return <button type="button" onClick={onClick} className={actionClass}>{children}</button>;

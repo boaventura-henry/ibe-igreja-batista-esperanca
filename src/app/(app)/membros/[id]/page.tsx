@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
+import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
 import { AppError } from "@/lib/errors";
 import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { memberService } from "@/services";
@@ -53,14 +54,6 @@ const scheduleRoleLabels: Record<string, string> = {
   CHILDREN: "Infantil",
   SUPPORT: "Apoio",
   OTHER: "Outro"
-};
-
-const scheduleMemberStatusLabels: Record<string, string> = {
-  PENDING: "Pendente",
-  CONFIRMED: "Confirmado",
-  DECLINED: "Recusou",
-  REPLACED: "Substituido",
-  ABSENT: "Ausente"
 };
 
 function display(value: string | null | undefined) {
@@ -286,7 +279,7 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
                           </td>
                           <td className="py-3 pr-4 text-ink-700">{item.schedule.ministry.name}</td>
                           <td className="py-3 pr-4 text-ink-700">{scheduleRoleLabels[item.role]}</td>
-                          <td className="py-3 pr-4 text-ink-700">{scheduleMemberStatusLabels[item.status]}</td>
+                          <td className="py-3 pr-4"><ScheduleMemberStatusBadge status={item.status} /></td>
                         </tr>
                       ))}
                     </tbody>

@@ -6,6 +6,10 @@ import { useSession } from "next-auth/react";
 import { getMemberOptionLabel } from "@/utils";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleRepertoireManager } from "@/components/schedules/ScheduleRepertoireManager";
+import {
+  ScheduleMemberStatusBadge,
+  scheduleMemberStatusLabels
+} from "@/components/schedules/ScheduleMemberStatusBadge";
 import type { ScheduleMemberFormValues, ScheduleSummary } from "@/types";
 
 type ApiResponse<T> =
@@ -26,12 +30,15 @@ const roleOptions = [
 ];
 
 const statusOptions = [
-  { value: ScheduleMemberStatus.PENDING, label: "Pendente" },
-  { value: ScheduleMemberStatus.CONFIRMED, label: "Confirmado" },
-  { value: ScheduleMemberStatus.DECLINED, label: "Recusou" },
-  { value: ScheduleMemberStatus.REPLACED, label: "Substituido" },
-  { value: ScheduleMemberStatus.ABSENT, label: "Ausente" }
-];
+  ScheduleMemberStatus.PENDING,
+  ScheduleMemberStatus.CONFIRMED,
+  ScheduleMemberStatus.DECLINED,
+  ScheduleMemberStatus.REPLACED,
+  ScheduleMemberStatus.ABSENT
+].map((value) => ({
+  value,
+  label: scheduleMemberStatusLabels[value]
+}));
 
 const scheduleStatusLabels: Record<ScheduleStatus, string> = {
   DRAFT: "Rascunho",
@@ -52,10 +59,6 @@ const emptyMemberForm: ScheduleMemberFormValues = {
 
 function roleLabel(role: ScheduleMemberRole) {
   return roleOptions.find((option) => option.value === role)?.label ?? role;
-}
-
-function statusLabel(status: ScheduleMemberStatus) {
-  return statusOptions.find((option) => option.value === status)?.label ?? status;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -292,7 +295,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                 <tr key={item.id}>
                   <td className="px-4 py-4 font-semibold text-ink-900">{item.member.displayName}</td>
                   <td className="px-4 py-4 text-ink-700">{roleLabel(item.role)}</td>
-                  <td className="px-4 py-4 text-ink-700">{statusLabel(item.status)}</td>
+                  <td className="px-4 py-4"><ScheduleMemberStatusBadge status={item.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{item.replacedByMember?.displayName ?? "-"}</td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
