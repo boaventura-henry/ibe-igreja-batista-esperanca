@@ -7,8 +7,8 @@ import { getMemberOptionLabel } from "@/utils";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleRepertoireManager } from "@/components/schedules/ScheduleRepertoireManager";
 import {
-  ScheduleMemberStatusBadge,
-  scheduleMemberStatusLabels
+  getScheduleMemberStatusPresentation,
+  ScheduleMemberStatusBadge
 } from "@/components/schedules/ScheduleMemberStatusBadge";
 import type { ScheduleMemberFormValues, ScheduleSummary } from "@/types";
 
@@ -37,7 +37,7 @@ const statusOptions = [
   ScheduleMemberStatus.ABSENT
 ].map((value) => ({
   value,
-  label: scheduleMemberStatusLabels[value]
+  label: getScheduleMemberStatusPresentation(value).label
 }));
 
 const scheduleStatusLabels: Record<ScheduleStatus, string> = {

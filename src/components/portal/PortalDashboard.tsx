@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { MemberLinkRequired } from "@/components/portal/MemberLinkRequired";
 import { PortalBirthdayCard } from "@/components/portal/PortalBirthdayCard";
+import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
 import type { PortalDashboardData, PortalDashboardWidgetCode } from "@/types";
 import type { ApiResponseBody } from "@/types/api";
 
@@ -86,7 +87,10 @@ export function PortalDashboard() {
             <p className="text-base font-bold text-ink-900">{data.nextSchedule.title}</p>
             <p className="mt-1 text-sm text-ink-500">{formatDate(data.nextSchedule.date)} - {formatTimeRange(data.nextSchedule.startTime, data.nextSchedule.endTime)}</p>
             <p className="mt-2 text-sm font-semibold text-hope-700">{data.nextSchedule.ministry.name}</p>
-            <p className="mt-1 text-xs text-ink-500">{data.nextSchedule.location || "Local nao informado"} - {data.nextSchedule.status}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <p className="text-xs text-ink-500">{data.nextSchedule.location || "Local nao informado"}</p>
+              <ScheduleMemberStatusBadge status={data.nextSchedule.status} />
+            </div>
           </div>
         ) : (
           <p className="mt-4 text-sm font-semibold text-ink-500">Nenhuma escala futura encontrada.</p>
