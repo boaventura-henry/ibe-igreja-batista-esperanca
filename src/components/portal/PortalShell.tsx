@@ -5,21 +5,12 @@ import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useMobileMenu } from "@/hooks";
 import { isRouteActive } from "@/utils";
-import { getFirstAllowedAdministrativeRoute } from "@/lib/navigation";
+import {
+  getAllowedPortalNavigationItems,
+  getFirstAllowedAdministrativeRoute
+} from "@/lib/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-
-const portalNavigation = [
-  { href: "/portal", label: "Inicio" },
-  { href: "/portal/minhas-escalas", label: "Minhas Escalas" },
-  { href: "/portal/minhas-contribuicoes", label: "Minhas Contribuicoes" },
-  { href: "/portal/meu-cadastro", label: "Meu Cadastro" },
-  { href: "/portal/meu-usuario", label: "Meu Usuario", permission: "memberAccount.view" },
-  { href: "/portal/meus-ministerios", label: "Meus Ministerios" },
-  { href: "/portal/eventos", label: "Eventos" },
-  { href: "/portal/avisos", label: "Avisos" },
-  { href: "/ajuda", label: "Ajuda" }
-] as const;
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -106,11 +97,7 @@ function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate?: (
 
   return (
     <nav className="grid flex-1 gap-2 overflow-y-auto px-5 pb-4 lg:pt-2">
-      {portalNavigation.map((item) => {
-        if ("permission" in item && !permissionCodes.includes(item.permission)) {
-          return null;
-        }
-
+      {getAllowedPortalNavigationItems(permissionCodes).map((item) => {
         const active = isRouteActive(pathname, item.href);
 
         return (
