@@ -8,6 +8,7 @@ import {
   ScheduleStatus
 } from "@prisma/client";
 import type { ScheduleAuthorization } from "../src/lib/schedule-authorization";
+import { getScheduleMemberRolePresentation } from "../src/lib/schedule-member-role";
 import { notificationRepository } from "../src/repositories/notification.repository";
 import {
   scheduleRepository,
@@ -92,7 +93,9 @@ function schedule(
       isActive: true
     },
     event: null,
-    members: [member("participant-1", "user-1")],
+    members: [
+      member("participant-1", "user-1", { role: ScheduleMemberRole.INSTRUMENT })
+    ],
     ...overrides
   };
 }
@@ -159,7 +162,7 @@ async function main() {
   );
 
   try {
-    const primary = member("one", "user-1");
+    const primary = member("one", "user-1", { role: ScheduleMemberRole.INSTRUMENT });
     const duplicate = member("two", "user-1");
     const withoutUser = member("three", null);
     const replacement = member("four", "old-user", {
@@ -192,6 +195,32 @@ async function main() {
       describeScheduleChanges(["date", "startTime", "location"]).includes("o local"),
       "mudancas multiplas sao consolidadas"
     );
+    const expectedRoleLabels: Record<ScheduleMemberRole, string> = {
+      LEADER: "Líder",
+      VOCAL: "Vocal",
+      INSTRUMENT: "Instrumento",
+      MEDIA: "Mídia",
+      RECEPTION: "Recepção",
+      CHILDREN: "Infantil",
+      SUPPORT: "Apoio",
+      OTHER: "Outro"
+    };
+    check(
+      Object.entries(expectedRoleLabels).every(
+        ([role, label]) => getScheduleMemberRolePresentation(role).label === label
+      ),
+      "todas as funcoes possuem labels amigaveis com ortografia correta"
+    );
+    check(
+      Object.values(ScheduleMemberRole).every(
+        (role) => getScheduleMemberRolePresentation(role).label !== role
+      ),
+      "nenhuma funcao conhecida expoe o enum tecnico"
+    );
+    check(
+      getScheduleMemberRolePresentation("UNKNOWN_ROLE").label === "Função não informada",
+      "funcao desconhecida utiliza fallback seguro"
+    );
 
     published = [];
     await scheduleNotificationService.publishInitial(
@@ -206,6 +235,8 @@ async function main() {
     check(published[0].entityType === "SCHEDULE", "entidade canonica e utilizada");
     check(!published[0].actionUrl, "actionUrl manual nao e construido");
     check(published[0].message.includes("Louvor"), "mensagem inclui o ministerio da escala");
+    check(published[0].message.includes("Funcao: Instrumento."), "publicacao usa funcao amigavel");
+    check(!published[0].message.includes("INSTRUMENT"), "publicacao nao expoe enum tecnico da funcao");
     check(
       published[0].deduplicationKey === "schedule:published:v1:schedule-1:user-1",
       "publicacao possui chave deterministica"
@@ -214,6 +245,7 @@ async function main() {
       published[1].scheduledFor?.toISOString() === "2026-08-01T22:00:00.000Z",
       "lembrete respeita antecedencia de 24 horas"
     );
+    check(!published[1].message.includes("INSTRUMENT"), "lembrete nao expoe enum tecnico da funcao");
 
     published = [];
     await scheduleNotificationService.publishInitial(
@@ -233,6 +265,7 @@ async function main() {
       new Date("2026-07-29T12:00:00.000Z")
     );
     check(published[0].title === "Voce foi escalado", "inclusao posterior notifica somente o novo participante");
+    check(published[0].message.includes("Funcao: Instrumento."), "inclusao e substituicao usam funcao amigavel");
     check(
       published[0].deduplicationKey?.includes("participant-added:v2"),
       "inclusao posterior usa versao da operacao"
@@ -263,6 +296,7 @@ async function main() {
     );
     check(published.length === 1, "alteracao em lote gera uma notificacao por usuario");
     check(published[0].message.includes("a data"), "resumo inclui os campos alterados");
+    check(!published[0].message.includes("INSTRUMENT"), "alteracao nao expoe enum tecnico da funcao");
     check(
       published[0].deduplicationKey === "schedule:updated:v4:schedule-1:user-1",
       "alteracao usa versao semantica"

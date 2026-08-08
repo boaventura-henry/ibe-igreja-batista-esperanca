@@ -3,6 +3,10 @@
 import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { FormEvent, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import {
+  getScheduleMemberRolePresentation,
+  scheduleMemberRoleOptions
+} from "@/lib/schedule-member-role";
 import { getMemberOptionLabel } from "@/utils";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleRepertoireManager } from "@/components/schedules/ScheduleRepertoireManager";
@@ -17,17 +21,6 @@ type ApiResponse<T> =
   | { success: false; error: { code: string; message: string } };
 
 type AvailableScheduleMember = { id: string; name: string; nickname: string | null; displayName: string; status: string };
-
-const roleOptions = [
-  { value: ScheduleMemberRole.LEADER, label: "Lider" },
-  { value: ScheduleMemberRole.VOCAL, label: "Vocal" },
-  { value: ScheduleMemberRole.INSTRUMENT, label: "Instrumento" },
-  { value: ScheduleMemberRole.MEDIA, label: "Midia" },
-  { value: ScheduleMemberRole.RECEPTION, label: "Recepcao" },
-  { value: ScheduleMemberRole.CHILDREN, label: "Infantil" },
-  { value: ScheduleMemberRole.SUPPORT, label: "Apoio" },
-  { value: ScheduleMemberRole.OTHER, label: "Outro" }
-];
 
 const statusOptions = [
   ScheduleMemberStatus.PENDING,
@@ -58,7 +51,7 @@ const emptyMemberForm: ScheduleMemberFormValues = {
 };
 
 function roleLabel(role: ScheduleMemberRole) {
-  return roleOptions.find((option) => option.value === role)?.label ?? role;
+  return getScheduleMemberRolePresentation(role).label;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -340,7 +333,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                 </Field>
                 <Field label="Funcao">
                   <select value={memberForm.role} onChange={(event) => updateForm("role", event.target.value as ScheduleMemberRole)} className={inputClass}>
-                    {roleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+                    {scheduleMemberRoleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
                   </select>
                 </Field>
                 <Field label="Status">

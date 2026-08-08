@@ -1,11 +1,13 @@
 import {
   NotificationType,
   Prisma,
+  ScheduleMemberRole,
   ScheduleMemberStatus,
   ScheduleStatus
 } from "@prisma/client";
 import { performance } from "node:perf_hooks";
 import { NOTIFICATION_ENTITY_TYPES } from "@/lib/notification-catalog";
+import { getScheduleMemberRolePresentation } from "@/lib/schedule-member-role";
 import {
   notificationRepository,
   type NotificationDatabase
@@ -89,7 +91,7 @@ export type ScheduleReminderProcessingResult = {
 type Recipient = {
   userId: string;
   participantId: string;
-  role: string;
+  role: ScheduleMemberRole;
   status: ScheduleMemberStatus;
 };
 
@@ -453,7 +455,7 @@ export const scheduleNotificationService = {
     const immediate = recipients.map((recipient) =>
       notificationInput(schedule, recipient, {
         title: "Voce foi escalado",
-        message: `Voce foi incluido na escala ${formatScheduleContext(schedule)}. Funcao: ${recipient.role}.`,
+        message: `Voce foi incluido na escala ${formatScheduleContext(schedule)}. Funcao: ${getScheduleMemberRolePresentation(recipient.role).label}.`,
         createdById,
         deduplicationKey: `schedule:published:v${schedule.notificationVersion}:${schedule.id}:${recipient.userId}`
       })
@@ -473,7 +475,7 @@ export const scheduleNotificationService = {
     const immediate = recipients.map((recipient) =>
       notificationInput(schedule, recipient, {
         title: "Voce foi escalado",
-        message: `Voce foi incluido na escala ${formatScheduleContext(schedule)}. Funcao: ${recipient.role}.`,
+        message: `Voce foi incluido na escala ${formatScheduleContext(schedule)}. Funcao: ${getScheduleMemberRolePresentation(recipient.role).label}.`,
         createdById,
         deduplicationKey: `schedule:participant-added:v${schedule.notificationVersion}:${schedule.id}:${participant.id}`
       })

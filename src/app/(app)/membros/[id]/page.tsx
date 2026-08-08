@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
 import { AppError } from "@/lib/errors";
+import { getScheduleMemberRolePresentation } from "@/lib/schedule-member-role";
 import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { memberService } from "@/services";
 import { formatCep, formatCpf, formatPhone } from "@/utils";
@@ -43,17 +44,6 @@ const memberMinistryStatusLabels: Record<string, string> = {
   TRANSFERRED: "Transferido",
   REMOVED: "Removido",
   LEFT: "Saiu"
-};
-
-const scheduleRoleLabels: Record<string, string> = {
-  LEADER: "Lider",
-  VOCAL: "Vocal",
-  INSTRUMENT: "Instrumento",
-  MEDIA: "Midia",
-  RECEPTION: "Recepcao",
-  CHILDREN: "Infantil",
-  SUPPORT: "Apoio",
-  OTHER: "Outro"
 };
 
 function display(value: string | null | undefined) {
@@ -278,7 +268,7 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
                             </Link>
                           </td>
                           <td className="py-3 pr-4 text-ink-700">{item.schedule.ministry.name}</td>
-                          <td className="py-3 pr-4 text-ink-700">{scheduleRoleLabels[item.role]}</td>
+                          <td className="py-3 pr-4 text-ink-700">{getScheduleMemberRolePresentation(item.role).label}</td>
                           <td className="py-3 pr-4"><ScheduleMemberStatusBadge status={item.status} /></td>
                         </tr>
                       ))}

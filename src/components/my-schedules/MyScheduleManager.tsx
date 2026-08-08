@@ -1,25 +1,15 @@
 "use client";
 
-import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
+import { ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { useCallback, useEffect, useState } from "react";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
 import { PortalScheduleRepertoire } from "@/components/portal/PortalScheduleRepertoire";
 import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
+import { getScheduleMemberRolePresentation } from "@/lib/schedule-member-role";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
   | { success: false; error: { code: string; message: string } };
-
-const roleLabels: Record<ScheduleMemberRole, string> = {
-  LEADER: "Lider",
-  VOCAL: "Vocal",
-  INSTRUMENT: "Instrumento",
-  MEDIA: "Midia",
-  RECEPTION: "Recepcao",
-  CHILDREN: "Infantil",
-  SUPPORT: "Apoio",
-  OTHER: "Outro"
-};
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value));
@@ -147,7 +137,7 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
                     </div>
                   </td>
                   <td className="px-4 py-4 font-semibold text-hope-700">{schedule.title}<PortalScheduleRepertoire scheduleMemberId={schedule.id} /></td>
-                  <td className="px-4 py-4 text-ink-700">{roleLabels[schedule.role]}</td>
+                  <td className="px-4 py-4 text-ink-700">{getScheduleMemberRolePresentation(schedule.role).label}</td>
                   <td className="px-4 py-4"><ScheduleMemberStatusBadge status={schedule.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{schedule.location || "-"}</td>
                   <td className="px-4 py-4 text-right">
