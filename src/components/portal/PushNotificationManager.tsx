@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { syncPushSubscription, type PushSubscriptionSyncError } from "@/lib/push-subscription-client";
 import { getNotificationEnvironment, notificationInstructions, type NotificationEnvironment } from "@/utils/notification-environment";
 import { diagnoseVapidPublicKey, type VapidPublicKeyDiagnostics } from "@/utils/vapid-diagnostics";
 import { PUSH_FAILURE_WARNING_THRESHOLD, type PushDevice, type PushSetupStatus, type PushStatus } from "@/types";
@@ -21,7 +22,7 @@ type PushDiagnostic = {
   vapidPublicKey?: VapidPublicKeyDiagnostics;
 };
 
-type ApiError = Error & { status?: number; code?: string };
+type ApiError = PushSubscriptionSyncError;
 
 function localDateTime(value: Date) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" }).format(value);
@@ -113,7 +114,13 @@ function pushErrorMessage(error: unknown) {
 }
 
 function browserSupported() {
-  return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && window.isSecureContext;
+  return typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    "Notification" in window &&
+    "ServiceWorkerRegistration" in window &&
+    "pushManager" in ServiceWorkerRegistration.prototype &&
+    window.isSecureContext;
 }
 
 function formatDate(value: string | null, withTime = false) {
@@ -228,15 +235,22 @@ export function PushNotificationManager() {
 
   const syncSubscription = useCallback(async (subscription: PushSubscription, setStep?: (step: PushRegistrationStep) => void) => {
     setStep?.("api-request");
-    const json = subscription.toJSON();
-    if (!subscription.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error("O navegador nao forneceu uma inscricao valida.");
-    const response = await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint: subscription.endpoint, keys: json.keys, expirationTime: subscription.expirationTime, deviceName: currentEnvironmentLabel(getNotificationEnvironment()) })
-    });
     setStep?.("api-response");
-    const data = await readJSON<{ id: string }>(response);
+    let data: { id: string } | undefined;
+    try {
+      data = await syncPushSubscription(
+        subscription,
+        currentEnvironmentLabel(getNotificationEnvironment())
+      );
+    } catch (error) {
+      if ((error as ApiError).code === "PUSH_ENDPOINT_OWNED") {
+        await subscription.unsubscribe();
+        setDeviceId(null);
+        setDeviceSubscription(null);
+        throw new Error("Este dispositivo estava vinculado a outra conta. Registre-o novamente para continuar.");
+      }
+      throw error;
+    }
     if (!data?.id) throw new Error("Nao foi possivel registrar este dispositivo.");
     setStep?.("state-update");
     setDeviceId(data.id);
@@ -374,14 +388,14 @@ export function PushNotificationManager() {
       {setupStatus === "PERMISSION_REQUIRED" ? <div className="mt-4"><p className="text-sm text-ink-700">Para receber avisos, permita que este navegador mostre notificacoes.</p><button type="button" onClick={enable} disabled={busy} className={`${buttonClass} mt-3 bg-hope-600 text-white`}>Ativar notificacoes</button></div> : null}
       {setupStatus === "UNSUPPORTED" ? <p className="mt-4 text-sm text-ink-700">Este navegador nao oferece suporte seguro a notificacoes push. Use Chrome, Edge ou Safari em HTTPS.</p> : null}
       {setupStatus === "SUBSCRIPTION_REQUIRED" ? <div className="mt-4"><p className="text-sm text-ink-700">Permissao concedida. Agora registre este dispositivo para continuar.</p><button type="button" onClick={enable} disabled={busy} className={`${buttonClass} mt-3 bg-hope-600 text-white`}>Registrar este dispositivo</button></div> : null}
-      {setupStatus === "CONFIRMED" ? <p className="mt-3 text-sm leading-relaxed text-ink-600">Voce ja pode receber notificacoes de teste. Os avisos automaticos serao disponibilizados gradualmente nas proximas atualizacoes.</p> : null}
+      {setupStatus === "CONFIRMED" ? <p className="mt-3 text-sm leading-relaxed text-ink-600">Este dispositivo esta pronto para receber avisos do IBE, mesmo quando o aplicativo estiver em segundo plano.</p> : null}
       {(setupStatus === "READY_FOR_TEST" || setupStatus === "CONFIRMED") ? <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={sendTest} disabled={busy || !status?.pushEnabled} className={`${buttonClass} bg-hope-600 text-white`}>{busy ? "Enviando teste..." : setupStatus === "CONFIRMED" ? "Enviar novo teste" : "Enviar teste"}</button><button type="button" onClick={disableThisDevice} disabled={busy} className={`${buttonClass} bg-white`}>Desativar neste dispositivo</button></div> : null}
       {setupStatus === "TEST_SENT" ? <div className="mt-4 rounded-md border border-hope-100 bg-hope-50 p-4" aria-live="polite"><p className="text-sm font-bold text-ink-900">Enviamos uma notificacao. Ela apareceu no seu dispositivo?</p><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={() => recordFeedback(true)} disabled={busy} className={`${buttonClass} bg-hope-600 text-white`}>Sim, recebi</button><button type="button" onClick={() => recordFeedback(false)} disabled={busy} className={`${buttonClass} bg-white`}>Nao apareceu</button><button type="button" onClick={sendTest} disabled={busy || !status?.pushEnabled} className={`${buttonClass} bg-white`}>Reenviar teste</button></div></div> : null}
       {feedbackOpen && setupStatus !== "TEST_SENT" ? <div className="mt-4 rounded-md border border-hope-100 bg-hope-50 p-4" aria-live="polite"><p className="text-sm font-bold text-ink-900">Enviamos uma notificacao. Ela apareceu no seu dispositivo?</p><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><button type="button" onClick={() => recordFeedback(true)} disabled={busy} className={`${buttonClass} bg-hope-600 text-white`}>Sim, recebi</button><button type="button" onClick={() => recordFeedback(false)} disabled={busy} className={`${buttonClass} bg-white`}>Nao apareceu</button><button type="button" onClick={() => setFeedbackOpen(false)} disabled={busy} className={`${buttonClass} bg-transparent`}>Testar depois</button></div></div> : null}
       {environment.operatingSystem !== "UNKNOWN" ? <p className="mt-4 text-xs text-ink-500">Ambiente detectado para orientar as instrucoes: {currentEnvironmentLabel(environment)}{environment.isStandalone ? " - aplicativo instalado" : ""}.</p> : null}
       <div className="mt-4 border-t border-hope-100 pt-4"><label className="flex items-center gap-3 text-sm font-semibold text-ink-800"><input type="checkbox" checked={status?.pushEnabled ?? false} onChange={(event) => setPreference(event.target.checked)} disabled={busy || !status?.activeDeviceCount} /> Receber notificacoes push nesta conta</label>{status?.pushEnabled === false && status.activeDeviceCount > 0 ? <div className="mt-2 space-y-3"><p className="text-xs leading-relaxed text-amber-800">As notificacoes estao pausadas para a conta. Nenhum dispositivo recebera avisos ate voce reativar.</p><button type="button" onClick={() => setPreference(true)} disabled={busy} className={`${buttonClass} bg-white`}>Reativar notificacoes da conta</button></div> : null}</div>
       {sortedDevices.length ? <ul className="mt-5 grid gap-3" aria-label="Dispositivos cadastrados">{sortedDevices.map((device) => { const statusInfo = deviceStatus(device, status?.pushEnabled ?? true); const isCurrent = device.id === deviceId; return <li key={device.id} className="rounded-md border border-hope-100 px-3 py-3 text-sm"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="break-words text-ink-900">{parseDeviceEnvironment(device)}</strong>{isCurrent ? <span className="rounded-full border border-hope-200 bg-hope-50 px-2 py-0.5 text-xs font-bold text-hope-700" aria-label="Este dispositivo">Este dispositivo</span> : null}</div><span className="mt-1 block break-words text-ink-500">Cadastrado em {formatDate(device.createdAt)}</span><span className="mt-1 block break-words text-ink-500">Ultimo teste em {formatDate(device.testSentAt, true)}</span></div><span className={`inline-flex w-fit rounded-full border px-2 py-1 text-xs font-bold ${statusInfo.className}`}>Status: {statusInfo.label}</span></div></li>; })}</ul> : <p className="mt-5 text-sm text-ink-500">Nenhum dispositivo esta inscrito.</p>}
-      <p className="mt-4 text-xs leading-relaxed text-ink-500">Voce pode pausar as notificacoes da conta sem remover os dispositivos. Os avisos automaticos serao disponibilizados gradualmente nas proximas atualizacoes.</p>
+      <p className="mt-4 text-xs leading-relaxed text-ink-500">Voce pode pausar as notificacoes da conta sem remover os dispositivos cadastrados.</p>
     </section>
   );
 }

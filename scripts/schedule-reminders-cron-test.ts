@@ -473,6 +473,22 @@ async function main() {
       }) as never
     );
 
+    const deliveredPushBatches: string[][] = [];
+    replace(
+      "publisher:deliverPush",
+      publisher,
+      "deliverPush",
+      ((notificationIds: string[]) => {
+        if (notificationIds.length) deliveredPushBatches.push([...notificationIds]);
+        return Promise.resolve({
+          notifications: notificationIds.length,
+          attempted: notificationIds.length,
+          sent: notificationIds.length,
+          failed: 0
+        });
+      }) as never
+    );
+
     let eligibleUserIds = new Set<string>();
     let currentVersion = 1;
     let eligibilityCalls = 0;
@@ -556,6 +572,10 @@ async function main() {
     );
     check(sentIds.size === 1, "o mesmo reminder e processado uma unica vez");
     check(listCalls === 1, "execucao sem lock nao seleciona o lote");
+    check(
+      deliveredPushBatches.length === 1 && deliveredPushBatches[0]?.length === 1,
+      "commit concorrente entrega um unico lote logico de Web Push"
+    );
 
     listDelayMs = 0;
     const retryAfterSuccess = await scheduleNotificationService.processPendingReminders();
@@ -682,6 +702,7 @@ async function main() {
     eligibleUserIds = new Set([retriable.userId]);
     const callsBeforeRetry = transactionCalls;
     const databasesBeforeRetry = transactionDatabases.size;
+    const deliveriesBeforeRetry = deliveredPushBatches.length;
     transactionFailures.push({ code: "P2034" });
     const retried = await scheduleNotificationService.processPendingReminders();
     check(
@@ -697,6 +718,11 @@ async function main() {
       sentIds.has(retriable.id) && !pending.some((item) => item.id === retriable.id),
       "retry transacional nao duplica nem perde o reminder"
     );
+    check(
+      deliveredPushBatches.length === deliveriesBeforeRetry + 1 &&
+        deliveredPushBatches.at(-1)?.length === 1,
+      "retry transacional entrega Web Push somente depois do commit bem-sucedido"
+    );
 
     const exhausted = reminder("retry-exhausted");
     pending = [exhausted];
@@ -704,6 +730,7 @@ async function main() {
     const exhaustedError = { code: "40001" };
     transactionFailures.push(exhaustedError, exhaustedError, exhaustedError);
     const callsBeforeExhaustion = transactionCalls;
+    const deliveriesBeforeExhaustion = deliveredPushBatches.length;
     await assert.rejects(
       () => scheduleNotificationService.processPendingReminders(),
       (error) =>
@@ -719,6 +746,10 @@ async function main() {
     check(
       pending.some((item) => item.id === exhausted.id) && !sentIds.has(exhausted.id),
       "esgotamento de retry preserva o reminder pendente"
+    );
+    check(
+      deliveredPushBatches.length === deliveriesBeforeExhaustion,
+      "transacao sem commit nao dispara Web Push"
     );
 
     const structural = reminder("structural");

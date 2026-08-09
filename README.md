@@ -101,7 +101,7 @@ O app possui manifest, icones, service worker e uma pagina offline basica. Quand
 
 ## Notificações push
 
-A fundação de Web Push usa a Push API, Notifications API, Service Worker e VAPID. Não há Firebase nesta fase e ainda não existem disparos automáticos de escalas, repertórios, comunicados, aniversários, eventos, financeiro ou recuperação de senha.
+O Web Push usa a Push API, Notifications API, Service Worker, VAPID e a biblioteca `web-push`, sem Firebase. A notificação in-app permanece como registro persistente principal; quando o usuário habilita o canal e possui dispositivo ativo, notificações funcionais elegíveis também são entregues pelo sistema operacional após a transação principal ser concluída.
 
 Gere um par VAPID em ambiente seguro com uma ferramenta compatível com `web-push` e configure somente nos ambientes locais e da Vercel:
 
@@ -111,7 +111,7 @@ VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:administracao@dominio-da-igreja
 ```
 
-Somente `NEXT_PUBLIC_VAPID_PUBLIC_KEY` chega ao navegador. Nunca versione a chave privada, não use `NEXT_PUBLIC_` nela e não coloque valores reais no `.env.example`. O usuário ativa a inscrição em **Meu Usuário**, pode desativar um dispositivo e enviar uma notificação de teste para si mesmo. A inscrição técnica é protegida e não armazena payloads de notificações.
+Somente `NEXT_PUBLIC_VAPID_PUBLIC_KEY` chega ao navegador. Nunca versione a chave privada, não use `NEXT_PUBLIC_` nela e não coloque valores reais no `.env.example`. O usuário ativa a inscrição em **Meu Usuário**, pode pausar a conta, desativar um dispositivo e enviar uma notificação de teste para si mesmo. Consulte [docs/web-push-notifications.md](docs/web-push-notifications.md) para arquitetura, operação e testes manuais.
 
 ## Central de Ajuda
 

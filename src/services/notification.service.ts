@@ -108,7 +108,7 @@ export const notificationService = {
   ) {
     const inputs = rawInputs.map((input) => notificationCreateSchema.parse(input));
     if (!inputs.length) {
-      return { requested: 0, eligible: 0, created: 0, skipped: 0 };
+      return { requested: 0, eligible: 0, created: 0, skipped: 0, notificationIds: [] as string[] };
     }
 
     const userIds = [...new Set(inputs.map((input) => input.userId))];
@@ -131,15 +131,18 @@ export const notificationService = {
         preferenceByUserAndType.get(`${input.userId}:${input.type}`)
       ).inAppEnabled;
     });
-    const result = eligibleInputs.length
-      ? await notificationRepository.createMany(eligibleInputs, database)
-      : { count: 0 };
+    const createdNotifications = eligibleInputs.length
+      ? await notificationRepository.createManyAndReturn(eligibleInputs, database)
+      : [];
 
     return {
       requested: inputs.length,
       eligible: eligibleInputs.length,
-      created: result.count,
-      skipped: inputs.length - eligibleInputs.length
+      created: createdNotifications.length,
+      skipped: inputs.length - eligibleInputs.length,
+      notificationIds: createdNotifications
+        .filter((notification) => notification.sentAt !== null)
+        .map((notification) => notification.id)
     };
   },
 

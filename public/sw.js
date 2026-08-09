@@ -1,4 +1,4 @@
-const APP_VERSION = "2026.07.17-push-diagnostics";
+const APP_VERSION = "2026.08.08-web-push-delivery";
 const CACHE_NAME = `ibe-pwa-${APP_VERSION}`;
 const STATIC_ASSETS = [
   "/offline",
@@ -73,11 +73,42 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: typeof payload.icon === "string" ? payload.icon : "/icons/icon-192x192.png",
-    badge: typeof payload.badge === "string" ? payload.badge : "/icons/icon-72x72.png",
+    icon: safeNotificationAsset(payload.icon) || "/icons/icon-192x192.png",
+    badge: safeNotificationAsset(payload.badge) || "/icons/icon-72x72.png",
     tag: typeof payload.tag === "string" ? payload.tag.slice(0, 80) : "ibe-notification",
     data: { url }
   }));
+});
+
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil((async () => {
+    const applicationServerKey = event.oldSubscription?.options?.applicationServerKey;
+    if (!applicationServerKey) return;
+
+    try {
+      const subscription = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+      const json = subscription.toJSON();
+      if (!subscription.endpoint || !json.keys?.p256dh || !json.keys.auth) {
+        await subscription.unsubscribe();
+        return;
+      }
+      const response = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          keys: json.keys,
+          expirationTime: subscription.expirationTime
+        })
+      });
+      if (!response.ok) await subscription.unsubscribe();
+    } catch {
+      // Browser support is inconsistent; the app reconciles again when opened.
+    }
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -174,6 +205,11 @@ function safeNotificationUrl(value) {
   } catch {
     return null;
   }
+}
+
+function safeNotificationAsset(value) {
+  const url = safeNotificationUrl(value);
+  return url && url.startsWith("/icons/") ? url : null;
 }
 
 function canCacheNavigation(url, response) {

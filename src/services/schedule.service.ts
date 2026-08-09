@@ -12,6 +12,7 @@ import {
   scheduleNotificationService,
   type ScheduleRelevantChange
 } from "@/services/schedule-notification.service";
+import { notificationPublisher } from "@/services/notification-publisher.service";
 import type { ScheduleListResult, ScheduleMemberSummary, ScheduleSummary } from "@/types";
 import type {
   ScheduleCreateInput,
@@ -30,6 +31,12 @@ type ScheduleWindow = {
   status: ScheduleStatus;
   ministry: { id: string };
 };
+
+type NotificationBatch = { notificationIds?: string[] };
+
+function collectNotificationIds(target: string[], batch: NotificationBatch) {
+  if (batch.notificationIds?.length) target.push(...batch.notificationIds);
+}
 
 function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
@@ -455,6 +462,7 @@ export const scheduleService = {
       await ensureNoExistingMembersTimeConflict(current, data);
     }
 
+    const notificationIds: string[] = [];
     const updated = await scheduleRepository.transaction(async (database) => {
       const transactionalCurrent = await scheduleRepository.lockByIdWithinScope(
         id,
@@ -490,17 +498,17 @@ export const scheduleService = {
           ...result,
           notificationVersion: version.notificationVersion
         };
-        await scheduleNotificationService.updated(
+        collectNotificationIds(notificationIds, await scheduleNotificationService.updated(
           versionedResult,
           changes,
           authorization.user.id,
           database
-        );
-        await scheduleNotificationService.rescheduleReminders(
+        ));
+        collectNotificationIds(notificationIds, await scheduleNotificationService.rescheduleReminders(
           versionedResult,
           authorization.user.id,
           database
-        );
+        ));
         return versionedResult;
       }
       return result;
@@ -510,10 +518,12 @@ export const scheduleService = {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
     }
 
+    await notificationPublisher.deliverPush(notificationIds);
     return serialize(updated);
   },
 
   async remove(id: string, authorization: ScheduleAuthorization) {
+    const notificationIds: string[] = [];
     const removed = await scheduleRepository.transaction(async (database) => {
       const current = await scheduleRepository.lockByIdWithinScope(
         id,
@@ -538,11 +548,11 @@ export const scheduleService = {
         database
       );
       if (result && wasPublished) {
-        await scheduleNotificationService.cancelled(
+        collectNotificationIds(notificationIds, await scheduleNotificationService.cancelled(
           notificationSchedule,
           authorization.user.id,
           database
-        );
+        ));
       }
       return result;
     });
@@ -551,10 +561,12 @@ export const scheduleService = {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
     }
 
+    await notificationPublisher.deliverPush(notificationIds);
     return removed;
   },
 
   async publish(id: string, authorization: ScheduleAuthorization) {
+    const notificationIds: string[] = [];
     const schedule = await scheduleRepository.transaction(async (database) => {
       const current = await scheduleRepository.lockByIdWithinScope(
         id,
@@ -590,11 +602,11 @@ export const scheduleService = {
         }
         return null;
       }
-      await scheduleNotificationService.publishInitial(
+      collectNotificationIds(notificationIds, await scheduleNotificationService.publishInitial(
         published,
         authorization.user.id,
         database
-      );
+      ));
       return published;
     });
 
@@ -602,10 +614,12 @@ export const scheduleService = {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
     }
 
+    await notificationPublisher.deliverPush(notificationIds);
     return serialize(schedule);
   },
 
   async cancel(id: string, authorization: ScheduleAuthorization) {
+    const notificationIds: string[] = [];
     const schedule = await scheduleRepository.transaction(async (database) => {
       const current = await scheduleRepository.lockByIdWithinScope(
         id,
@@ -625,11 +639,11 @@ export const scheduleService = {
         { incrementNotificationVersion: wasPublished }
       );
       if (cancelled && wasPublished) {
-        await scheduleNotificationService.cancelled(
+        collectNotificationIds(notificationIds, await scheduleNotificationService.cancelled(
           cancelled,
           authorization.user.id,
           database
-        );
+        ));
       }
       return cancelled;
     });
@@ -638,6 +652,7 @@ export const scheduleService = {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
     }
 
+    await notificationPublisher.deliverPush(notificationIds);
     return serialize(schedule);
   },
 
@@ -694,6 +709,7 @@ export const scheduleService = {
     data: ScheduleMemberCreateInput,
     authorization: ScheduleAuthorization
   ) {
+    const notificationIds: string[] = [];
     const participant = await scheduleRepository.transaction(async (database) => {
       const transactionalSchedule = await scheduleRepository.lockByIdWithinScope(
         scheduleId,
@@ -719,15 +735,16 @@ export const scheduleService = {
           scheduleId,
           database
         );
-        await scheduleNotificationService.participantAdded(
+        collectNotificationIds(notificationIds, await scheduleNotificationService.participantAdded(
           { ...transactionalSchedule, notificationVersion: version.notificationVersion },
           created,
           authorization.user.id,
           database
-        );
+        ));
       }
       return created;
     });
+    await notificationPublisher.deliverPush(notificationIds);
     return serializeMember(participant);
   },
 
@@ -737,6 +754,7 @@ export const scheduleService = {
     data: ScheduleMemberUpdateInput,
     authorization: ScheduleAuthorization
   ) {
+    const notificationIds: string[] = [];
     const updated = await scheduleRepository.transaction(async (database) => {
       const transactionalSchedule = await scheduleRepository.lockByIdWithinScope(
         scheduleId,
@@ -799,20 +817,20 @@ export const scheduleService = {
 
         if (previousUserId !== nextUserId) {
           if (previousUserId) {
-            await scheduleNotificationService.participantRemoved(
+            collectNotificationIds(notificationIds, await scheduleNotificationService.participantRemoved(
               versionedSchedule,
               transactionalCurrent,
               authorization.user.id,
               database
-            );
+            ));
           }
           if (nextUserId) {
-            await scheduleNotificationService.participantAdded(
+            collectNotificationIds(notificationIds, await scheduleNotificationService.participantAdded(
               versionedSchedule,
               result,
               authorization.user.id,
               database
-            );
+            ));
           }
         } else if (nextUserId) {
           const participantChanges: ScheduleRelevantChange[] = [];
@@ -828,23 +846,24 @@ export const scheduleService = {
           ) {
             participantChanges.push("observations");
           }
-          await scheduleNotificationService.updated(
+          collectNotificationIds(notificationIds, await scheduleNotificationService.updated(
             versionedSchedule,
             participantChanges,
             authorization.user.id,
             database,
             nextRecipients
-          );
-          await scheduleNotificationService.refreshParticipantReminder(
+          ));
+          collectNotificationIds(notificationIds, await scheduleNotificationService.refreshParticipantReminder(
             versionedSchedule,
             result,
             authorization.user.id,
             database
-          );
+          ));
         }
       }
       return result;
     });
+    await notificationPublisher.deliverPush(notificationIds);
     return serializeMember(updated);
   },
 
@@ -853,7 +872,8 @@ export const scheduleService = {
     memberScheduleId: string,
     authorization: ScheduleAuthorization
   ) {
-    return scheduleRepository.transaction(async (database) => {
+    const notificationIds: string[] = [];
+    const removed = await scheduleRepository.transaction(async (database) => {
       const transactionalSchedule = await scheduleRepository.lockByIdWithinScope(
         scheduleId,
         authorization.accessContext,
@@ -882,15 +902,17 @@ export const scheduleService = {
         database
       );
       if (shouldNotify && version) {
-        await scheduleNotificationService.participantRemoved(
+        collectNotificationIds(notificationIds, await scheduleNotificationService.participantRemoved(
           { ...transactionalSchedule, notificationVersion: version.notificationVersion },
           transactionalCurrent,
           authorization.user.id,
           database
-        );
+        ));
       }
       return removed;
     });
+    await notificationPublisher.deliverPush(notificationIds);
+    return removed;
   },
 
   async confirmMember(

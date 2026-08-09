@@ -59,6 +59,18 @@ export const pushSubscriptionRepository = {
       include: { user: { select: { id: true, memberId: true, isActive: true } } }
     });
   },
+  findActiveForUsers(userIds: string[]) {
+    if (!userIds.length) return Promise.resolve([]);
+    return prisma.pushSubscription.findMany({
+      where: {
+        userId: { in: [...new Set(userIds)] },
+        isActive: true,
+        revokedAt: null,
+        user: { isActive: true }
+      },
+      include: { user: { select: { id: true, memberId: true, isActive: true } } }
+    });
+  },
   findByIdForRetry(id: string) {
     return prisma.pushSubscription.findUnique({
       where: { id },
@@ -84,6 +96,13 @@ export const pushSubscriptionRepository = {
   },
   getPreference(userId: string) {
     return prisma.notificationPreference.findUnique({ where: { userId } });
+  },
+  listEnabledUserIds(userIds: string[]) {
+    if (!userIds.length) return Promise.resolve([]);
+    return prisma.notificationPreference.findMany({
+      where: { userId: { in: [...new Set(userIds)] }, pushEnabled: true },
+      select: { userId: true }
+    });
   },
   setPreference(userId: string, pushEnabled: boolean) {
     return prisma.notificationPreference.upsert({ where: { userId }, create: { userId, pushEnabled }, update: { pushEnabled } });

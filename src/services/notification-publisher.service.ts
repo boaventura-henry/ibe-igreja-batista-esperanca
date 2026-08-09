@@ -1,6 +1,7 @@
 import type { NotificationDatabase } from "@/repositories/notification.repository";
 import { notificationRepository } from "@/repositories/notification.repository";
 import { notificationService } from "@/services/notification.service";
+import { pushNotificationService } from "@/services/push-notification.service";
 import type { NotificationCreateInput } from "@/validators/notification.validator";
 
 export const notificationPublisher = {
@@ -10,6 +11,19 @@ export const notificationPublisher = {
 
   preferences(userIds: string[], type: NotificationCreateInput["type"], database?: NotificationDatabase) {
     return notificationService.getEffectivePreferencesForUsers(userIds, type, database);
+  },
+
+  async deliverPush(notificationIds: string[]) {
+    if (!notificationIds.length) return { notifications: 0, attempted: 0, sent: 0, failed: 0 };
+    try {
+      const notifications = await notificationRepository.findDeliverableByIds(notificationIds);
+      return await pushNotificationService.sendNotifications(notifications);
+    } catch (error) {
+      console.error("[NotificationPublisher] Web Push delivery failed after commit.", {
+        errorName: error instanceof Error ? error.name : "Error"
+      });
+      return { notifications: 0, attempted: 0, sent: 0, failed: 0 };
+    }
   },
 
   async cancelPendingForEntity(input: {

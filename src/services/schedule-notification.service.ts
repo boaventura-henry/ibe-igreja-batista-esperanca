@@ -332,7 +332,8 @@ async function processPendingReminderBatch(
           cancelled: 0,
           skipped: 0,
           lockAcquired: false,
-          phaseTimings
+          phaseTimings,
+          notificationIds: [] as string[]
         };
       }
 
@@ -355,7 +356,8 @@ async function processPendingReminderBatch(
           cancelled: 0,
           skipped: 0,
           lockAcquired: true,
-          phaseTimings
+          phaseTimings,
+          notificationIds: [] as string[]
         };
       }
 
@@ -436,7 +438,8 @@ async function processPendingReminderBatch(
         cancelled: invalidated.count,
         skipped: pending.length - sent.count - invalidated.count,
         lockAcquired: true,
-        phaseTimings
+        phaseTimings,
+        notificationIds: deliverable
       };
     });
   } catch (error) {
@@ -518,7 +521,9 @@ export const scheduleNotificationService = {
     database: NotificationDatabase,
     recipients = activeScheduleRecipients(schedule.members)
   ) {
-    if (!changes.length || !recipients.length) return { requested: 0, eligible: 0, created: 0, skipped: 0 };
+    if (!changes.length || !recipients.length) {
+      return { requested: 0, eligible: 0, created: 0, skipped: 0, notificationIds: [] as string[] };
+    }
     return notificationPublisher.publish(
       recipients.map((recipient) =>
         notificationInput(schedule, recipient, {
@@ -625,8 +630,13 @@ export const scheduleNotificationService = {
     ) {
       const transactionStartedAt = performance.now();
       try {
-        const result = await processPendingReminderBatch(now, batchSize, attempt);
+        const { notificationIds, ...result } = await processPendingReminderBatch(
+          now,
+          batchSize,
+          attempt
+        );
         transactionMs += durationSince(transactionStartedAt);
+        await notificationPublisher.deliverPush(notificationIds);
         return {
           ...result,
           attempts: attempt,

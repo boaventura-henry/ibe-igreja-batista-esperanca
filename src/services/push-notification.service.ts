@@ -1,7 +1,9 @@
 import { Prisma, PushNotificationLogDeviceStatus, PushNotificationLogStatus, PushNotificationSkipReason } from "@prisma/client";
 import webpush from "web-push";
 import { AppError } from "@/lib/errors";
+import { isSafeInternalNotificationUrl, resolveNotificationDestination } from "@/lib/notification-catalog";
 import { hashPushEndpoint, pushNotificationLogRepository, pushSubscriptionRepository, type PushNotificationLogDeviceRecord } from "@/repositories";
+import type { NotificationRecord } from "@/repositories/notification.repository";
 import type { PushPreferencesInput, PushSubscribeInput, PushTestFeedbackInput, PushUnsubscribeInput } from "@/validators/push-notification.validator";
 import type { PushNotificationPayload, PushStatus } from "@/types/push-notification.types";
 
@@ -90,22 +92,24 @@ function pushErrorCode(error: unknown) {
 }
 
 function pushErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message) return error.message.slice(0, 500);
+  const status = pushErrorStatus(error);
+  const code = pushErrorCode(error);
+  if (status !== null) return `Falha ao enviar notificacao push (HTTP ${status}).`;
+  if (code) return `Falha ao enviar notificacao push (${code}).`;
   return "Falha ao enviar notificacao push.";
 }
 
 function isPermanentPushFailure(error: unknown) {
   const statusCode = pushErrorStatus(error);
   const code = pushErrorCode(error)?.toLowerCase() ?? "";
-  const message = pushErrorMessage(error).toLowerCase();
-  return statusCode === 404 || statusCode === 410 || code.includes("invalidsubscription") || message.includes("subscription expired") || message.includes("invalid subscription");
+  return statusCode === 404 || statusCode === 410 || code.includes("invalidsubscription");
 }
 
 function safePayloadFromUnknown(value: unknown): PushNotificationPayload | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Partial<PushNotificationPayload>;
   if (typeof input.title !== "string" || typeof input.body !== "string") return null;
-  const url = typeof input.url === "string" && input.url.startsWith("/") ? input.url : "/portal";
+  const url = typeof input.url === "string" && isSafeInternalNotificationUrl(input.url) ? input.url : "/portal";
   return {
     title: input.title.slice(0, 120),
     body: input.body.slice(0, 500),
@@ -119,6 +123,23 @@ function safePayloadFromUnknown(value: unknown): PushNotificationPayload | null 
 
 function defaultTestPayload(): PushNotificationPayload {
   return { title: "Igreja Batista Esperanca", body: "As notificacoes foram ativadas com sucesso.", url: "/portal", tag: "ibe-push-test", icon: "/icons/icon-192x192.png", badge: "/icons/icon-72x72.png", data: { url: "/portal" } };
+}
+
+function automaticPayload(notification: NotificationRecord): PushNotificationPayload {
+  const url = resolveNotificationDestination(notification) ?? "/portal";
+  const tagParts = ["ibe", notification.type.toLowerCase()];
+  if (notification.entityType) tagParts.push(notification.entityType.toLowerCase());
+  if (notification.entityId) tagParts.push(notification.entityId);
+
+  return {
+    title: notification.title.slice(0, 120),
+    body: notification.message.slice(0, 500),
+    url,
+    tag: tagParts.join(":").slice(0, 120),
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-72x72.png",
+    data: { url }
+  };
 }
 
 async function sendToDevice(input: {
@@ -177,6 +198,116 @@ function increment(map: Record<string, number>, key: string) {
 }
 
 export const pushNotificationService = {
+  async sendNotifications(notifications: NotificationRecord[]) {
+    const deliverable = notifications.filter(
+      (notification) =>
+        notification.sentAt !== null &&
+        notification.cancelledAt === null &&
+        notification.deletedAt === null
+    );
+    if (!deliverable.length) {
+      return { notifications: 0, attempted: 0, sent: 0, failed: 0 };
+    }
+
+    const userIds = [...new Set(deliverable.map((notification) => notification.userId))];
+    const [enabledUsers, devices] = await Promise.all([
+      pushSubscriptionRepository.listEnabledUserIds(userIds),
+      pushSubscriptionRepository.findActiveForUsers(userIds)
+    ]);
+    const enabledUserIds = new Set(enabledUsers.map((preference) => preference.userId));
+    const devicesByUser = new Map<string, DeliveryDevice[]>();
+    for (const device of devices) {
+      if (!enabledUserIds.has(device.userId)) continue;
+      const current = devicesByUser.get(device.userId) ?? [];
+      if (!current.some((item) => item.endpoint === device.endpoint)) current.push(device);
+      devicesByUser.set(device.userId, current);
+    }
+
+    const eligibleNotifications = deliverable.filter(
+      (notification) => (devicesByUser.get(notification.userId)?.length ?? 0) > 0
+    );
+    if (!eligibleNotifications.length) {
+      return { notifications: 0, attempted: 0, sent: 0, failed: 0 };
+    }
+
+    try {
+      configureVapid();
+    } catch (error) {
+      console.error("[WebPush] Automatic delivery configuration failed.", {
+        errorName: error instanceof Error ? error.name : "Error",
+        errorCode: error instanceof AppError ? error.code : "PUSH_NOT_CONFIGURED"
+      });
+      return { notifications: eligibleNotifications.length, attempted: 0, sent: 0, failed: 0 };
+    }
+
+    let attempted = 0;
+    let sent = 0;
+    let failed = 0;
+    for (const notification of eligibleNotifications) {
+      const payload = automaticPayload(notification);
+      const notificationDevices = devicesByUser.get(notification.userId) ?? [];
+      try {
+        const log = await pushNotificationLogRepository.createPending({
+          createdById: notification.createdById,
+          title: payload.title,
+          body: payload.body,
+          targetType: "USER",
+          targetDescription: `Notificacao automatica ${notification.type}`,
+          payloadJson: payload
+        });
+        await pushNotificationLogRepository.updateFound(log.id, notificationDevices.length);
+        const startedAt = new Date();
+        await pushNotificationLogRepository.markStarted(log.id, startedAt);
+        let notificationSent = 0;
+        let notificationFailed = 0;
+
+        for (const device of notificationDevices) {
+          attempted += 1;
+          try {
+            const result = await sendToDevice({
+              logId: log.id,
+              device,
+              payload,
+              attemptNumber: 0
+            });
+            if (result.status === PushNotificationLogDeviceStatus.SUCCESS) {
+              sent += 1;
+              notificationSent += 1;
+            } else {
+              failed += 1;
+              notificationFailed += 1;
+            }
+          } catch (error) {
+            failed += 1;
+            notificationFailed += 1;
+            console.error("[WebPush] Device delivery audit failed.", {
+              errorName: error instanceof Error ? error.name : "Error",
+              errorCode: pushErrorCode(error)
+            });
+          }
+        }
+
+        await pushNotificationLogRepository.markFinished({
+          id: log.id,
+          startedAt,
+          finishedAt: new Date(),
+          devicesAttempted: notificationDevices.length,
+          devicesSucceeded: notificationSent,
+          devicesFailed: notificationFailed,
+          errorMessage: notificationFailed > 0 ? "Uma ou mais notificacoes falharam." : null
+        });
+      } catch (error) {
+        console.error("[WebPush] Automatic delivery failed.", {
+          notificationType: notification.type,
+          errorName: error instanceof Error ? error.name : "Error",
+          errorCode: pushErrorCode(error)
+        });
+      }
+    }
+
+    return { notifications: eligibleNotifications.length, attempted, sent, failed };
+  },
+
   async getStatus(userId: string): Promise<PushStatus> {
     const [preference, devices, activeDeviceCount] = await Promise.all([
       pushSubscriptionRepository.getPreference(userId),

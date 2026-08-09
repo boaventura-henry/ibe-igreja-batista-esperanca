@@ -11,6 +11,7 @@ import {
 } from "@/lib/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { PushSubscriptionReconciler } from "@/components/pwa/PushSubscriptionReconciler";
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -69,6 +70,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <PushSubscriptionReconciler />
     </div>
   );
 }

@@ -2,9 +2,10 @@
 
 ## Objetivo
 
-A Central de Notificacoes entrega atualizacoes pessoais dentro da aplicacao. Ela e
-independente do canal Web Push existente: uma notificacao interna nao registra
-dispositivo, nao envia Push e nao altera a preferencia `pushEnabled`.
+A Central de Notificacoes entrega atualizacoes pessoais dentro da aplicacao. A
+notificacao interna e a fonte persistente principal e pode originar uma entrega Web
+Push depois do commit. O canal mantem subscriptions e a preferencia `pushEnabled`
+separadas das preferencias por tipo da Central.
 
 ## Tipos suportados
 
@@ -14,8 +15,8 @@ dispositivo, nao envia Push e nao altera a preferencia `pushEnabled`.
 - `EVENT_CREATED`
 - `BIRTHDAY`
 
-As integracoes que criarao notificacoes a partir de Escalas, Comunicados, Eventos e
-Aniversarios pertencem a Stories futuras.
+Escalas e lembretes ja publicam notificacoes funcionais. Os demais tipos permanecem
+catalogados para seus produtores correspondentes, sem inventar eventos inexistentes.
 
 ## Arquitetura
 
@@ -225,20 +226,20 @@ existe coordenacao entre abas nesta fase: a decisao preserva a simplicidade, poi
 volume atual nao justifica `BroadcastChannel`, SharedWorker, WebSocket ou SSE.
 
 O endpoint `GET /api/notifications/unread-count` usa `COUNT` no banco e nao trafega
-conteudo, metadata ou paginacao. Web Push e badge do PWA permanecem explicitamente
-fora deste escopo.
+conteudo, metadata ou paginacao. O polling nao usa Web Push e o badge numerico do PWA
+permanece fora do escopo.
 
 A Central possui filtros, paginacao, leitura individual ou em lote, ocultacao,
 navegacao interna e preferencias. Atualizacao por WebSocket ou SSE continua fora do
 escopo desta etapa.
 
-## Limitacoes desta Story
+## Limitacoes atuais
 
-- nao ha integracao com Escalas, Comunicados, Eventos ou Aniversarios;
-- nao ha job para processar agendamentos ou retencao;
-- nao ha envio por Push, e-mail, WhatsApp ou SMS;
+- ainda nao existem produtores funcionais para todos os tipos catalogados;
+- Web Push depende de suporte do navegador, permissao e configuracao VAPID;
+- nao ha envio por e-mail, WhatsApp ou SMS;
 - nao ha endpoint administrativo de envio livre;
-- o Web Push existente permanece um canal independente.
+- nao ha badge numerico no icone do PWA.
 
 ## Testes
 
@@ -246,6 +247,7 @@ Execute:
 
 ```text
 npm run test:notifications
+npm run test:web-push
 ```
 
 A suite cobre validacao, ownership, defaults, inatividade, deduplicacao,

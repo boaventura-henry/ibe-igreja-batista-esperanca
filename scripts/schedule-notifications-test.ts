@@ -118,6 +118,7 @@ async function main() {
   };
   let published: NotificationCreateInput[] = [];
   let cancelledUsers: string[] | undefined;
+  const deliveredPushBatches: string[][] = [];
 
   replace(
     "publisher:publish",
@@ -150,6 +151,15 @@ async function main() {
           }
         }))
       )) as never
+  );
+  replace(
+    "publisher:deliverPush",
+    publisher,
+    "deliverPush",
+    ((notificationIds: string[]) => {
+      if (notificationIds.length) deliveredPushBatches.push([...notificationIds]);
+      return Promise.resolve({ notifications: notificationIds.length, attempted: notificationIds.length, sent: 0, failed: notificationIds.length });
+    }) as never
   );
   replace(
     "publisher:cancel",
@@ -457,6 +467,7 @@ async function main() {
     let cancellationCalls = 0;
     let pendingReminderCancellationCalls = 0;
     let failNotificationWrites = false;
+    let lifecycleNotificationSequence = 0;
     let deleted = false;
     const lifecycleMembers = new Map<string, ScheduleMemberRecord>();
     const actualRescheduleReminders = scheduleNotificationService.rescheduleReminders;
@@ -596,7 +607,7 @@ async function main() {
           return Promise.reject(new Error("notification write failed"));
         }
         initialPublicationCalls += 1;
-        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0 });
+        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0, notificationIds: [`lifecycle-${++lifecycleNotificationSequence}`] });
       }) as never
     );
     replace(
@@ -605,7 +616,7 @@ async function main() {
       "updated",
       (() => {
         updateNotificationCalls += 1;
-        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0 });
+        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0, notificationIds: [`lifecycle-${++lifecycleNotificationSequence}`] });
       }) as never
     );
     replace(
@@ -615,7 +626,7 @@ async function main() {
       ((current: ScheduleRecord) => {
         reminderRefreshCalls += 1;
         latestReminderVersion = current.notificationVersion;
-        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0 });
+        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0, notificationIds: [] });
       }) as never
     );
     replace(
@@ -633,7 +644,7 @@ async function main() {
       "participantAdded",
       (() => {
         participantAddedCalls += 1;
-        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0 });
+        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0, notificationIds: [`lifecycle-${++lifecycleNotificationSequence}`] });
       }) as never
     );
     replace(
@@ -642,7 +653,7 @@ async function main() {
       "participantRemoved",
       (() => {
         participantRemovedCalls += 1;
-        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0 });
+        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0, notificationIds: [`lifecycle-${++lifecycleNotificationSequence}`] });
       }) as never
     );
     replace(
@@ -651,11 +662,12 @@ async function main() {
       "cancelled",
       (() => {
         cancellationCalls += 1;
-        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0 });
+        return Promise.resolve({ requested: 1, eligible: 1, created: 1, skipped: 0, notificationIds: [`lifecycle-${++lifecycleNotificationSequence}`] });
       }) as never
     );
 
     failNotificationWrites = true;
+    const deliveriesBeforeFailedPublication = deliveredPushBatches.length;
     const failedPublication = await captureError(() =>
       scheduleService.publish("schedule-1", authorization)
     );
@@ -670,6 +682,10 @@ async function main() {
         lifecycleSchedule.notificationVersion === 0,
       "falha de notificacao reverte status e versao na mesma transacao"
     );
+    check(
+      deliveredPushBatches.length === deliveriesBeforeFailedPublication,
+      "rollback nao dispara Web Push"
+    );
 
     const concurrentPublication = await Promise.all([
       scheduleService.publish("schedule-1", authorization),
@@ -681,10 +697,19 @@ async function main() {
     );
     check(initialPublicationCalls === 1, "publicacao concorrente cria notificacoes uma unica vez");
     check(lifecycleSchedule.notificationVersion === 1, "publicacao concorrente incrementa a versao uma unica vez");
+    check(
+      deliveredPushBatches.length === deliveriesBeforeFailedPublication + 1 &&
+        deliveredPushBatches.at(-1)?.length === 1,
+      "commit concorrente dispara um unico lote logico de Web Push"
+    );
 
     await scheduleService.publish("schedule-1", authorization);
     check(initialPublicationCalls === 1, "publicar novamente permanece idempotente");
     check(lifecycleSchedule.notificationVersion === 1, "republicacao nao altera notificationVersion");
+    check(
+      deliveredPushBatches.length === deliveriesBeforeFailedPublication + 1,
+      "republicacao idempotente nao duplica Web Push"
+    );
 
     await scheduleService.update(
       "schedule-1",

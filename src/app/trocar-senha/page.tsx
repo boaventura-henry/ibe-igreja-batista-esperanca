@@ -3,6 +3,7 @@
 import { signOut, useSession } from "next-auth/react";
 import { FormEvent, useState } from "react";
 import { PasswordInput } from "@/components/PasswordInput";
+import { revokeCurrentPushSubscription } from "@/lib/push-subscription-client";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -40,7 +41,7 @@ export default function ChangePasswordPage() {
 
       setMessage("Senha alterada com sucesso. Entre novamente usando a nova senha.");
       window.setTimeout(() => {
-        void signOut({ callbackUrl: "/login" });
+        void revokeCurrentPushSubscription().then(() => signOut({ callbackUrl: "/login" }));
       }, 1200);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Nao foi possivel alterar a senha.");

@@ -10,6 +10,7 @@ import { APP_VERSION } from "@/lib/app-version";
 import { LogoutButton } from "./LogoutButton";
 import { NotificationBell } from "./notifications/NotificationBell";
 import { AppReleaseNotesModal } from "./releases/AppReleaseNotesModal";
+import { PushSubscriptionReconciler } from "./pwa/PushSubscriptionReconciler";
 
 const iconMap: Record<(typeof navigationItems)[number]["icon"], string> = {
   Inicio: "I",
@@ -79,6 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
       <AppReleaseNotesModal />
+      <PushSubscriptionReconciler />
     </div>
   );
 }

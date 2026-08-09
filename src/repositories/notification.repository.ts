@@ -20,6 +20,7 @@ const notificationSelect = {
   expiresAt: true,
   sentAt: true,
   readAt: true,
+  deduplicationKey: true,
   createdAt: true,
   updatedAt: true,
   hiddenAt: true,
@@ -172,6 +173,28 @@ export const notificationRepository = {
     return database.notification.createMany({
       data: inputs.map((input) => buildNotificationCreateData(input)),
       skipDuplicates: true
+    });
+  },
+
+  createManyAndReturn(inputs: NotificationCreateInput[], database: NotificationDatabase = prisma) {
+    return database.notification.createManyAndReturn({
+      data: inputs.map((input) => buildNotificationCreateData(input)),
+      skipDuplicates: true,
+      select: notificationSelect
+    });
+  },
+
+  findDeliverableByIds(ids: string[]) {
+    if (!ids.length) return Promise.resolve([] as NotificationRecord[]);
+    return prisma.notification.findMany({
+      where: {
+        id: { in: [...new Set(ids)] },
+        sentAt: { not: null },
+        hiddenAt: null,
+        cancelledAt: null,
+        deletedAt: null
+      },
+      select: notificationSelect
     });
   },
 
