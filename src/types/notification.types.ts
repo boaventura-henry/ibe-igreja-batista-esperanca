@@ -29,6 +29,10 @@ export type NotificationListResult = {
   unreadCount: number;
 };
 
+export type NotificationUnreadCountResult = {
+  count: number;
+};
+
 export type EffectiveNotificationPreference = {
   type: NotificationType;
   inAppEnabled: boolean;

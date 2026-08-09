@@ -198,14 +198,39 @@ O `DELETE` preserva o contrato HTTP existente e, durante a fase expand, preenche
 `hiddenAt` e `deletedAt` com o mesmo instante. As respostas de leitura usam
 `Cache-Control: no-store`.
 
-## Interface
+## Atualizacao automatica do contador de nao lidas
 
-O sino compartilhado aparece na area administrativa e no Portal, sem polling. A
-Central possui filtros, paginacao, leitura individual ou em lote, ocultacao,
-navegacao interna e preferencias.
+O sino compartilhado aparece na area administrativa e no Portal. Um controlador
+unico por pagina consulta somente o contador de nao lidas a cada 30 segundos enquanto
+a aplicacao esta visivel. As duas instancias responsivas do sino compartilham estado,
+timer e request em andamento.
 
-Atualizacao em tempo real por WebSocket, SSE ou outro mecanismo fica como evolucao
-futura. Nesta Story, o contador e recarregado na montagem e apos acoes do usuario.
+O polling e suspenso quando a aba fica oculta. Ao voltar a ficar visivel ou quando a
+janela recebe foco, o contador e sincronizado imediatamente, com coalescing entre
+eventos proximos. Abrir ou fechar o sino, carregar a Central e concluir leitura ou
+ocultacao tambem solicita sincronizacao. Requests concorrentes usam single-flight e
+uma mutacao ocorrida durante uma consulta agenda uma unica leitura posterior.
+
+Falhas temporarias preservam o ultimo valor valido e aguardam o proximo ciclo normal.
+Uma resposta `401` ou `403` encerra o timer daquela montagem. Focus,
+`visibilitychange` ou uma interacao explicita podem fazer uma unica sondagem posterior;
+se a sessao tiver sido renovada, o polling e retomado sem reload e, se continuar
+invalida, permanece suspenso sem retry agressivo. Quando o ultimo consumidor e
+desmontado, a request em andamento e abortada junto com timer e listeners.
+
+Cada aba visivel possui seu proprio controlador e faz aproximadamente duas consultas
+por minuto. Duas abas visiveis fazem cerca de quatro consultas por minuto e cinco abas,
+cerca de dez. Abas ocultas nao consultam e sincronizam imediatamente ao retornar. Nao
+existe coordenacao entre abas nesta fase: a decisao preserva a simplicidade, pois o
+volume atual nao justifica `BroadcastChannel`, SharedWorker, WebSocket ou SSE.
+
+O endpoint `GET /api/notifications/unread-count` usa `COUNT` no banco e nao trafega
+conteudo, metadata ou paginacao. Web Push e badge do PWA permanecem explicitamente
+fora deste escopo.
+
+A Central possui filtros, paginacao, leitura individual ou em lote, ocultacao,
+navegacao interna e preferencias. Atualizacao por WebSocket ou SSE continua fora do
+escopo desta etapa.
 
 ## Limitacoes desta Story
 

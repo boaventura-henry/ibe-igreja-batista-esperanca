@@ -100,7 +100,8 @@ export type {
   NotificationListResult,
   NotificationPreferenceResult,
   NotificationStatusFilter,
-  NotificationSummary
+  NotificationSummary,
+  NotificationUnreadCountResult
 } from "./notification.types";
 export type {
   PasswordResetApprovalResult,

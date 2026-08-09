@@ -4,6 +4,7 @@ import { NotificationType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { refreshUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { notifyNotificationStateChanged } from "@/lib/notification-events";
 import { NOTIFICATION_CATALOG } from "@/lib/notification-catalog";
 import type {
@@ -62,6 +63,7 @@ export function NotificationCenter() {
         throw new Error(body.success ? "Falha ao carregar notificacoes." : body.error.message);
       }
       setData(body.data);
+      void refreshUnreadNotificationCount("interaction");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao carregar notificacoes.");
     } finally {

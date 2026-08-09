@@ -14,7 +14,8 @@ import type {
   EffectiveNotificationPreference,
   NotificationListResult,
   NotificationPreferenceResult,
-  NotificationSummary
+  NotificationSummary,
+  NotificationUnreadCountResult
 } from "@/types/notification.types";
 import {
   notificationBulkCreateSchema,
@@ -158,6 +159,10 @@ export const notificationService = {
       },
       unreadCount: result.unreadCount
     };
+  },
+
+  async getUnreadCount(userId: string): Promise<NotificationUnreadCountResult> {
+    return { count: await notificationRepository.countUnreadForUser(userId) };
   },
 
   async create(rawInput: NotificationCreateInput) {

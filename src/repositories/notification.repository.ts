@@ -65,6 +65,17 @@ export function buildNotificationListWhere(
   };
 }
 
+export function buildNotificationUnreadWhere(userId: string): Prisma.NotificationWhereInput {
+  return {
+    userId,
+    hiddenAt: null,
+    deletedAt: null,
+    cancelledAt: null,
+    sentAt: { not: null },
+    readAt: null
+  };
+}
+
 export function buildNotificationCreateData(
   input: NotificationCreateInput,
   now = new Date()
@@ -119,19 +130,14 @@ export const notificationRepository = {
         take: filters.pageSize
       }),
       prisma.notification.count({ where }),
-      prisma.notification.count({
-        where: {
-          userId,
-          hiddenAt: null,
-          deletedAt: null,
-          cancelledAt: null,
-          sentAt: { not: null },
-          readAt: null
-        }
-      })
+      prisma.notification.count({ where: buildNotificationUnreadWhere(userId) })
     ]);
 
     return { notifications, total, unreadCount };
+  },
+
+  countUnreadForUser(userId: string) {
+    return prisma.notification.count({ where: buildNotificationUnreadWhere(userId) });
   },
 
   findByIdForUser(id: string, userId: string) {

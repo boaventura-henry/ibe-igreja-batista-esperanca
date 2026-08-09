@@ -7,6 +7,10 @@ import {
   NOTIFICATIONS_CHANGED_EVENT,
   notifyNotificationStateChanged
 } from "@/lib/notification-events";
+import {
+  refreshUnreadNotificationCount,
+  useUnreadNotificationCount
+} from "@/hooks/useUnreadNotificationCount";
 import type { ApiResponseBody, NotificationListResult, NotificationSummary } from "@/types";
 
 function formatDate(value: string) {
@@ -50,6 +54,7 @@ export function NotificationBell({ centerHref }: { centerHref: string }) {
   const [data, setData] = useState<NotificationListResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { count: unreadCount } = useUnreadNotificationCount();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,6 +79,7 @@ export function NotificationBell({ centerHref }: { centerHref: string }) {
     function closeOnOutsideClick(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false);
+        void refreshUnreadNotificationCount("interaction");
       }
     }
 
@@ -101,8 +107,6 @@ export function NotificationBell({ centerHref }: { centerHref: string }) {
     if (response.ok) notifyNotificationStateChanged();
   }
 
-  const unreadCount = data?.unreadCount ?? 0;
-
   return (
     <div ref={containerRef} className="relative shrink-0">
       <button
@@ -111,6 +115,7 @@ export function NotificationBell({ centerHref }: { centerHref: string }) {
         aria-expanded={open}
         onClick={() => {
           setOpen((current) => !current);
+          void refreshUnreadNotificationCount("interaction");
           if (!open) void load();
         }}
         className="relative inline-flex h-11 w-11 items-center justify-center rounded-md border border-hope-100 bg-white text-xl text-ink-700 transition hover:bg-hope-50 hover:text-hope-700"
@@ -193,7 +198,10 @@ export function NotificationBell({ centerHref }: { centerHref: string }) {
           <div className="border-t border-hope-100 p-3">
             <Link
               href={centerHref}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                void refreshUnreadNotificationCount("interaction");
+              }}
               className="block rounded-md px-3 py-2 text-center text-sm font-bold text-hope-700 hover:bg-hope-50"
             >
               Ver todas as notificacoes
