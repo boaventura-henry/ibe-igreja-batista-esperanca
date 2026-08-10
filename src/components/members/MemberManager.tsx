@@ -571,7 +571,7 @@ export function MemberManager() {
                   <Field label="Nome completo" className="md:col-span-2">
                     <input required value={form.name} onChange={(event) => updateForm("name", event.target.value)} className={inputClass} />
                   </Field>
-                  <Field label="Apelido">
+                  <Field label="Como sou conhecido na igreja">
                     <input maxLength={80} value={form.nickname ?? ""} onChange={(event) => updateForm("nickname", event.target.value)} className={inputClass} />
                   </Field>
                   <Field label="CPF opcional">

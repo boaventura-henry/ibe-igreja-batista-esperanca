@@ -46,6 +46,7 @@ function PersonRow({ person, admin = false, showDate = false, showCopy = false }
       {person.photoUrl ? <img src={person.photoUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" /> : <div aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-hope-100 text-lg">🎂</div>}
       <div className="min-w-0">
         <p className="truncate font-semibold text-ink-900">{person.displayName}</p>
+        {person.displayName !== person.name ? <p className="truncate text-sm font-normal text-ink-500">{person.name}</p> : null}
         {person.ministry ? <p className="truncate text-xs text-ink-500">{person.ministry.name}</p> : <p className="text-xs text-ink-500">Ministério não informado</p>}
       </div>
     </div>

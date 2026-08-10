@@ -95,7 +95,7 @@ export const birthdayRepository = {
         ) OR "birthdayThisYear" BETWEEN week_start AND week_end
           OR "birthdayNextYear" BETWEEN week_start AND week_end
       )
-      SELECT id, name, "photoUrl", "ministryId", "ministryName", "ministryColor",
+      SELECT id, name, nickname, "photoUrl", "ministryId", "ministryName", "ministryColor",
         "birthdayThisYear", "weeklyBirthday", today, "isWeekly",
         ("birthdayThisYear" = today) AS "isToday"
       FROM selected

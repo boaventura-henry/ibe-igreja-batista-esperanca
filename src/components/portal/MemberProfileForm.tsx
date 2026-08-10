@@ -79,7 +79,7 @@ export function MemberProfileForm({ profile }: { profile: MemberPortalProfile })
       <section className="rounded-md border border-hope-100 bg-white p-4 shadow-sm">
         <div className="grid gap-4 md:grid-cols-3">
           <Info label="Nome" value={profile.displayName} />
-          <Info label="Apelido" value={profile.nickname ?? "-"} />
+          <Info label="Como sou conhecido na igreja" value={profile.nickname ?? "-"} />
           <Info label="CPF" value={profile.cpf ?? "-"} />
           <Info label="RG" value={profile.rg ?? "-"} />
           <Info label="Nascimento" value={profile.birthDate ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(profile.birthDate)) : "-"} />
@@ -89,7 +89,7 @@ export function MemberProfileForm({ profile }: { profile: MemberPortalProfile })
 
       <section className="rounded-md border border-hope-100 bg-white p-4 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Apelido"><input maxLength={80} value={form.nickname} onChange={(event) => updateField("nickname", event.target.value)} className={inputClass} /></Field>
+          <Field label="Como sou conhecido na igreja"><input maxLength={80} value={form.nickname} onChange={(event) => updateField("nickname", event.target.value)} className={inputClass} /></Field>
           <Field label="Telefone"><input value={form.phone} onChange={(event) => updateField("phone", event.target.value)} className={inputClass} /></Field>
           <Field label="Celular"><input value={form.mobilePhone} onChange={(event) => updateField("mobilePhone", event.target.value)} className={inputClass} /></Field>
           <Field label="WhatsApp"><input value={form.whatsapp} onChange={(event) => updateField("whatsapp", event.target.value)} className={inputClass} /></Field>
