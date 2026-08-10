@@ -174,9 +174,21 @@ export function createNotificationUnreadCountController(
     removeRuntimeListeners.splice(0).forEach((removeListener) => removeListener());
   }
 
+  function reset() {
+    clearPolling();
+    requestController?.abort();
+    requestController = null;
+    inFlight = null;
+    trailingRefresh = false;
+    authenticationAvailable = true;
+    snapshot = INITIAL_SNAPSHOT;
+    listeners.forEach((listener) => listener());
+  }
+
   return {
     getSnapshot: () => snapshot,
     refresh,
+    reset,
     subscribe(listener: Listener) {
       listeners.add(listener);
       if (listeners.size === 1) start();

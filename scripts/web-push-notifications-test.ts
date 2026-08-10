@@ -343,10 +343,15 @@ async function testServiceWorker() {
   let focused = 0;
   let navigatedTo: string | null = null;
   let openedTo: string | null = null;
+  const badgeCalls: Array<{ kind: string; count?: number }> = [];
   const context = {
     URL,
     Request,
     Response,
+    navigator: {
+      setAppBadge: async (count: number) => { badgeCalls.push({ kind: "set", count }); },
+      clearAppBadge: async () => { badgeCalls.push({ kind: "clear" }); }
+    },
     fetch: async () => new Response("ok"),
     caches: { open: async () => ({ addAll: async () => undefined, put: async () => undefined }), keys: async () => [], delete: async () => true, match: async () => undefined },
     self: {
@@ -384,21 +389,37 @@ async function testServiceWorker() {
   check(shown[0]?.options.body === "Confira sua escala.", "push valido exibe body");
   check(shown[0]?.options.icon === "/icons/icon-192x192.png", "icone externo e rejeitado");
 
+  listeners.get("push")?.({
+    data: { json: () => ({ title: "Com badge", body: "Confira.", unreadCount: 153 }) },
+    waitUntil: (value: Promise<unknown>) => { pending = value; }
+  });
+  await pending;
+  check(badgeCalls.at(-1)?.kind === "set" && badgeCalls.at(-1)?.count === 153, "push sincroniza badge com a contagem recebida");
+
+  context.navigator.setAppBadge = async () => { throw new Error("unsupported"); };
+  listeners.get("push")?.({
+    data: { json: () => ({ title: "Badge indisponivel", body: "Ainda exibe." , unreadCount: 4 }) },
+    waitUntil: (value: Promise<unknown>) => { pending = value; }
+  });
+  await pending;
+  check(shown.at(-1)?.title === "Badge indisponivel", "falha do badge nao impede a notificacao");
+  check(badgeCalls.length === 1, "push sem unreadCount nao inventa incremento local");
+
   listeners.get("push")?.({ data: null, waitUntil: (value: Promise<unknown>) => { pending = value; } });
   await pending;
-  check(shown[1]?.title === "Igreja Batista Esperanca", "push sem payload usa fallback");
+  check(shown[3]?.title === "Igreja Batista Esperanca", "push sem payload usa fallback");
 
   listeners.get("push")?.({ data: { json: () => { throw new Error("bad json"); } }, waitUntil: (value: Promise<unknown>) => { pending = value; } });
   await pending;
-  check(shown[2]?.options.data && (shown[2].options.data as Mutable).url === "/portal", "payload malformado usa destino seguro");
+  check(shown[4]?.options.data && (shown[4].options.data as Mutable).url === "/portal", "payload malformado usa destino seguro");
 
   listeners.get("push")?.({ data: { json: () => ({ body: "Somente corpo", data: {} }) }, waitUntil: (value: Promise<unknown>) => { pending = value; } });
   await pending;
-  check(shown[3]?.title === "Igreja Batista Esperanca" && shown[3]?.options.body === "Somente corpo", "payload sem title usa fallback sem perder body valido");
+  check(shown[5]?.title === "Igreja Batista Esperanca" && shown[5]?.options.body === "Somente corpo", "payload sem title usa fallback sem perder body valido");
 
   listeners.get("push")?.({ data: { json: () => ({ title: "Somente titulo", data: { url: "/portal" } }) }, waitUntil: (value: Promise<unknown>) => { pending = value; } });
   await pending;
-  check(shown[4]?.title === "Somente titulo" && shown[4]?.options.body === "Voce tem uma nova atualizacao no IBE.", "payload sem body usa fallback seguro");
+  check(shown[6]?.title === "Somente titulo" && shown[6]?.options.body === "Voce tem uma nova atualizacao no IBE.", "payload sem body usa fallback seguro");
 
   let closed = 0;
   listeners.get("notificationclick")?.({
@@ -433,7 +454,7 @@ async function testServiceWorker() {
   });
   await pending;
   check(true, "renovacao sem chave anterior encerra com seguranca");
-  check(!source.includes("setAppBadge") && !source.includes("clearAppBadge"), "Service Worker nao implementa badge numerico");
+  check(source.includes("updateAppBadgeFromPush") && source.includes("unreadCount"), "Service Worker suporta badge opcional do payload");
 }
 
 async function main() {

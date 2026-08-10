@@ -74,9 +74,9 @@ Respostas 404 e 410 confirmam endpoint invalido e desativam a subscription. Time
 
 ## Service Worker
 
-O `public/sw.js` preserva cache/offline e nao armazena APIs autenticadas. O evento `push` usa fallback para payload ausente ou malformado, limita titulo/corpo, aceita icones internos e chama `showNotification`. Em `notificationclick`, a notificacao e fechada, uma janela existente recebe foco e navega para a rota interna; sem cliente aberto, uma nova janela e criada.
+O `public/sw.js` preserva cache/offline e nao armazena APIs autenticadas. O evento `push` usa fallback para payload ausente ou malformado, limita titulo/corpo, aceita icones internos e chama `showNotification`. Quando um payload confiavel incluir `unreadCount`, o Service Worker tenta atualizar o badge do PWA com deteccao de suporte e falha silenciosa. Em `notificationclick`, a notificacao e fechada, uma janela existente recebe foco e navega para a rota interna; sem cliente aberto, uma nova janela e criada.
 
-Esta etapa nao utiliza `navigator.setAppBadge()` nem `navigator.clearAppBadge()`.
+No fluxo normal, o contador exato vem de `/api/notifications/unread-count` e e sincronizado pelo hook compartilhado `useUnreadNotificationCount`, que ja concentra polling, foco, visibilidade e eventos de leitura. O envio automatico nao faz uma consulta adicional por destinatario apenas para incluir `unreadCount` no Push; assim evita N+1 e mantem a notificacao in-app como fonte de verdade. Ao abrir ou retornar ao app, o contador real atualiza o badge. Logout e troca obrigatoria de senha limpam o badge de forma segura.
 
 ## Android
 

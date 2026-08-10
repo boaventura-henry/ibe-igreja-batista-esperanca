@@ -5,6 +5,7 @@ export type PushNotificationPayload = {
   tag: string;
   icon?: string;
   badge?: string;
+  unreadCount?: number;
   data?: { url: string };
 };
 

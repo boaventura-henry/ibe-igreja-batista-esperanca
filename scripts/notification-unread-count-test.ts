@@ -442,6 +442,19 @@ async function main() {
   closeTabOne();
   closeTabTwo();
 
+  const resetHarness = createHarness();
+  resetHarness.fetchSteps.push({ authenticated: true, count: 5 });
+  const closeResetHarness = resetHarness.controller.subscribe(() => undefined);
+  await flush();
+  check(resetHarness.controller.getSnapshot().count === 5, "reset harness recebe o contador da conta atual");
+  resetHarness.controller.reset();
+  check(
+    resetHarness.controller.getSnapshot().initialized === false &&
+      resetHarness.controller.getSnapshot().count === 0,
+    "logout reseta o snapshot para impedir heranca entre usuarios"
+  );
+  closeResetHarness();
+
   const bellSource = readFileSync(
     "src/components/notifications/NotificationBell.tsx",
     "utf8"
@@ -478,8 +491,8 @@ async function main() {
     hookSource.includes("/api/notifications/unread-count") &&
       !hookSource.includes("serviceWorker") &&
       !hookSource.includes("PushManager") &&
-      !hookSource.includes("setAppBadge"),
-    "polling trafega apenas o contador e nao introduz Web Push ou badge PWA"
+      hookSource.includes("updateAppBadge"),
+    "polling trafega apenas o contador e sincroniza o badge pela fonte central"
   );
 
   console.log(`Notification unread count: ${scenarios} scenarios passed.`);

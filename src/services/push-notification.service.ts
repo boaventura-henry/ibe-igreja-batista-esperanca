@@ -117,6 +117,7 @@ function safePayloadFromUnknown(value: unknown): PushNotificationPayload | null 
     tag: typeof input.tag === "string" ? input.tag.slice(0, 120) : "ibe-push-retry",
     ...(typeof input.icon === "string" && input.icon.startsWith("/") ? { icon: input.icon } : {}),
     ...(typeof input.badge === "string" && input.badge.startsWith("/") ? { badge: input.badge } : {}),
+    ...(typeof input.unreadCount === "number" && Number.isSafeInteger(input.unreadCount) && input.unreadCount >= 0 ? { unreadCount: input.unreadCount } : {}),
     data: { url }
   };
 }

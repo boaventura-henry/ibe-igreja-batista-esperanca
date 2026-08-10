@@ -2,12 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 import { NOTIFICATIONS_CHANGED_EVENT } from "@/lib/notification-events";
+import { updateAppBadge } from "@/lib/app-badge";
 import {
   createNotificationUnreadCountController,
   type NotificationUnreadCountSnapshot,
   type NotificationUnreadRefreshReason
 } from "@/lib/notification-unread-count";
 import type { ApiResponseBody, NotificationUnreadCountResult } from "@/types";
+import { useEffect } from "react";
 
 const SERVER_SNAPSHOT: NotificationUnreadCountSnapshot = {
   count: 0,
@@ -68,6 +70,16 @@ export function refreshUnreadNotificationCount(
   return getController()?.refresh(reason) ?? Promise.resolve();
 }
 
+export function resetUnreadNotificationCount() {
+  getController()?.reset();
+}
+
 export function useUnreadNotificationCount() {
-  return useSyncExternalStore(subscribe, getSnapshot, () => SERVER_SNAPSHOT);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, () => SERVER_SNAPSHOT);
+
+  useEffect(() => {
+    if (snapshot.initialized) void updateAppBadge(snapshot.count);
+  }, [snapshot.count, snapshot.initialized]);
+
+  return snapshot;
 }

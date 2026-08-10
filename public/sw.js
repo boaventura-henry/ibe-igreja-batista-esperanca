@@ -71,13 +71,16 @@ self.addEventListener("push", (event) => {
   const body = typeof payload.body === "string" && payload.body.trim() ? payload.body.slice(0, 180) : "Voce tem uma nova atualizacao no IBE.";
   const url = safeNotificationUrl(payload.url || payload.data?.url) || "/portal";
 
-  event.waitUntil(self.registration.showNotification(title, {
-    body,
-    icon: safeNotificationAsset(payload.icon) || "/icons/icon-192x192.png",
-    badge: safeNotificationAsset(payload.badge) || "/icons/icon-72x72.png",
-    tag: typeof payload.tag === "string" ? payload.tag.slice(0, 80) : "ibe-notification",
-    data: { url }
-  }));
+  event.waitUntil((async () => {
+    await updateAppBadgeFromPush(payload.unreadCount);
+    await self.registration.showNotification(title, {
+      body,
+      icon: safeNotificationAsset(payload.icon) || "/icons/icon-192x192.png",
+      badge: safeNotificationAsset(payload.badge) || "/icons/icon-72x72.png",
+      tag: typeof payload.tag === "string" ? payload.tag.slice(0, 80) : "ibe-notification",
+      data: { url }
+    });
+  })());
 });
 
 self.addEventListener("pushsubscriptionchange", (event) => {
@@ -210,6 +213,20 @@ function safeNotificationUrl(value) {
 function safeNotificationAsset(value) {
   const url = safeNotificationUrl(value);
   return url && url.startsWith("/icons/") ? url : null;
+}
+
+async function updateAppBadgeFromPush(value) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) return;
+  const badgeTarget = typeof navigator !== "undefined" ? navigator : self;
+  try {
+    if (value > 0 && typeof badgeTarget.setAppBadge === "function") {
+      await badgeTarget.setAppBadge(value);
+    } else if (value === 0 && typeof badgeTarget.clearAppBadge === "function") {
+      await badgeTarget.clearAppBadge();
+    }
+  } catch {
+    // Badge support is optional and must never block notification display.
+  }
 }
 
 function canCacheNavigation(url, response) {
