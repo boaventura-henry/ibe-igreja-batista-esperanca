@@ -284,6 +284,7 @@ enum NotificationType {
   SCHEDULE_REMINDER
   NOTICE_CREATED
   EVENT_CREATED
+  EVENT_REMINDER
   BIRTHDAY
 }
 
@@ -996,6 +997,8 @@ model Event {
   description          String?
   type                 EventType        @default(OTHER)
   status               EventStatus      @default(DRAFT)
+  publishedAt          DateTime?
+  notificationVersion  Int              @default(0)
   ministryId           String?
   responsibleMemberId  String?
   startDate            DateTime
@@ -1032,6 +1035,7 @@ model Event {
   @@index([isPublic])
   @@index([deletedAt])
   @@index([status, endDate, startDate, deletedAt])
+  @@index([status, startDate, publishedAt, deletedAt])
 }
 
 model FinancialCategory {

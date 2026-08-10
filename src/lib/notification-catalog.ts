@@ -112,6 +112,15 @@ export const NOTIFICATION_CATALOG: Readonly<
     entityRoute: NOTIFICATION_ENTITY_CATALOG.EVENT.route,
     defaultPreference: { inAppEnabled: true, reminderHoursBefore: null }
   },
+  EVENT_REMINDER: {
+    type: NotificationType.EVENT_REMINDER,
+    label: "Lembrete de evento",
+    icon: "alarm-clock",
+    supportsReminder: true,
+    entityType: NOTIFICATION_ENTITY_TYPES.EVENT,
+    entityRoute: NOTIFICATION_ENTITY_CATALOG.EVENT.route,
+    defaultPreference: { inAppEnabled: true, reminderHoursBefore: 24 }
+  },
   BIRTHDAY: {
     type: NotificationType.BIRTHDAY,
     label: "Aniversario",

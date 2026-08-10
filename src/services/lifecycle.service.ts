@@ -126,7 +126,13 @@ export const lifecycleService = {
           cutoff,
           database
         );
-        return { executed: true, lockAcquired: true, found: candidates.length, updated: result.count };
+        return {
+          executed: true,
+          lockAcquired: true,
+          found: candidates.length,
+          updated: result.count,
+          cancelledReminders: result.cancelledReminders
+        };
       })
     );
   },

@@ -22,6 +22,7 @@ export { myScheduleService } from "./my-schedule.service";
 export { notificationService } from "./notification.service";
 export { notificationPublisher } from "./notification-publisher.service";
 export { scheduleNotificationService } from "./schedule-notification.service";
+export { eventNotificationService } from "./event-notification.service";
 export { passwordResetRequestService } from "./password-reset-request.service";
 export { reportService } from "./report.service";
 export { resolveScheduleAccessContext } from "./schedule-access.service";

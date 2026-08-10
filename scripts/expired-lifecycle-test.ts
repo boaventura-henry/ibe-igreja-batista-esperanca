@@ -14,11 +14,13 @@ import { buildScheduleWhere } from "../src/repositories/schedule.repository";
 import { lifecycleService } from "../src/services/lifecycle.service";
 import { scheduledJobsService } from "../src/services/scheduled-jobs.service";
 import { scheduleNotificationService } from "../src/services/schedule-notification.service";
+import { eventNotificationService } from "../src/services/event-notification.service";
 
 type MutableMethods = Record<string, (...args: never[]) => unknown>;
 const repository = lifecycleRepository as unknown as MutableMethods;
 const lifecycle = lifecycleService as unknown as MutableMethods;
 const reminders = scheduleNotificationService as unknown as MutableMethods;
+const eventReminders = eventNotificationService as unknown as MutableMethods;
 const originals: Array<{ target: MutableMethods; method: string; value: MutableMethods[string] }> = [];
 
 function replace(target: MutableMethods, method: string, implementation: (...args: never[]) => unknown) {
@@ -92,6 +94,7 @@ async function main() {
   replace(repository, "transaction", ((callback: (database: unknown) => Promise<unknown>) => callback({})) as never);
 
   replace(reminders, "processPendingReminders", (() => Promise.resolve({ reason: "empty_batch" })) as never);
+  replace(eventReminders, "processPendingReminders", (() => Promise.resolve({ reason: "empty_batch" })) as never);
   replace(lifecycle, "processExpiredSchedules", (() => Promise.resolve({ updated: 1 })) as never);
   replace(lifecycle, "processExpiredEvents", (() => Promise.resolve({ updated: 2 })) as never);
   replace(lifecycle, "processExpiredAnnouncements", (() => Promise.resolve({ updated: 3 })) as never);
@@ -99,6 +102,7 @@ async function main() {
   check(orchestrated.lifecycle.schedules !== undefined, "orquestrador executa lifecycle de escalas");
   check(orchestrated.lifecycle.events !== undefined, "orquestrador executa lifecycle de eventos");
   check(orchestrated.lifecycle.announcements !== undefined, "orquestrador executa lifecycle de comunicados");
+  check(orchestrated.eventReminders !== undefined, "orquestrador executa reminders de eventos");
 
   let schedulesAttempted = false;
   let eventsAttempted = false;

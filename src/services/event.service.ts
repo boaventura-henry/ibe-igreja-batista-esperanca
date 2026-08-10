@@ -1,6 +1,8 @@
 import { EventStatus, MemberStatus, Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { eventRepository, type EventRecord } from "@/repositories";
+import { eventNotificationService } from "@/services/event-notification.service";
+import { notificationPublisher } from "@/services/notification-publisher.service";
 import type { EventListResult, EventSummary } from "@/types";
 import { createSlug } from "@/utils";
 import type { EventCreateInput, EventListQueryInput, EventUpdateInput } from "@/validators";
@@ -118,6 +120,14 @@ function ensureEditableFields(current: EventRecord, data: EventUpdateInput) {
   }
 }
 
+function hasReminderRelevantChange(current: EventRecord, data: EventUpdateInput) {
+  const currentDate = current.startDate.toISOString().slice(0, 10);
+  return (
+    (data.startDate !== undefined && data.startDate.toISOString().slice(0, 10) !== currentDate) ||
+    (data.startTime !== undefined && data.startTime !== current.startTime)
+  );
+}
+
 export const eventService = {
   async list(filters: EventListQueryInput): Promise<EventListResult> {
     const [result, ministries, members] = await Promise.all([
@@ -163,7 +173,24 @@ export const eventService = {
       const slug = await createUniqueSlug(data.title);
 
       try {
-        return serialize(await eventRepository.create(data, slug, userId));
+        const notificationIds: string[] = [];
+        const created = await eventRepository.transaction(async (database) => {
+          const isPublished = data.status === EventStatus.PUBLISHED;
+          const event = await eventRepository.create(
+            data,
+            slug,
+            userId,
+            database,
+            isPublished ? { publishedAt: new Date(), notificationVersion: 1 } : undefined
+          );
+          if (isPublished) {
+            const batch = await eventNotificationService.publishInitial(event, userId, database);
+            notificationIds.push(...batch.notificationIds);
+          }
+          return event;
+        });
+        await notificationPublisher.deliverPush(notificationIds);
+        return serialize(created);
       } catch (error) {
         if (!isUniqueConstraintError(error)) {
           throw error;
@@ -196,15 +223,40 @@ export const eventService = {
       ensureResponsibleMember(data.responsibleMemberId)
     ]);
 
+    const save = async (nextData: EventUpdateInput & { slug?: string }) => {
+      const notificationIds: string[] = [];
+      const updated = await eventRepository.transaction(async (database) => {
+        const transactionalCurrent = await eventRepository.findById(id, database);
+        if (!transactionalCurrent) return null;
+        ensureEditableFields(transactionalCurrent, nextData);
+        const result = await eventRepository.update(id, nextData, userId, database);
+        if (
+          result.status === EventStatus.PUBLISHED &&
+          result.publishedAt !== null &&
+          hasReminderRelevantChange(transactionalCurrent, nextData)
+        ) {
+          const version = await eventRepository.incrementNotificationVersion(id, database);
+          const versioned = { ...result, notificationVersion: version.notificationVersion };
+          const batch = await eventNotificationService.rescheduleReminders(versioned, userId, database);
+          notificationIds.push(...batch.notificationIds);
+          return versioned;
+        }
+        return result;
+      });
+      if (!updated) throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
+      await notificationPublisher.deliverPush(notificationIds);
+      return serialize(updated);
+    };
+
     if (!data.title) {
-      return serialize(await eventRepository.update(id, data, userId));
+      return save(data);
     }
 
     for (let attempt = 1; attempt <= SLUG_WRITE_ATTEMPTS; attempt += 1) {
       const nextData = { ...data, slug: await createUniqueSlug(data.title, id) };
 
       try {
-        return serialize(await eventRepository.update(id, nextData, userId));
+        return await save(nextData);
       } catch (error) {
         if (!isUniqueConstraintError(error)) {
           throw error;
@@ -220,53 +272,80 @@ export const eventService = {
   },
 
   async remove(id: string, userId: string) {
-    const current = await this.getById(id);
+    const current = await eventRepository.findById(id);
+    if (!current) throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
     if (current.status === EventStatus.ARCHIVED) {
       throw new AppError("Evento arquivado e somente para consulta.", 409, "EVENT_ARCHIVED");
     }
-
-    return eventRepository.softDelete(id, userId);
+    const notificationIds: string[] = [];
+    const deleted = await eventRepository.transaction(async (database) => {
+      const transactionalCurrent = await eventRepository.findById(id, database);
+      if (!transactionalCurrent) return null;
+      if (transactionalCurrent.status === EventStatus.PUBLISHED) {
+        await eventRepository.incrementNotificationVersion(id, database);
+        await eventNotificationService.cancelPendingReminders(id, database);
+      }
+      const result = await eventRepository.softDeleteWithinTransaction(id, userId, database);
+      return result.count ? { id, deletedAt: new Date() } : null;
+    });
+    if (!deleted) throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
+    await notificationPublisher.deliverPush(notificationIds);
+    return deleted;
   },
 
   async publish(id: string, userId: string) {
-    const current = await this.getById(id);
-
-    if (current.status === EventStatus.CANCELED) {
-      throw new AppError("Evento cancelado nao pode ser publicado.", 409, "EVENT_CANCELED");
-    }
-
-    if (current.status === EventStatus.COMPLETED) {
-      throw new AppError("Evento concluido nao pode ser publicado.", 409, "EVENT_COMPLETED");
-    }
-
-    if (current.status === EventStatus.ARCHIVED) {
-      throw new AppError("Evento arquivado nao pode ser publicado.", 409, "EVENT_ARCHIVED");
-    }
-
-    return serialize(await eventRepository.updateStatus(id, EventStatus.PUBLISHED, userId));
+    const notificationIds: string[] = [];
+    const event = await eventRepository.transaction(async (database) => {
+      const current = await eventRepository.findById(id, database);
+      if (!current) return null;
+      if (current.status === EventStatus.PUBLISHED && current.publishedAt) return current;
+      if (current.status === EventStatus.CANCELED) throw new AppError("Evento cancelado nao pode ser publicado.", 409, "EVENT_CANCELED");
+      if (current.status === EventStatus.COMPLETED) throw new AppError("Evento concluido nao pode ser publicado.", 409, "EVENT_COMPLETED");
+      if (current.status === EventStatus.ARCHIVED) throw new AppError("Evento arquivado nao pode ser publicado.", 409, "EVENT_ARCHIVED");
+      const published = await eventRepository.transitionStatus(
+        id, [EventStatus.DRAFT], EventStatus.PUBLISHED, userId, database,
+        { publishedAt: new Date(), incrementNotificationVersion: true }
+      );
+      if (!published) {
+        const concurrent = await eventRepository.findById(id, database);
+        if (concurrent?.status === EventStatus.PUBLISHED) return concurrent;
+        return null;
+      }
+      const batch = await eventNotificationService.publishInitial(published, userId, database);
+      notificationIds.push(...batch.notificationIds);
+      return published;
+    });
+    if (!event) throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
+    await notificationPublisher.deliverPush(notificationIds);
+    return serialize(event);
   },
 
   async cancel(id: string, userId: string) {
-    const current = await this.getById(id);
-
-    if (current.status === EventStatus.COMPLETED) {
-      throw new AppError("Evento concluido nao pode ser cancelado.", 409, "EVENT_COMPLETED");
-    }
-
-    if (current.status === EventStatus.ARCHIVED) {
-      throw new AppError("Evento arquivado nao pode ser cancelado.", 409, "EVENT_ARCHIVED");
-    }
-
-    return serialize(await eventRepository.updateStatus(id, EventStatus.CANCELED, userId));
+    return this.finish(id, userId, EventStatus.CANCELED);
   },
 
   async complete(id: string, userId: string) {
-    const current = await this.getById(id);
+    return this.finish(id, userId, EventStatus.COMPLETED);
+  },
 
-    if (current.status === EventStatus.CANCELED || current.status === EventStatus.ARCHIVED) {
-      throw new AppError("Evento cancelado ou arquivado nao pode ser concluido.", 409, "EVENT_NOT_COMPLETABLE");
-    }
-
-    return serialize(await eventRepository.updateStatus(id, EventStatus.COMPLETED, userId));
+  async finish(id: string, userId: string, status: EventStatus) {
+    const event = await eventRepository.transaction(async (database) => {
+      const current = await eventRepository.findById(id, database);
+      if (!current) return null;
+      if (current.status === EventStatus.ARCHIVED) throw new AppError("Evento arquivado nao pode ser alterado.", 409, "EVENT_ARCHIVED");
+      if (current.status === EventStatus.CANCELED && status === EventStatus.COMPLETED) throw new AppError("Evento cancelado nao pode ser concluido.", 409, "EVENT_NOT_COMPLETABLE");
+      if (current.status === EventStatus.COMPLETED && status === EventStatus.CANCELED) throw new AppError("Evento concluido nao pode ser cancelado.", 409, "EVENT_COMPLETED");
+      if (current.status === status) return current;
+      const result = await eventRepository.transitionStatus(
+        id, [EventStatus.DRAFT, EventStatus.PUBLISHED], status, userId, database
+      );
+      if (result && current.status === EventStatus.PUBLISHED) {
+        await eventRepository.incrementNotificationVersion(id, database);
+        await eventNotificationService.cancelPendingReminders(id, database);
+      }
+      return result;
+    });
+    if (!event) throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
+    return serialize(event);
   }
 };

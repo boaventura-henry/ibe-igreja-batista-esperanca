@@ -37,6 +37,7 @@ export type NotificationDatabase = Prisma.TransactionClient | typeof prisma;
 // 0x00494245 represents "IBE"; the second key identifies this specific internal job.
 export const INTERNAL_JOB_LOCK_NAMESPACE = 0x00494245;
 export const SCHEDULE_REMINDERS_CRON_LOCK_KEY = 1;
+export const EVENT_REMINDERS_CRON_LOCK_KEY = 5;
 
 export type DueScheduledNotificationRecord = {
   id: string;
@@ -108,14 +109,26 @@ export const notificationRepository = {
     });
   },
 
-  async tryAcquireScheduleReminderProcessingLock(database: NotificationDatabase) {
+  async tryAcquireInternalJobLock(
+    lockKey: number,
+    database: NotificationDatabase
+  ) {
     const [result] = await database.$queryRaw<Array<{ acquired: boolean }>>`
+      SELECT pg_try_advisory_xact_lock(
+        CAST(${INTERNAL_JOB_LOCK_NAMESPACE} AS INTEGER),
+        CAST(${lockKey} AS INTEGER)
+      ) AS "acquired"
+    `;
+    return result?.acquired === true;
+  },
+
+  tryAcquireScheduleReminderProcessingLock(database: NotificationDatabase) {
+    return database.$queryRaw<Array<{ acquired: boolean }>>`
       SELECT pg_try_advisory_xact_lock(
         CAST(${INTERNAL_JOB_LOCK_NAMESPACE} AS INTEGER),
         CAST(${SCHEDULE_REMINDERS_CRON_LOCK_KEY} AS INTEGER)
       ) AS "acquired"
-    `;
-    return result?.acquired === true;
+    `.then(([result]) => result?.acquired === true);
   },
 
   async listForUser(userId: string, filters: NotificationListQueryInput) {

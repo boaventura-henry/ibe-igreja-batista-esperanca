@@ -13,10 +13,11 @@ separadas das preferencias por tipo da Central.
 - `SCHEDULE_REMINDER`
 - `NOTICE_CREATED`
 - `EVENT_CREATED`
+- `EVENT_REMINDER`
 - `BIRTHDAY`
 
-Escalas e lembretes ja publicam notificacoes funcionais. Os demais tipos permanecem
-catalogados para seus produtores correspondentes, sem inventar eventos inexistentes.
+Escalas e eventos publicados possuem produtores funcionais. Os demais tipos
+permanecem catalogados para seus produtores correspondentes.
 
 ## Arquitetura
 
@@ -59,7 +60,7 @@ modulo Web Push.
 Quando nao existe preferencia persistida, o catalogo aplica os defaults:
 
 - todos os tipos habilitados no canal interno;
-- lembrete de escala com 24 horas de antecedencia.
+- lembrete de escala e de evento com 24 horas de antecedencia.
 
 O seed nao preenche preferencias para todos os usuarios.
 
@@ -149,6 +150,8 @@ Exemplos:
 ```text
 schedule:published:v1:123:user456
 schedule:reminder:v1:123:user456
+event:published:123:user456
+event:reminder:v1:123:user456:202608161900
 birthday:v1:2026-07-27:user789
 ```
 
@@ -167,6 +170,42 @@ centrais para futuras integracoes. Antes da gravacao eles:
 
 A criacao em lote consulta usuarios e preferencias em blocos e usa `createMany`,
 evitando N+1. Nao existe endpoint generico para disparo administrativo.
+
+## Eventos publicados e lembretes
+
+A primeira transicao valida de um evento de `DRAFT` para `PUBLISHED` cria
+`EVENT_CREATED` para cada usuario ativo vinculado a um membro ativo. Esse conjunto
+representa os usuarios elegiveis do Portal; usuarios inativos, sem membro ou com
+membro removido/inativo ficam fora. A chave `event:published:<eventId>:<userId>` e
+protegida pelo indice unico da notificacao, inclusive sob concorrencia.
+
+Se o evento tem horario e inicia em mais de 24 horas, o mesmo commit cria
+`EVENT_REMINDER` agendado para 24 horas antes. Publicacoes dentro dessa janela
+recebem somente a notificacao de publicacao, evitando duas mensagens imediatas.
+Eventos sem horario especifico nao recebem reminder, pois o dominio nao possui uma
+hora segura para agendar.
+
+Uma mudanca de data ou horario em evento publicado invalida reminders pendentes,
+incrementa a versao do evento e cria somente o novo reminder ainda elegivel. O
+reminder tambem e invalidado por cancelamento, conclusao, soft delete ou arquivamento
+automatico. Notificacoes ja entregues permanecem como historico.
+
+Datas e horarios do dominio sao calculados em `America/Sao_Paulo`; os instantes
+persistidos continuam em UTC. A publicacao e a persistencia In-App ocorrem na mesma
+transacao. Web Push e disparado somente apos o commit e uma falha no provedor nao
+reverte o evento nem a notificacao interna.
+
+O Cron externo existente chama `ScheduledJobsService`, que executa o processador de
+reminders de evento com advisory lock proprio, lote ordenado, transacao serializavel
+e ate tres tentativas para conflitos transitorios. Esse job usa uma chave distinta do
+processador de escalas e dos processadores de lifecycle.
+
+```text
+Evento DRAFT -> PUBLISHED -> NotificationService -> In-App -> Web Push pos-commit
+                                      |
+                                      -> EVENT_REMINDER (>24h)
+ScheduledJobsService -> EventReminderProcessor -> In-App -> Web Push pos-commit
+```
 
 ## Retencao futura
 

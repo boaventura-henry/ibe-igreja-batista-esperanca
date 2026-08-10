@@ -1,4 +1,4 @@
-import { EventStatus, type Prisma } from "@prisma/client";
+import { EventStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import { applicationDateOnlyCutoff } from "@/lib/application-time";
 import type { EventCreateInput, EventListQueryInput, EventUpdateInput } from "@/validators";
@@ -10,6 +10,8 @@ const eventSelect = {
   description: true,
   type: true,
   status: true,
+  publishedAt: true,
+  notificationVersion: true,
   ministry: {
     select: {
       id: true,
@@ -42,6 +44,7 @@ const eventSelect = {
 } satisfies Prisma.EventSelect;
 
 export type EventRecord = Prisma.EventGetPayload<{ select: typeof eventSelect }>;
+export type EventDatabase = Prisma.TransactionClient | typeof prisma;
 
 function dateOnly(value: Date) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
@@ -148,6 +151,14 @@ function updateData(data: EventUpdateInput & { slug?: string }): Prisma.EventUnc
 }
 
 export const eventRepository = {
+  transaction<T>(callback: (database: Prisma.TransactionClient) => Promise<T>) {
+    return prisma.$transaction(callback, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 30_000
+    });
+  },
+
   async list(filters: EventListQueryInput) {
     const where = buildEventWhere(filters);
     const skip = (filters.page - 1) * filters.pageSize;
@@ -184,8 +195,8 @@ export const eventRepository = {
     });
   },
 
-  findById(id: string) {
-    return prisma.event.findFirst({
+  findById(id: string, database: EventDatabase = prisma) {
+    return database.event.findFirst({
       where: { id, deletedAt: null },
       select: eventSelect
     });
@@ -212,15 +223,29 @@ export const eventRepository = {
     });
   },
 
-  create(data: EventCreateInput, slug: string, userId: string) {
-    return prisma.event.create({
-      data: createData(data, slug, userId),
+  create(
+    data: EventCreateInput,
+    slug: string,
+    userId: string,
+    database: EventDatabase = prisma,
+    notificationState?: { publishedAt: Date; notificationVersion: number }
+  ) {
+    return database.event.create({
+      data: {
+        ...createData(data, slug, userId),
+        ...(notificationState ?? {})
+      },
       select: eventSelect
     });
   },
 
-  update(id: string, data: EventUpdateInput & { slug?: string }, userId: string) {
-    return prisma.event.update({
+  update(
+    id: string,
+    data: EventUpdateInput & { slug?: string },
+    userId: string,
+    database: EventDatabase = prisma
+  ) {
+    return database.event.update({
       where: { id },
       data: {
         ...updateData(data),
@@ -230,15 +255,27 @@ export const eventRepository = {
     });
   },
 
-  updateStatus(id: string, status: EventStatus, userId: string) {
-    return prisma.event.update({
-      where: { id },
+  async transitionStatus(
+    id: string,
+    fromStatuses: EventStatus[],
+    status: EventStatus,
+    userId: string,
+    database: EventDatabase,
+    options: { publishedAt?: Date; incrementNotificationVersion?: boolean } = {}
+  ) {
+    const result = await database.event.updateMany({
+      where: { id, deletedAt: null, status: { in: fromStatuses } },
       data: {
         status,
-        updatedById: userId
-      },
-      select: eventSelect
+        updatedById: userId,
+        ...(options.publishedAt ? { publishedAt: options.publishedAt } : {}),
+        ...(options.incrementNotificationVersion
+          ? { notificationVersion: { increment: 1 } }
+          : {})
+      }
     });
+    if (result.count === 0) return null;
+    return this.findById(id, database);
   },
 
   softDelete(id: string, userId: string) {
@@ -249,6 +286,53 @@ export const eventRepository = {
         updatedById: userId
       },
       select: { id: true, deletedAt: true }
+    });
+  },
+
+  softDeleteWithinTransaction(id: string, userId: string, database: EventDatabase) {
+    return database.event.updateMany({
+      where: { id, deletedAt: null },
+      data: { deletedAt: new Date(), updatedById: userId }
+    });
+  },
+
+  incrementNotificationVersion(id: string, database: EventDatabase) {
+    return database.event.update({
+      where: { id },
+      data: { notificationVersion: { increment: 1 } },
+      select: { notificationVersion: true }
+    });
+  },
+
+  listActivePortalUsers(database: EventDatabase = prisma) {
+    return database.user.findMany({
+      where: {
+        isActive: true,
+        memberId: { not: null },
+        member: { is: { deletedAt: null, status: "ACTIVE" } }
+      },
+      select: { id: true }
+    });
+  },
+
+  listActivePortalUsersByIds(userIds: string[], database: EventDatabase = prisma) {
+    if (!userIds.length) return Promise.resolve([] as Array<{ id: string }>);
+    return database.user.findMany({
+      where: {
+        id: { in: [...new Set(userIds)] },
+        isActive: true,
+        memberId: { not: null },
+        member: { is: { deletedAt: null, status: "ACTIVE" } }
+      },
+      select: { id: true }
+    });
+  },
+
+  listPublishedByIds(eventIds: string[], database: EventDatabase = prisma) {
+    if (!eventIds.length) return Promise.resolve([] as EventRecord[]);
+    return database.event.findMany({
+      where: { id: { in: [...new Set(eventIds)] }, deletedAt: null, status: EventStatus.PUBLISHED },
+      select: eventSelect
     });
   },
 

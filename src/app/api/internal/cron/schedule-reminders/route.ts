@@ -7,6 +7,10 @@ import { authorizeCronRequest } from "@/lib/cron-auth";
 import {
   scheduleReminderProcessingErrorContext
 } from "@/services/schedule-notification.service";
+import {
+  EventReminderProcessingError,
+  eventReminderProcessingErrorContext
+} from "@/services/event-notification.service";
 import { scheduledJobsService } from "@/services/scheduled-jobs.service";
 
 export const runtime = "nodejs";
@@ -117,7 +121,10 @@ export async function GET(request: Request) {
       ...result
     });
   } catch (error) {
-    const processingError = scheduleReminderProcessingErrorContext(error);
+    const processingError =
+      error instanceof EventReminderProcessingError
+        ? eventReminderProcessingErrorContext(error)
+        : scheduleReminderProcessingErrorContext(error);
     const originalError = processingError.error;
     const prismaError =
       originalError instanceof Prisma.PrismaClientKnownRequestError

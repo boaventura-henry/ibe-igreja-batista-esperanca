@@ -86,9 +86,9 @@ export const lifecycleRepository = {
     `);
   },
 
-  archiveEvents(ids: string[], cutoff: Date, database: LifecycleDatabase) {
-    if (ids.length === 0) return Promise.resolve({ count: 0 });
-    return database.event.updateMany({
+  async archiveEvents(ids: string[], cutoff: Date, database: LifecycleDatabase) {
+    if (ids.length === 0) return { count: 0, cancelledReminders: 0 };
+    const updated = await database.event.updateMany({
       where: {
         id: { in: ids },
         status: { in: [EventStatus.DRAFT, EventStatus.PUBLISHED] },
@@ -97,6 +97,13 @@ export const lifecycleRepository = {
       },
       data: { status: EventStatus.ARCHIVED }
     });
+    const reminders = await notificationRepository.cancelPendingByEntities(
+      "EVENT",
+      ids,
+      NotificationType.EVENT_REMINDER,
+      database
+    );
+    return { count: updated.count, cancelledReminders: reminders.count };
   },
 
   listExpiredAnnouncementIds(cutoff: Date, limit: number, database: LifecycleDatabase) {
