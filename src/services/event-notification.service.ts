@@ -226,7 +226,7 @@ export const eventNotificationService = {
       title: "Novo evento",
       message: `Foi publicado o evento ${formatEventContext(event)}.`,
       createdById,
-      deduplicationKey: `event:published:${event.id}:${userId}`
+      deduplicationKey: `event:published:v${event.notificationVersion}:${event.id}:${userId}`
     }));
     const reminders = await reminderInputs(event, userIds, createdById, database, now);
     return notificationPublisher.publish([...publication, ...reminders], database);

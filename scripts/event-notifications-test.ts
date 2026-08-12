@@ -4,6 +4,10 @@ import { eventRepository } from "../src/repositories/event.repository";
 import { notificationRepository } from "../src/repositories/notification.repository";
 import { eventNotificationService, eventStartAt } from "../src/services/event-notification.service";
 import { notificationPublisher } from "../src/services/notification-publisher.service";
+import {
+  notificationCreateSchema,
+  type NotificationCreateInput
+} from "../src/validators/notification.validator";
 
 type Mutable = Record<string, (...args: never[]) => unknown>;
 const originals: Array<{ target: Mutable; key: string; value: Mutable[string] }> = [];
@@ -25,6 +29,12 @@ const event = (overrides: Record<string, unknown> = {}) => ({
   createdAt: new Date(), updatedAt: new Date(), ...overrides
 });
 
+const ADMIN_ID = "clh2gko3d0000s9h5dwv9nwyb";
+const RECIPIENT_IDS = [
+  "clh2gko3d0000s9h5dwv9nwyb",
+  "clh2gko3d0000s9h5dwv9nwyc"
+];
+
 async function main() {
   let scenarios = 0;
   const check = (value: unknown, message: string) => {
@@ -37,24 +47,34 @@ async function main() {
     const startsAt = eventStartAt(event() as never);
     check(startsAt?.toISOString() === "2026-08-16T22:00:00.000Z", "horario de Sao Paulo converte corretamente para UTC");
 
-    let published: Array<{ type: NotificationType; scheduledFor?: Date; deduplicationKey: string; userId: string; message: string }> = [];
-    replace(repository, "listActivePortalUsers", (() => Promise.resolve([{ id: "user-a" }, { id: "user-b" }])) as never);
+    let published: NotificationCreateInput[] = [];
+    replace(repository, "listActivePortalUsers", (() => Promise.resolve(RECIPIENT_IDS.map((id) => ({ id })))) as never);
     replace(publisher, "preferences", ((ids: string[], type: NotificationType) => Promise.resolve(ids.map((userId) => ({ userId, active: true, preference: { type, inAppEnabled: true, reminderHoursBefore: 24, isDefault: true } })))) as never);
-    replace(publisher, "publish", ((inputs: typeof published) => { published = inputs; return Promise.resolve({ requested: inputs.length, eligible: inputs.length, created: inputs.length, skipped: 0, notificationIds: inputs.map((_, index) => `n-${index}`) }); }) as never);
-    await eventNotificationService.publishInitial(event() as never, "admin-1", {} as never, new Date("2026-08-10T12:00:00.000Z"));
+    replace(publisher, "publish", ((inputs: NotificationCreateInput[]) => {
+      inputs.forEach((item) => notificationCreateSchema.parse(item));
+      published = inputs;
+      return Promise.resolve({ requested: inputs.length, eligible: inputs.length, created: inputs.length, skipped: 0, notificationIds: inputs.map((_, index) => `n-${index}`) });
+    }) as never);
+    await eventNotificationService.publishInitial(event() as never, ADMIN_ID, {} as never, new Date("2026-08-10T12:00:00.000Z"));
     check(published.filter((item) => item.type === NotificationType.EVENT_CREATED).length === 2, "primeira publicacao cria uma notificacao por usuario elegivel");
     check(published.filter((item) => item.type === NotificationType.EVENT_REMINDER).length === 2, "evento futuro cria reminder por usuario elegivel");
-    check(published.every((item) => item.deduplicationKey.includes(item.userId)), "deduplicacao e persistente por evento e usuario");
+    check(published.every((item) => item.deduplicationKey?.includes(item.userId)), "deduplicacao e persistente por evento e usuario");
+    check(
+      published
+        .filter((item) => item.type === NotificationType.EVENT_CREATED)
+        .every((item) => item.deduplicationKey === `event:published:v1:event-1:${item.userId}`),
+      "notificacao inicial usa a chave de deduplicacao versionada aceita pelo validator"
+    );
     check(published.some((item) => item.message.includes("16/08/2026 as 19:00")), "mensagem de publicacao e amigavel e usa data e horario");
 
     published = [];
-    await eventNotificationService.publishInitial(event({ startDate: new Date("2026-08-10T00:00:00.000Z"), startTime: "18:00" }) as never, "admin-1", {} as never, new Date("2026-08-10T20:00:00.000Z"));
+    await eventNotificationService.publishInitial(event({ startDate: new Date("2026-08-10T00:00:00.000Z"), startTime: "18:00" }) as never, ADMIN_ID, {} as never, new Date("2026-08-10T20:00:00.000Z"));
     check(published.length === 2 && published.every((item) => item.type === NotificationType.EVENT_CREATED), "publicacao dentro de 24 horas nao cria reminder imediato redundante");
 
     let cancelled = 0;
     replace(publisher, "cancelPendingForEntity", (() => { cancelled += 1; return Promise.resolve({ cancelled: 2 }); }) as never);
     published = [];
-    await eventNotificationService.rescheduleReminders(event({ notificationVersion: 2 }) as never, "admin-1", {} as never, new Date("2026-08-10T12:00:00.000Z"));
+    await eventNotificationService.rescheduleReminders(event({ notificationVersion: 2 }) as never, ADMIN_ID, {} as never, new Date("2026-08-10T12:00:00.000Z"));
     check(cancelled === 1 && published.every((item) => item.type === NotificationType.EVENT_REMINDER), "alteracao temporal cancela reminder anterior e cria apenas o novo elegivel");
 
     let lock = true;

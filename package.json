@@ -18,6 +18,7 @@
     "test:schedule-notifications": "tsx scripts/schedule-notifications-test.ts",
     "test:schedule-reminders-cron": "tsx scripts/schedule-reminders-cron-test.ts",
     "test:event-notifications": "tsx scripts/event-notifications-test.ts",
+    "test:event-publication": "tsx scripts/event-publication-regression-test.ts",
     "test:expired-lifecycle": "tsx scripts/expired-lifecycle-test.ts",
     "test:my-schedules-page": "tsx scripts/my-schedules-page-test.ts",
     "test:navigation": "tsx scripts/navigation-order-test.ts",
