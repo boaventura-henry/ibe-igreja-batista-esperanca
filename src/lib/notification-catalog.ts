@@ -121,6 +121,15 @@ export const NOTIFICATION_CATALOG: Readonly<
     entityRoute: NOTIFICATION_ENTITY_CATALOG.EVENT.route,
     defaultPreference: { inAppEnabled: true, reminderHoursBefore: 24 }
   },
+  EVENT_CANCELED: {
+    type: NotificationType.EVENT_CANCELED,
+    label: "Evento cancelado",
+    icon: "calendar-x",
+    supportsReminder: false,
+    entityType: NOTIFICATION_ENTITY_TYPES.EVENT,
+    entityRoute: NOTIFICATION_ENTITY_CATALOG.EVENT.route,
+    defaultPreference: { inAppEnabled: true, reminderHoursBefore: null }
+  },
   BIRTHDAY: {
     type: NotificationType.BIRTHDAY,
     label: "Aniversario",

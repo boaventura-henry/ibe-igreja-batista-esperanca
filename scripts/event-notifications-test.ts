@@ -1,9 +1,11 @@
 import { strict as assert } from "node:assert";
 import { EventStatus, NotificationType } from "@prisma/client";
+import { NOTIFICATION_CATALOG, resolveNotificationDestination } from "../src/lib/notification-catalog";
 import { eventRepository } from "../src/repositories/event.repository";
 import { notificationRepository } from "../src/repositories/notification.repository";
 import { eventNotificationService, eventStartAt } from "../src/services/event-notification.service";
 import { notificationPublisher } from "../src/services/notification-publisher.service";
+import { resolveEffectiveNotificationPreference } from "../src/services/notification.service";
 import {
   notificationCreateSchema,
   type NotificationCreateInput
@@ -48,7 +50,8 @@ async function main() {
     check(startsAt?.toISOString() === "2026-08-16T22:00:00.000Z", "horario de Sao Paulo converte corretamente para UTC");
 
     let published: NotificationCreateInput[] = [];
-    replace(repository, "listActivePortalUsers", (() => Promise.resolve(RECIPIENT_IDS.map((id) => ({ id })))) as never);
+    let recipientIds = [...RECIPIENT_IDS];
+    replace(repository, "listActivePortalUsers", (() => Promise.resolve(recipientIds.map((id) => ({ id })))) as never);
     replace(publisher, "preferences", ((ids: string[], type: NotificationType) => Promise.resolve(ids.map((userId) => ({ userId, active: true, preference: { type, inAppEnabled: true, reminderHoursBefore: 24, isDefault: true } })))) as never);
     replace(publisher, "publish", ((inputs: NotificationCreateInput[]) => {
       inputs.forEach((item) => notificationCreateSchema.parse(item));
@@ -77,6 +80,41 @@ async function main() {
     await eventNotificationService.rescheduleReminders(event({ notificationVersion: 2 }) as never, ADMIN_ID, {} as never, new Date("2026-08-10T12:00:00.000Z"));
     check(cancelled === 1 && published.every((item) => item.type === NotificationType.EVENT_REMINDER), "alteracao temporal cancela reminder anterior e cria apenas o novo elegivel");
 
+    published = [];
+    cancelled = 0;
+    await eventNotificationService.cancelled(event({ notificationVersion: 2 }) as never, ADMIN_ID, {} as never);
+    check(cancelled === 1, "cancelamento invalida reminders pendentes na mesma operacao persistente");
+    check(
+      published.length === RECIPIENT_IDS.length && published.every((item) => item.type === NotificationType.EVENT_CANCELED),
+      "cancelamento cria uma notificacao por usuario elegivel"
+    );
+    check(
+      published.every((item) =>
+        item.title === "Evento cancelado" &&
+        item.message === 'O evento "Culto de Celebracao", previsto para 16/08/2026 \u00e0s 19:00, foi cancelado.' &&
+        item.deduplicationKey === `event:canceled:v2:event-1:${item.userId}` &&
+        notificationCreateSchema.safeParse(item).success
+      ),
+      "cancelamento usa mensagem segura e chave versionada aceita pelo validator"
+    );
+    published = [];
+    await eventNotificationService.cancelled(event({ startTime: null, notificationVersion: 3 }) as never, ADMIN_ID, {} as never);
+    check(
+      published.every((item) => item.message === 'O evento "Culto de Celebracao", previsto para 16/08/2026, foi cancelado.'),
+      "cancelamento sem horario omite somente o horario da mensagem"
+    );
+    check(
+      NOTIFICATION_CATALOG.EVENT_CANCELED.defaultPreference.inAppEnabled &&
+        resolveEffectiveNotificationPreference(NotificationType.EVENT_CANCELED).inAppEnabled &&
+        resolveNotificationDestination({ entityType: "EVENT", entityId: "event-1" }) === "/portal/eventos?notification=event-1",
+      "EVENT_CANCELED usa preferencia habilitada e destino seguro da listagem do Portal"
+    );
+    recipientIds = [];
+    published = [];
+    await eventNotificationService.cancelled(event({ notificationVersion: 4 }) as never, ADMIN_ID, {} as never);
+    check(published.length === 0, "zero destinatarios nao bloqueia o cancelamento nem cria Push");
+    recipientIds = [...RECIPIENT_IDS];
+
     let lock = true;
     let sent: string[] = [];
     let invalidated: string[] = [];
@@ -85,7 +123,8 @@ async function main() {
     replace(notifications, "listDueScheduled", (() => Promise.resolve([{ id: "reminder-1", userId: "user-a", entityType: "EVENT", entityId: "event-1", expiresAt: new Date("2026-08-17T10:00:00.000Z"), deduplicationKey: "event:reminder:v1:event-1:user-a:202608161900" }])) as never);
     replace(notifications, "markSent", ((ids: string[]) => { sent = ids; return Promise.resolve({ count: ids.length }); }) as never);
     replace(notifications, "cancelScheduled", ((ids: string[]) => { invalidated = ids; return Promise.resolve({ count: ids.length }); }) as never);
-    replace(repository, "listPublishedByIds", (() => Promise.resolve([event()])) as never);
+    let publishedEvents = [event()];
+    replace(repository, "listPublishedByIds", (() => Promise.resolve(publishedEvents)) as never);
     replace(repository, "listActivePortalUsersByIds", (() => Promise.resolve([{ id: "user-a" }])) as never);
     replace(publisher, "deliverPush", (() => Promise.resolve({})) as never);
     const processed = await eventNotificationService.processPendingReminders(new Date("2026-08-15T22:00:00.000Z"));
@@ -93,6 +132,15 @@ async function main() {
     lock = false;
     const locked = await eventNotificationService.processPendingReminders();
     check(!locked.executed && locked.reason === "already_running", "advisory lock de eventos isola execucoes concorrentes");
+    lock = true;
+    sent = [];
+    invalidated = [];
+    publishedEvents = [];
+    const cancelledAfterTransition = await eventNotificationService.processPendingReminders(new Date("2026-08-15T22:00:00.000Z"));
+    check(
+      cancelledAfterTransition.sent === 0 && invalidated[0] === "reminder-1",
+      "processor revalida evento cancelado ou excluido e invalida reminder antes da entrega"
+    );
 
     const source = await import("node:fs").then(({ readFileSync }) => readFileSync("src/services/scheduled-jobs.service.ts", "utf8"));
     check(source.includes("eventNotificationService.processPendingReminders"), "orquestrador reutiliza o Cron externo para reminders de eventos");

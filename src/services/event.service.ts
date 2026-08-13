@@ -282,8 +282,13 @@ export const eventService = {
       const transactionalCurrent = await eventRepository.findById(id, database);
       if (!transactionalCurrent) return null;
       if (transactionalCurrent.status === EventStatus.PUBLISHED) {
-        await eventRepository.incrementNotificationVersion(id, database);
-        await eventNotificationService.cancelPendingReminders(id, database);
+        const version = await eventRepository.incrementNotificationVersion(id, database);
+        const batch = await eventNotificationService.cancelled(
+          { ...transactionalCurrent, notificationVersion: version.notificationVersion },
+          userId,
+          database
+        );
+        notificationIds.push(...batch.notificationIds);
       }
       const result = await eventRepository.softDeleteWithinTransaction(id, userId, database);
       return result.count ? { id, deletedAt: new Date() } : null;
@@ -329,6 +334,7 @@ export const eventService = {
   },
 
   async finish(id: string, userId: string, status: EventStatus) {
+    const notificationIds: string[] = [];
     const event = await eventRepository.transaction(async (database) => {
       const current = await eventRepository.findById(id, database);
       if (!current) return null;
@@ -340,12 +346,20 @@ export const eventService = {
         id, [EventStatus.DRAFT, EventStatus.PUBLISHED], status, userId, database
       );
       if (result && current.status === EventStatus.PUBLISHED) {
-        await eventRepository.incrementNotificationVersion(id, database);
-        await eventNotificationService.cancelPendingReminders(id, database);
+        const version = await eventRepository.incrementNotificationVersion(id, database);
+        const versioned = { ...result, notificationVersion: version.notificationVersion };
+        if (status === EventStatus.CANCELED) {
+          const batch = await eventNotificationService.cancelled(versioned, userId, database);
+          notificationIds.push(...batch.notificationIds);
+        } else {
+          await eventNotificationService.cancelPendingReminders(id, database);
+        }
+        return versioned;
       }
       return result;
     });
     if (!event) throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
+    await notificationPublisher.deliverPush(notificationIds);
     return serialize(event);
   }
 };

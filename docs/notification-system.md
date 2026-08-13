@@ -14,6 +14,7 @@ separadas das preferencias por tipo da Central.
 - `NOTICE_CREATED`
 - `EVENT_CREATED`
 - `EVENT_REMINDER`
+- `EVENT_CANCELED`
 - `BIRTHDAY`
 
 Escalas e eventos publicados possuem produtores funcionais. Os demais tipos
@@ -176,7 +177,7 @@ evitando N+1. Nao existe endpoint generico para disparo administrativo.
 A primeira transicao valida de um evento de `DRAFT` para `PUBLISHED` cria
 `EVENT_CREATED` para cada usuario ativo vinculado a um membro ativo. Esse conjunto
 representa os usuarios elegiveis do Portal; usuarios inativos, sem membro ou com
-membro removido/inativo ficam fora. A chave `event:published:<eventId>:<userId>` e
+membro removido/inativo ficam fora. A chave `event:published:v<notificationVersion>:<eventId>:<userId>` e
 protegida pelo indice unico da notificacao, inclusive sob concorrencia.
 
 Se o evento tem horario e inicia em mais de 24 horas, o mesmo commit cria
@@ -199,6 +200,20 @@ O Cron externo existente chama `ScheduledJobsService`, que executa o processador
 reminders de evento com advisory lock proprio, lote ordenado, transacao serializavel
 e ate tres tentativas para conflitos transitorios. Esse job usa uma chave distinta do
 processador de escalas e dos processadores de lifecycle.
+
+Quando um evento ja publicado e cancelado ou sofre soft delete, o mesmo commit
+invalida seus `EVENT_REMINDER` pendentes e cria `EVENT_CANCELED` para os usuarios
+elegiveis naquele momento. A mensagem usa data e horario do evento em
+`America/Sao_Paulo`, e o destino continua sendo a listagem segura de eventos do
+Portal. Eventos em `DRAFT`, `COMPLETED` ou `ARCHIVED` nao geram essa comunicacao; cancelar e depois excluir permanece uma unica ocorrencia logica.
+Depois de `PUBLISHED -> CANCELED`, uma exclusao posterior nao cria outro aviso: a
+transicao logica usa a chave `event:canceled:v<notificationVersion>:<eventId>:<userId>`
+e o indice unico por usuario preserva a idempotencia sob retry e concorrencia.
+
+`EVENT_CANCELED` possui preferencia propria do tipo de evento, habilitada por
+padrao para a Central e para a entrega Web Push elegivel. A persistencia In-App,
+o versionamento e a invalidacao dos reminders acontecem dentro da transacao; o Push
+e tentado somente depois do commit e nao reverte o cancelamento nem o soft delete.
 
 ```text
 Evento DRAFT -> PUBLISHED -> NotificationService -> In-App -> Web Push pos-commit

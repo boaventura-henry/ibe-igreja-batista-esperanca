@@ -92,6 +92,12 @@ function formatEventContext(event: EventRecord) {
   return `${event.title} para ${date}${time}`;
 }
 
+function formatCancellationMessage(event: EventRecord) {
+  const date = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(event.startDate);
+  const time = event.startTime ? ` \u00e0s ${event.startTime}` : "";
+  return `O evento "${event.title}", previsto para ${date}${time}, foi cancelado.`;
+}
+
 function input(
   event: EventRecord,
   userId: string,
@@ -237,6 +243,21 @@ export const eventNotificationService = {
     const recipients = await eventRepository.listActivePortalUsers(database);
     return notificationPublisher.publish(
       await reminderInputs(event, recipients.map((user) => user.id), createdById, database, now),
+      database
+    );
+  },
+
+  async cancelled(event: EventRecord, createdById: string, database: NotificationDatabase) {
+    await this.cancelPendingReminders(event.id, database);
+    const recipients = await eventRepository.listActivePortalUsers(database);
+    return notificationPublisher.publish(
+      recipients.map((recipient) => input(event, recipient.id, {
+        type: NotificationType.EVENT_CANCELED,
+        title: "Evento cancelado",
+        message: formatCancellationMessage(event),
+        createdById,
+        deduplicationKey: `event:canceled:v${event.notificationVersion}:${event.id}:${recipient.id}`
+      })),
       database
     );
   },
