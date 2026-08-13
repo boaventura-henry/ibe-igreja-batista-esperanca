@@ -1,0 +1,5 @@
+ALTER TYPE "NotificationType" ADD VALUE 'NOTICE_CANCELED';
+
+ALTER TABLE "Announcement"
+  ADD COLUMN "publishedAt" TIMESTAMP(3),
+  ADD COLUMN "notificationVersion" INTEGER NOT NULL DEFAULT 0;

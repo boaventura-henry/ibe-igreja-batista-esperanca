@@ -283,6 +283,7 @@ enum NotificationType {
   SCHEDULE_PUBLISHED
   SCHEDULE_REMINDER
   NOTICE_CREATED
+  NOTICE_CANCELED
   EVENT_CREATED
   EVENT_REMINDER
   EVENT_CANCELED
@@ -952,8 +953,10 @@ model Announcement {
   audience     AnnouncementAudience @default(ALL)
   ministryId   String?
   isPinned     Boolean              @default(false)
-  publishAt    DateTime?
-  expiresAt    DateTime?
+  publishAt           DateTime?
+  publishedAt         DateTime?
+  notificationVersion Int              @default(0)
+  expiresAt           DateTime?
   externalLink String?
   createdById  String?
   updatedById  String?

@@ -20,6 +20,7 @@
     "test:event-notifications": "tsx scripts/event-notifications-test.ts",
     "test:event-publication": "tsx scripts/event-publication-regression-test.ts",
     "test:event-cancellations": "tsx scripts/event-cancellation-notifications-test.ts",
+    "test:announcement-notifications": "tsx scripts/announcement-notifications-test.ts",
     "test:expired-lifecycle": "tsx scripts/expired-lifecycle-test.ts",
     "test:my-schedules-page": "tsx scripts/my-schedules-page-test.ts",
     "test:navigation": "tsx scripts/navigation-order-test.ts",

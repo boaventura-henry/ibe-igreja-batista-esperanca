@@ -218,6 +218,20 @@ export const notificationRepository = {
     });
   },
 
+  async listRecipientUserIdsByEntity(
+    entityType: string,
+    entityId: string,
+    type: NotificationType,
+    database: NotificationDatabase = prisma
+  ) {
+    const rows = await database.notification.findMany({
+      where: { entityType, entityId, type, sentAt: { not: null } },
+      distinct: ["userId"],
+      select: { userId: true }
+    });
+    return rows.map((row) => row.userId);
+  },
+
   listPreferences(
     userIds: string[],
     types?: NotificationType[],

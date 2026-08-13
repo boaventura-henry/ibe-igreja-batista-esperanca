@@ -1,6 +1,7 @@
 export { accessRoleService } from "./access-role.service";
 export { accessRequestService } from "./access-request.service";
 export { announcementService } from "./announcement.service";
+export { announcementNotificationService } from "./announcement-notification.service";
 export { birthdayService } from "./birthday.service";
 export { authService } from "./auth.service";
 export { appReleaseService } from "./app-release.service";

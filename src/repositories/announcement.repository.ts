@@ -1,4 +1,4 @@
-import { AnnouncementAudience, AnnouncementStatus, type Prisma } from "@prisma/client";
+import { AnnouncementAudience, AnnouncementStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import { applicationDayStart } from "@/lib/application-time";
 import type {
@@ -16,6 +16,8 @@ const announcementSelect = {
   ministry: { select: { id: true, name: true, color: true } },
   isPinned: true,
   publishAt: true,
+  publishedAt: true,
+  notificationVersion: true,
   expiresAt: true,
   externalLink: true,
   reads: {
@@ -29,6 +31,7 @@ const announcementSelect = {
 } satisfies Prisma.AnnouncementSelect;
 
 export type AnnouncementRecord = Prisma.AnnouncementGetPayload<{ select: typeof announcementSelect }>;
+export type AnnouncementDatabase = Prisma.TransactionClient | typeof prisma;
 
 function activePortalAudienceWhere(memberId: string | null | undefined): Prisma.AnnouncementWhereInput {
   return {
@@ -152,8 +155,16 @@ export const announcementRepository = {
     return { announcements, total };
   },
 
-  findById(id: string) {
-    return prisma.announcement.findFirst({
+  transaction<T>(callback: (database: Prisma.TransactionClient) => Promise<T>) {
+    return prisma.$transaction(callback, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 30_000
+    });
+  },
+
+  findById(id: string, database: AnnouncementDatabase = prisma) {
+    return database.announcement.findFirst({
       where: { id, deletedAt: null },
       select: announcementSelect
     });
@@ -186,6 +197,34 @@ export const announcementRepository = {
       where: { id },
       data: { status, updatedById: userId },
       select: announcementSelect
+    });
+  },
+
+  async transitionStatus(id: string, from: AnnouncementStatus[], status: AnnouncementStatus, userId: string, database: AnnouncementDatabase, options?: { publishedAt?: Date; incrementNotificationVersion?: boolean }) {
+    const updated = await database.announcement.updateMany({
+      where: { id, deletedAt: null, status: { in: from } },
+      data: { status, updatedById: userId, ...(options?.publishedAt ? { publishedAt: options.publishedAt } : {}), ...(options?.incrementNotificationVersion ? { notificationVersion: { increment: 1 } } : {}) }
+    });
+    return updated.count ? this.findById(id, database) : null;
+  },
+
+  incrementNotificationVersion(id: string, database: AnnouncementDatabase) {
+    return database.announcement.update({ where: { id }, data: { notificationVersion: { increment: 1 } }, select: { notificationVersion: true } });
+  },
+
+  softDeleteWithinTransaction(id: string, userId: string, database: AnnouncementDatabase) {
+    return database.announcement.updateMany({ where: { id, deletedAt: null }, data: { deletedAt: new Date(), updatedById: userId } });
+  },
+
+  listActivePortalUsers(announcement: Pick<AnnouncementRecord, "audience" | "ministry">, database: AnnouncementDatabase) {
+    const ministryId = announcement.ministry?.id;
+    return database.user.findMany({
+      where: {
+        isActive: true,
+        memberId: { not: null },
+        member: { is: { status: "ACTIVE", deletedAt: null, ...(announcement.audience === AnnouncementAudience.MINISTRY ? { memberMinistries: { some: { ministryId, status: "ACTIVE", exitDate: null, deletedAt: null } } } : {}) } }
+      },
+      select: { id: true }
     });
   },
 

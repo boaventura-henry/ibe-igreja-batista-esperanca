@@ -12,6 +12,7 @@ separadas das preferencias por tipo da Central.
 - `SCHEDULE_PUBLISHED`
 - `SCHEDULE_REMINDER`
 - `NOTICE_CREATED`
+- `NOTICE_CANCELED`
 - `EVENT_CREATED`
 - `EVENT_REMINDER`
 - `EVENT_CANCELED`
@@ -311,3 +312,13 @@ contratos das APIs.
 
 A estrategia operacional de rollout esta em
 `docs/notification-migration-expand-contract.md`.
+
+## Comunicados
+
+`NOTICE_CREATED` e criado somente na primeira transicao `DRAFT -> PUBLISHED`. `NOTICE_CANCELED` e criado somente quando um comunicado `PUBLISHED` sofre soft delete. O modelo `Announcement` registra `publishedAt` e `notificationVersion` para deduplicacao deterministica por usuario (`announcement:published:v...` e `announcement:canceled:v...`).
+
+Destinatarios sao usuarios ativos vinculados a membros ativos; para audiencia `MINISTRY`, exigem vinculo ministerial ativo. Preferencias In-App sao resolvidas pelo catalogo e Web Push ocorre apenas apos o commit. O arquivamento automatico por expiracao e a exclusao de `ARCHIVED` nao criam cancelamento.
+
+No cancelamento, o sistema prioriza os usuarios que receberam `NOTICE_CREATED` para preservar a coorte originalmente impactada, inclusive se um vinculo ministerial mudou. Comunicados historicos publicados antes desta Story nao possuem esse historico; nesses casos, o cancelamento usa os destinatarios atualmente elegiveis e recebe a primeira versao de notificacao. Nenhuma edicao de comunicado publicado gera `NOTICE_CREATED` retroativa.
+
+Avisos `ARCHIVED` podem receber soft delete administrativo, sem criar `NOTICE_CANCELED`; o arquivamento por expiracao continua sem notificacao.

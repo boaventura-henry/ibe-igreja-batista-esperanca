@@ -103,6 +103,15 @@ export const NOTIFICATION_CATALOG: Readonly<
     entityRoute: NOTIFICATION_ENTITY_CATALOG.NOTICE.route,
     defaultPreference: { inAppEnabled: true, reminderHoursBefore: null }
   },
+  NOTICE_CANCELED: {
+    type: NotificationType.NOTICE_CANCELED,
+    label: "Aviso cancelado",
+    icon: "megaphone-off",
+    supportsReminder: false,
+    entityType: NOTIFICATION_ENTITY_TYPES.NOTICE,
+    entityRoute: NOTIFICATION_ENTITY_CATALOG.NOTICE.route,
+    defaultPreference: { inAppEnabled: true, reminderHoursBefore: null }
+  },
   EVENT_CREATED: {
     type: NotificationType.EVENT_CREATED,
     label: "Novo evento",

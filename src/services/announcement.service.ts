@@ -1,12 +1,36 @@
-import { AnnouncementAudience, AnnouncementStatus } from "@prisma/client";
+import { AnnouncementAudience, AnnouncementStatus, Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { announcementRepository, type AnnouncementRecord } from "@/repositories";
+import { announcementNotificationService } from "@/services/announcement-notification.service";
+import { notificationPublisher } from "@/services/notification-publisher.service";
 import type { AnnouncementListResult, AnnouncementSummary, PortalAnnouncementListResult } from "@/types";
 import type {
   AnnouncementCreateInput,
   AnnouncementListQueryInput,
   AnnouncementUpdateInput
 } from "@/validators";
+
+const MAX_ANNOUNCEMENT_TRANSACTION_ATTEMPTS = 3;
+const TRANSIENT_TRANSACTION_CODES = new Set(["P2034", "40001", "40P01"]);
+
+function transientTransactionCode(error: unknown): string | null {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) return TRANSIENT_TRANSACTION_CODES.has(error.code) ? error.code : null;
+  if (!error || typeof error !== "object") return null;
+  const candidate = error as { code?: unknown; cause?: unknown };
+  if (typeof candidate.code === "string" && TRANSIENT_TRANSACTION_CODES.has(candidate.code)) return candidate.code;
+  return candidate.cause ? transientTransactionCode(candidate.cause) : null;
+}
+
+async function runAnnouncementTransaction<T>(operation: (database: Prisma.TransactionClient) => Promise<T>) {
+  for (let attempt = 1; attempt <= MAX_ANNOUNCEMENT_TRANSACTION_ATTEMPTS; attempt += 1) {
+    try {
+      return await announcementRepository.transaction(operation);
+    } catch (error) {
+      if (!transientTransactionCode(error) || attempt === MAX_ANNOUNCEMENT_TRANSACTION_ATTEMPTS) throw error;
+    }
+  }
+  throw new Error("Announcement transaction retry limit reached.");
+}
 
 function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
@@ -84,6 +108,9 @@ export const announcementService = {
   },
 
   async create(data: AnnouncementCreateInput, userId: string) {
+    if (data.status !== AnnouncementStatus.DRAFT) {
+      throw new AppError("Use a acao de publicar para disponibilizar um comunicado.", 403, "ANNOUNCEMENT_PUBLISH_ACTION_REQUIRED");
+    }
     ensureDateRange(data.publishAt, data.expiresAt);
     await ensureMinistryForAudience(data.audience, data.ministryId);
 
@@ -113,28 +140,59 @@ export const announcementService = {
   },
 
   async remove(id: string, userId: string) {
-    const current = await this.getById(id);
-    if (current.status === AnnouncementStatus.ARCHIVED) {
-      throw new AppError("Comunicado arquivado e somente para consulta.", 409, "ANNOUNCEMENT_ARCHIVED");
-    }
+    await this.getById(id);
 
-    return announcementRepository.softDelete(id, userId);
+    const notificationIds: string[] = [];
+    const deleted = await runAnnouncementTransaction(async (database) => {
+      const transactionalCurrent = await announcementRepository.findById(id, database);
+      if (!transactionalCurrent) return null;
+      if (transactionalCurrent.status === AnnouncementStatus.PUBLISHED) {
+        const version = await announcementRepository.incrementNotificationVersion(id, database);
+        const batch = await announcementNotificationService.cancelled(
+          { ...transactionalCurrent, notificationVersion: version.notificationVersion },
+          userId,
+          database
+        );
+        notificationIds.push(...batch.notificationIds);
+      }
+      const result = await announcementRepository.softDeleteWithinTransaction(id, userId, database);
+      return result.count ? { id, deletedAt: new Date() } : null;
+    });
+    if (!deleted) throw new AppError("Comunicado nao encontrado.", 404, "ANNOUNCEMENT_NOT_FOUND");
+    await notificationPublisher.deliverPush(notificationIds);
+    return deleted;
   },
 
   async publish(id: string, userId: string) {
-    const current = await announcementRepository.findById(id);
-
-    if (!current) {
-      throw new AppError("Comunicado nao encontrado.", 404, "ANNOUNCEMENT_NOT_FOUND");
-    }
-
-    if (current.status === AnnouncementStatus.ARCHIVED) {
-      throw new AppError("Comunicado arquivado nao pode ser publicado.", 409, "ANNOUNCEMENT_ARCHIVED");
-    }
-
-    ensureDateRange(current.publishAt, current.expiresAt);
-
-    return serialize(await announcementRepository.updateStatus(id, AnnouncementStatus.PUBLISHED, userId));
+    const notificationIds: string[] = [];
+    const announcement = await runAnnouncementTransaction(async (database) => {
+      const current = await announcementRepository.findById(id, database);
+      if (!current) return null;
+      if (current.status === AnnouncementStatus.PUBLISHED) return current;
+      if (current.status === AnnouncementStatus.ARCHIVED) {
+        throw new AppError("Comunicado arquivado nao pode ser publicado.", 409, "ANNOUNCEMENT_ARCHIVED");
+      }
+      ensureDateRange(current.publishAt, current.expiresAt);
+      const published = await announcementRepository.transitionStatus(
+        id,
+        [AnnouncementStatus.DRAFT],
+        AnnouncementStatus.PUBLISHED,
+        userId,
+        database,
+        { publishedAt: new Date(), incrementNotificationVersion: true }
+      );
+      if (!published) {
+        const concurrent = await announcementRepository.findById(id, database);
+        if (concurrent?.status === AnnouncementStatus.PUBLISHED) return concurrent;
+        return null;
+      }
+      const batch = await announcementNotificationService.publishInitial(published, userId, database);
+      notificationIds.push(...batch.notificationIds);
+      return published;
+    });
+    if (!announcement) throw new AppError("Comunicado nao encontrado.", 404, "ANNOUNCEMENT_NOT_FOUND");
+    await notificationPublisher.deliverPush(notificationIds);
+    return serialize(announcement);
   },
 
   async archive(id: string, userId: string) {

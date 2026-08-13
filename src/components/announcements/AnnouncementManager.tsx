@@ -59,7 +59,7 @@ function normalizeForm(form: AnnouncementFormValues, includeStatus: boolean) {
   return {
     title: form.title,
     content: form.content,
-    status: includeStatus ? form.status : undefined,
+    status: includeStatus ? AnnouncementStatus.DRAFT : undefined,
     audience: form.audience,
     ministryId: form.audience === AnnouncementAudience.MINISTRY ? form.ministryId || null : null,
     isPinned: form.isPinned,
@@ -382,8 +382,7 @@ function AnnouncementForm({
             <div className="md:col-span-4">
               <FormMessage id="announcement-form-message">{formMessage}</FormMessage>
             </div>
-            <Field label="Titulo" className="md:col-span-3"><input required value={form.title} onChange={(event) => updateForm("title", event.target.value)} className={inputClass} /></Field>
-            <Field label="Status"><select value={form.status} disabled={Boolean(editingId)} onChange={(event) => updateForm("status", event.target.value as AnnouncementStatus)} className={inputClass}>{Object.values(AnnouncementStatus).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></Field>
+            <Field label="Titulo" className="md:col-span-4"><input required value={form.title} onChange={(event) => updateForm("title", event.target.value)} className={inputClass} /></Field>
             <Field label="Conteudo" className="md:col-span-4"><textarea required value={form.content} onChange={(event) => updateForm("content", event.target.value)} className={`${inputClass} min-h-32`} /></Field>
             <Field label="Publico"><select value={form.audience} onChange={(event) => updateForm("audience", event.target.value as AnnouncementAudience)} className={inputClass}>{Object.values(AnnouncementAudience).map((audience) => <option key={audience} value={audience}>{audienceLabels[audience]}</option>)}</select></Field>
             <Field label="Ministerio"><select value={form.ministryId} disabled={form.audience !== AnnouncementAudience.MINISTRY} onChange={(event) => updateForm("ministryId", event.target.value)} className={inputClass}><option value="">Selecione</option>{data?.filters.ministries.map((ministry) => <option key={ministry.id} value={ministry.id}>{ministry.name}</option>)}</select></Field>
