@@ -3,7 +3,7 @@ import { appFeatures } from "../src/config/app-features";
 import { appReleases, type AppRelease } from "../src/config/app-releases";
 import { appRoadmap } from "../src/config/app-roadmap";
 import { EXPECTED_DATABASE_SCHEMA } from "../src/config/database-schema";
-import { getAppVersionInfo, shortCommitHash } from "../src/lib/app-version";
+import { APP_VERSION, getAppVersionInfo, shortCommitHash } from "../src/lib/app-version";
 import { hasPermission } from "../src/lib/permissions";
 import { compareSemanticVersions, isSemanticVersion } from "../src/lib/semantic-version";
 import { getLatestPublishedRelease, getPendingPublishedRelease, getPublishedReleases, markPublishedReleaseAsSeen } from "../src/services/app-release.service";
@@ -12,25 +12,37 @@ import { releaseSeenSchema } from "../src/validators/app-release.validator";
 
 const publishedReleases: AppRelease[] = [
   { version: "0.1.0", title: "Base", summary: "Primeira entrega publicada.", type: "MINOR", status: "PUBLISHED", releaseDate: "2026-01-01", highlights: ["Base do sistema"], technicalNotes: ["Nota interna"] },
-  { version: "0.2.0", title: "Atual", summary: "Entrega publicada de teste.", type: "MINOR", status: "PUBLISHED", releaseDate: "2026-02-01", highlights: ["Melhoria atual"] }
+  { version: "0.2.0", title: "Atual", summary: "Entrega publicada de teste.", type: "MINOR", status: "PUBLISHED", releaseDate: "2026-02-01", highlights: ["Melhoria atual"] },
+  { version: "0.2.1", title: "Historico", summary: "Entrega patch publicada de teste.", type: "PATCH", status: "PUBLISHED", releaseDate: "2026-07-26", highlights: ["Melhoria historica"] }
 ];
 
 async function main() {
 
+assert.equal(APP_VERSION, "0.2.2", "0: versao ativa aponta para a abertura 0.2.2");
+assert.equal(appReleases.filter((release) => release.version === APP_VERSION).length, 1, "0: existe uma unica release configurada como versao ativa");
+assert.equal(appReleases.find((release) => release.version === "0.2.2")?.type, "PATCH", "0: 0.2.2 e uma release PATCH");
+assert.equal(appReleases.find((release) => release.version === "0.2.2")?.status, "UNRELEASED", "0: 0.2.2 permanece nao publicada");
+assert.equal(appReleases.find((release) => release.version === "0.2.2")?.releaseDate, null, "0: 0.2.2 nao possui data de publicacao");
+assert.equal(appReleases.find((release) => release.version === "0.2.1")?.status, "PUBLISHED", "0: 0.2.1 preserva seu estado historico publicado");
+assert.equal(appReleases.find((release) => release.version === "0.2.1")?.releaseDate, "2026-07-26", "0: 0.2.1 preserva a data comprovada da tag v0.2.1");
+assert.deepEqual(appReleases.filter((release) => release.status === "UNRELEASED").map((release) => release.version), [APP_VERSION], "0: somente a versao ativa esta em desenvolvimento");
+assert.deepEqual(appReleases.slice(0, 3).map((release) => release.version), ["0.2.2", "0.2.1", "0.2.0"], "0: catalogo mantem a versao ativa antes do historico");
+
+
 assert.equal(appReleases.find((release) => release.version === "0.2.0")?.status, "PUBLISHED", "1: 0.2.0 permanece publicada");
-assert.equal(getLatestPublishedRelease(appReleases)?.version, "0.2.0", "1: catalogo retorna a ultima release publicada");
+assert.equal(getLatestPublishedRelease(appReleases)?.version, "0.2.1", "1: catalogo retorna a ultima release publicada");
 const catalogSeen = await markPublishedReleaseAsSeen(
-  { userId: "user-1", version: "0.2.0" },
+  { userId: "user-1", version: "0.2.1" },
   {
     releases: appReleases,
     update: async (input) => ({ id: input.userId, lastSeenAppVersion: input.version })
   }
 );
-assert.equal(catalogSeen.version, "0.2.0", "1: release publicada pode ser marcada sem alterar outros dados");
+assert.equal(catalogSeen.version, "0.2.1", "1: release publicada pode ser marcada sem alterar outros dados");
 
-assert.equal(getPendingPublishedRelease("0.1.0", publishedReleases)?.version, "0.2.0", "2: usuario recebe a ultima release publicada pendente");
-assert.equal(getPendingPublishedRelease("0.2.0", publishedReleases), null, "3: release ja visualizada nao reaparece");
-assert.equal(getPendingPublishedRelease(null, publishedReleases)?.version, "0.2.0", "4: usuario novo recebe somente a release publicada mais recente");
+assert.equal(getPendingPublishedRelease("0.1.0", publishedReleases)?.version, "0.2.1", "2: usuario recebe a ultima release publicada pendente");
+assert.equal(getPendingPublishedRelease("0.2.1", publishedReleases), null, "3: release ja visualizada nao reaparece");
+assert.equal(getPendingPublishedRelease(null, publishedReleases)?.version, "0.2.1", "4: usuario novo recebe somente a release publicada mais recente");
 
 const unrelatedUserState = { name: "Usuario", email: "user@example.test" };
 let persisted: { userId: string; version: string } | null = null;
@@ -39,7 +51,7 @@ assert.deepEqual(persisted, { userId: "user-1", version: "0.2.0" }, "5: confirma
 assert.deepEqual(unrelatedUserState, { name: "Usuario", email: "user@example.test" }, "5: outros campos permanecem intactos");
 
 await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "9.9.9" }, { releases: publishedReleases }), /nao encontrada/i, "6: versao inexistente e rejeitada");
-await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "0.2.1" }), /nao foi publicada/i, "7: versao futura nao publicada e rejeitada");
+await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "0.2.2" }), /nao foi publicada/i, "7: versao futura nao publicada e rejeitada");
 assert.equal(releaseSeenSchema.safeParse({ userId: "outro-usuario", version: "0.2.0" }).success, false, "8: payload nao aceita manipulacao de userId");
 
 assert(compareSemanticVersions("0.2.0", "0.1.0") > 0 && compareSemanticVersions("0.10.0", "0.9.0") > 0 && compareSemanticVersions("1.0.0", "0.99.0") > 0, "9: comparacao SemVer e numerica");
@@ -68,7 +80,7 @@ const safePayload = JSON.stringify({ application: getAppVersionInfo(), database:
 for (const forbidden of ["DATABASE_URL", "password", "secret", "checksum", "SELECT ", "C:\\Users\\"]) assert(!safePayload.toLowerCase().includes(forbidden.toLowerCase()), `20: resposta nao contem ${forbidden}`);
 assert(!safePayload.includes("Nota interna"), "20: endpoint comum remove notas tecnicas");
 
-console.log("App releases, roadmap and diagnostics: 20 scenarios passed.");
+console.log("App releases, roadmap and diagnostics: 27 scenarios passed.");
 }
 
 void main().catch((error) => {

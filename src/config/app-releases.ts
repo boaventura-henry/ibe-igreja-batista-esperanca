@@ -14,12 +14,22 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.2",
+    title: "Versao 0.2.2",
+    summary: "Proxima versao em desenvolvimento.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: ["Ciclo de desenvolvimento aberto."],
+    technicalNotes: ["Nenhuma funcionalidade desta versao foi implementada."]
+  },
+  {
     version: "0.2.1",
     title: "Evolucoes operacionais planejadas",
     summary: "Ciclo de desenvolvimento para evoluir autorizacao ministerial, repertorios e organizacao de registros.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-07-26",
     highlights: [
       "RBAC por ministerio",
       "Historico de utilizacao das musicas",
