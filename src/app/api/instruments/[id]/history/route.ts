@@ -1,0 +1,7 @@
+import { NextRequest } from "next/server";
+import { ZodError } from "zod";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { toAppError } from "@/lib/errors";
+import { requirePermission } from "@/lib/session";
+const invalid=(e:ZodError)=>apiError(e.issues[0]?.message??"Dados invalidos.",400,"VALIDATION_ERROR");
+import { instrumentHistoryService } from "@/services"; import { instrumentHistoryCreateSchema, instrumentHistoryListQuerySchema } from "@/validators"; type C={params:Promise<{id:string}>}; export const dynamic="force-dynamic"; export async function GET(r:NextRequest,c:C){try{await requirePermission("instrument.history.view");return apiSuccess(await instrumentHistoryService.list((await c.params).id,instrumentHistoryListQuerySchema.parse(Object.fromEntries(r.nextUrl.searchParams))));}catch(e){return e instanceof ZodError?invalid(e):apiError(toAppError(e).message,toAppError(e).statusCode,toAppError(e).code)}} export async function POST(r:NextRequest,c:C){try{const u=await requirePermission("instrument.history.create");return apiSuccess(await instrumentHistoryService.create((await c.params).id,instrumentHistoryCreateSchema.parse(await r.json()),u.id),{status:201});}catch(e){return e instanceof ZodError?invalid(e):apiError(toAppError(e).message,toAppError(e).statusCode,toAppError(e).code)}}

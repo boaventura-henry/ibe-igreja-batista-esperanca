@@ -15,6 +15,7 @@ const administrativeContract = [
   ["/usuarios", "Usuários", "user.view"],
   ["/ministerios", "Ministérios", "ministry.view"],
   ["/membros-ministerios", "Membros x Ministérios", "memberMinistry.view"],
+  ["/instrumentos", "Instrumentos", "instrument.view"],
   ["/escalas", "Escalas", "schedule.view"],
   ["/minhas-escalas", "Minhas Escalas", "mySchedule.view"],
   ["/musicas", "Músicas", "song.view"],

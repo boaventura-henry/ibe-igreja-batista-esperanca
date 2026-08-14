@@ -1,0 +1,7 @@
+import { NextRequest } from "next/server";
+import { ZodError } from "zod";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { toAppError } from "@/lib/errors";
+import { requirePermission } from "@/lib/session";
+const invalid=(e:ZodError)=>apiError(e.issues[0]?.message??"Dados invalidos.",400,"VALIDATION_ERROR");
+import { instrumentService } from "@/services"; import { instrumentUpdateSchema } from "@/validators"; type C={params:Promise<{id:string}>}; export const dynamic="force-dynamic"; export async function GET(_:NextRequest,c:C){try{await requirePermission("instrument.view");return apiSuccess(await instrumentService.getById((await c.params).id));}catch(e){const a=toAppError(e);return apiError(a.message,a.statusCode,a.code)}} export async function PUT(r:NextRequest,c:C){try{const u=await requirePermission("instrument.update");return apiSuccess(await instrumentService.update((await c.params).id,instrumentUpdateSchema.parse(await r.json()),u.id));}catch(e){return e instanceof ZodError?invalid(e):apiError(toAppError(e).message,toAppError(e).statusCode,toAppError(e).code)}} export async function DELETE(_:NextRequest,c:C){try{const u=await requirePermission("instrument.delete");return apiSuccess(await instrumentService.remove((await c.params).id,u.id));}catch(e){const a=toAppError(e);return apiError(a.message,a.statusCode,a.code)}}

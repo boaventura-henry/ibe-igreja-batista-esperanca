@@ -14,6 +14,7 @@ export const navigationItems: readonly NavigationItem[] = [
   { href: "/usuarios", label: "Usuários", icon: "Usuarios", permission: "user.view" },
   { href: "/ministerios", label: "Ministérios", icon: "Servir", permission: "ministry.view" },
   { href: "/membros-ministerios", label: "Membros x Ministérios", icon: "Vinculos", permission: "memberMinistry.view" },
+  { href: "/instrumentos", label: "Instrumentos", icon: "Agenda", permission: "instrument.view" },
   { href: "/escalas", label: "Escalas", icon: "Agenda", permission: "schedule.view" },
   { href: "/minhas-escalas", label: "Minhas Escalas", icon: "Agenda", permission: "mySchedule.view", administrative: false },
   { href: "/musicas", label: "Músicas", icon: "Agenda", permission: "song.view" },
