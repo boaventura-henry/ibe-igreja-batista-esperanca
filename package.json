@@ -28,8 +28,10 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
+    "prisma:sync-permissions": "tsx prisma/sync-permissions.ts",
     "test:instruments": "tsx scripts/instrument-domain-test.ts",
-    "test:instruments-ui": "tsx scripts/instrument-admin-ui-contract-test.ts"
+    "test:instruments-ui": "tsx scripts/instrument-admin-ui-contract-test.ts",
+    "test:permission-sync": "tsx scripts/permission-sync-test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

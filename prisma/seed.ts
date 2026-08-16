@@ -3,6 +3,7 @@ import { seedAdminSchema } from "../src/validators/auth.validator";
 import { userRepository } from "../src/repositories/user.repository";
 import { accessRoleRepository } from "../src/repositories/access-role.repository";
 import { availablePermissions, type PermissionCode } from "../src/lib/permissions";
+import { syncPermissions } from "./seed-permissions";
 import { prisma } from "../src/prisma/client";
 import { ZodError } from "zod";
 import { createSlug } from "../src/utils/identity";
@@ -207,28 +208,7 @@ async function main() {
     password: process.env.ADMIN_PASSWORD
   });
 
-  for (const permission of availablePermissions) {
-    await prisma.permission.upsert({
-      where: { code: permission.code },
-      update: {
-        name: permission.name,
-        label: permission.label,
-        module: permission.module,
-        description: "description" in permission ? permission.description : null,
-        isSystem: true,
-        isActive: true
-      },
-      create: {
-        code: permission.code,
-        name: permission.name,
-        label: permission.label,
-        module: permission.module,
-        description: "description" in permission ? permission.description : null,
-        isSystem: true,
-        isActive: true
-      }
-    });
-  }
+  await syncPermissions();
 
   for (const widget of dashboardWidgets) {
     await prisma.dashboardWidget.upsert({
