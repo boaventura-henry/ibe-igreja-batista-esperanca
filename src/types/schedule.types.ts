@@ -22,6 +22,16 @@ export type SchedulePerson = {
   status: string;
 };
 
+export type ScheduleInstrumentAssignmentSummary = {
+  id: string;
+  source: "REGISTERED" | "OWN";
+  startedAt: string;
+  endedAt: string | null;
+  changeReason: string | null;
+  instrumentCategory: { id: string; name: string };
+  instrument: { id: string; name: string; brand: string | null; model: string | null; status: string } | null;
+};
+
 export type ScheduleMemberSummary = {
   id: string;
   role: ScheduleMemberRole;
@@ -32,6 +42,7 @@ export type ScheduleMemberSummary = {
   observations: string | null;
   member: SchedulePerson;
   replacedByMember: SchedulePerson | null;
+  instrumentAssignment: ScheduleInstrumentAssignmentSummary | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -89,4 +100,5 @@ export type ScheduleMemberFormValues = {
   replacedByMemberId?: string;
   observations?: string;
   allowMinistryException: boolean;
+  instrumentAssignment?: { instrumentCategoryId: string; source: "REGISTERED" | "OWN"; instrumentId?: string | null; changeReason?: string | null };
 };

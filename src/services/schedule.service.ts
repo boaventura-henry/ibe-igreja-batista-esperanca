@@ -1,4 +1,4 @@
-import { MemberStatus, ScheduleMemberStatus, ScheduleScope, ScheduleStatus } from "@prisma/client";
+import { MemberStatus, ScheduleMemberRole, ScheduleMemberStatus, ScheduleScope, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
@@ -13,6 +13,7 @@ import {
   type ScheduleRelevantChange
 } from "@/services/schedule-notification.service";
 import { notificationPublisher } from "@/services/notification-publisher.service";
+import { createInitialAssignmentInTransaction, endActiveAssignmentInTransaction, setActiveAssignmentInTransaction } from "@/services/schedule-instrument-assignment.service";
 import type { ScheduleListResult, ScheduleMemberSummary, ScheduleSummary } from "@/types";
 import type {
   ScheduleCreateInput,
@@ -66,6 +67,13 @@ function serializeMember(member: ScheduleMemberRecord): ScheduleMemberSummary {
     declineReason: member.declineReason,
     observations: member.observations,
     member: { ...safeMember, displayName: getMemberDisplayName(member.member) },
+    instrumentAssignment: member.instrumentAssignments?.[0]
+      ? {
+          ...member.instrumentAssignments![0],
+          startedAt: member.instrumentAssignments![0].startedAt.toISOString(),
+          endedAt: member.instrumentAssignments![0].endedAt?.toISOString() ?? null
+        }
+      : null,
     replacedByMember: safeReplacement
       ? { ...safeReplacement, displayName: getMemberDisplayName(safeReplacement) }
       : null,
@@ -721,12 +729,22 @@ export const scheduleService = {
       }
       ensureScheduleCanReceiveMembers(transactionalSchedule);
       await ensureMemberRules(transactionalSchedule, data, { database });
-      const created = await scheduleRepository.addMember(
+      let created = await scheduleRepository.addMember(
         scheduleId,
         data,
         authorization.user.id,
         database
       );
+      if (data.instrumentAssignment) {
+        await createInitialAssignmentInTransaction(
+          created.id,
+          created.role,
+          data.instrumentAssignment,
+          authorization.user.id,
+          database
+        );
+        created = (await scheduleRepository.findScheduleMemberById(created.id, scheduleId, database)) ?? created;
+      }
       if (
         transactionalSchedule.status === ScheduleStatus.PUBLISHED &&
         transactionalSchedule.publishedAt
@@ -791,13 +809,43 @@ export const scheduleService = {
         database
       });
       const changed = hasRelevantMemberChange(transactionalCurrent, data);
-      if (!changed) return transactionalCurrent;
-      const result = await scheduleRepository.updateMember(
-        memberScheduleId,
-        data,
-        authorization.user.id,
-        database
-      );
+      if (!changed && !data.instrumentAssignment) return transactionalCurrent;
+      let result = changed
+        ? await scheduleRepository.updateMember(
+            memberScheduleId,
+            data,
+            authorization.user.id,
+            database
+          )
+        : transactionalCurrent;
+      const mustEndAssignment =
+        result.role !== ScheduleMemberRole.INSTRUMENT ||
+        result.status === ScheduleMemberStatus.REPLACED ||
+        (data.memberId !== undefined && data.memberId !== transactionalCurrent.member.id) ||
+        (data.replacedByMemberId !== undefined &&
+          data.replacedByMemberId !== (transactionalCurrent.replacedByMember?.id ?? null));
+      if (data.instrumentAssignment && mustEndAssignment) {
+        throw new AppError(
+          "Nao e possivel alocar instrumento ao alterar ou substituir este participante.",
+          409,
+          "SCHEDULE_INSTRUMENT_ASSIGNMENT_CONFLICT"
+        );
+      }
+      if (mustEndAssignment) {
+        await endActiveAssignmentInTransaction(memberScheduleId, authorization.user.id, database);
+      } else if (data.instrumentAssignment) {
+        await setActiveAssignmentInTransaction(
+          memberScheduleId,
+          result.role,
+          data.instrumentAssignment,
+          authorization.user.id,
+          database
+        );
+      }
+      if (mustEndAssignment || data.instrumentAssignment) {
+        result = (await scheduleRepository.findScheduleMemberById(memberScheduleId, scheduleId, database)) ?? result;
+      }
+      if (!changed) return result;
       if (
         transactionalSchedule.status === ScheduleStatus.PUBLISHED &&
         transactionalSchedule.publishedAt
@@ -896,6 +944,11 @@ export const scheduleService = {
       const version = shouldNotify
         ? await scheduleRepository.incrementNotificationVersion(scheduleId, database)
         : null;
+      await endActiveAssignmentInTransaction(
+        memberScheduleId,
+        authorization.user.id,
+        database
+      );
       const removed = await scheduleRepository.softDeleteMember(
         memberScheduleId,
         authorization.user.id,

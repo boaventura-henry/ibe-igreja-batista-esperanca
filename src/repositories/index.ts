@@ -58,6 +58,8 @@ export {
   buildScheduleScopeWhere,
   scheduleAccessRepository
 } from "./schedule-access.repository";
+export { scheduleInstrumentAssignmentRepository } from "./schedule-instrument-assignment.repository";
+export type { ScheduleInstrumentAssignmentRecord } from "./schedule-instrument-assignment.repository";
 export { scheduleRepository } from "./schedule.repository";
 export type {
   ScheduleDatabase,

@@ -285,6 +285,11 @@ enum InstrumentStatus {
   INACTIVE
 }
 
+enum ScheduleInstrumentSource {
+  REGISTERED
+  OWN
+}
+
 enum InstrumentHistoryType {
   MAINTENANCE
   REPLACEMENT
@@ -364,6 +369,8 @@ model User {
   updatedInstruments             Instrument[]                  @relation("InstrumentUpdatedBy")
   createdInstrumentHistories     InstrumentHistory[]           @relation("InstrumentHistoryCreatedBy")
   updatedInstrumentHistories     InstrumentHistory[]           @relation("InstrumentHistoryUpdatedBy")
+  createdScheduleInstrumentAssignments ScheduleMemberInstrumentAssignment[] @relation("ScheduleInstrumentAssignmentCreatedBy")
+  updatedScheduleInstrumentAssignments ScheduleMemberInstrumentAssignment[] @relation("ScheduleInstrumentAssignmentUpdatedBy")
   createdAt                      DateTime                      @default(now())
   updatedAt                      DateTime                      @updatedAt
 
@@ -824,6 +831,7 @@ model ScheduleMember {
   replacedByMember   Member?              @relation("ScheduleMemberReplacement", fields: [replacedByMemberId], references: [id], onDelete: SetNull)
   createdBy          User?                @relation("ScheduleMemberCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy          User?                @relation("ScheduleMemberUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  instrumentAssignments ScheduleMemberInstrumentAssignment[]
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 
@@ -1157,6 +1165,7 @@ model InstrumentCategory {
   createdById String?
   updatedById String?
   instruments Instrument[]
+  scheduleAssignments ScheduleMemberInstrumentAssignment[]
   createdBy   User?        @relation("InstrumentCategoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy   User?        @relation("InstrumentCategoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt   DateTime     @default(now())
@@ -1186,6 +1195,7 @@ model Instrument {
   ministry         Ministry?           @relation(fields: [ministryId], references: [id], onDelete: SetNull)
   histories        InstrumentHistory[] @relation("InstrumentHistoryPrimary")
   relatedHistories InstrumentHistory[] @relation("InstrumentHistoryRelated")
+  scheduleAssignments ScheduleMemberInstrumentAssignment[]
   createdBy        User?               @relation("InstrumentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy        User?               @relation("InstrumentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt        DateTime            @default(now())
@@ -1222,6 +1232,31 @@ model InstrumentHistory {
   @@index([relatedInstrumentId])
 }
 
+model ScheduleMemberInstrumentAssignment {
+  id                   String                    @id @default(cuid())
+  scheduleMemberId     String
+  instrumentCategoryId String
+  source               ScheduleInstrumentSource
+  instrumentId         String?
+  startedAt            DateTime                  @default(now())
+  endedAt              DateTime?
+  changeReason         String?
+  createdById          String
+  updatedById          String?
+  scheduleMember       ScheduleMember            @relation(fields: [scheduleMemberId], references: [id], onDelete: Restrict)
+  instrumentCategory   InstrumentCategory        @relation(fields: [instrumentCategoryId], references: [id], onDelete: Restrict)
+  instrument           Instrument?               @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  createdBy            User                      @relation("ScheduleInstrumentAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy            User?                     @relation("ScheduleInstrumentAssignmentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  @@index([scheduleMemberId])
+  @@index([instrumentId, startedAt])
+  @@index([instrumentCategoryId])
+  @@index([startedAt])
+  @@index([endedAt])
+}
 model Donation {
   id        String       @id @default(cuid())
   amount    Decimal      @db.Decimal(12, 2)

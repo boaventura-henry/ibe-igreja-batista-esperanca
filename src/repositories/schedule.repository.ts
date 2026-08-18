@@ -38,6 +38,20 @@ const scheduleMemberSelect = {
       status: true,
       user: { select: { id: true } }
     }
+  },
+  instrumentAssignments: {
+    where: { endedAt: null },
+    select: {
+      id: true,
+      source: true,
+      startedAt: true,
+      endedAt: true,
+      changeReason: true,
+      instrumentCategory: { select: { id: true, name: true } },
+      instrument: { select: { id: true, name: true, brand: true, model: true, status: true } }
+    },
+    orderBy: { startedAt: "desc" },
+    take: 1
   }
 } satisfies Prisma.ScheduleMemberSelect;
 

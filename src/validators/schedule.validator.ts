@@ -1,5 +1,6 @@
 import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { z } from "zod";
+import { scheduleInstrumentAssignmentSchema } from "@/validators/schedule-instrument-assignment.validator";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") {
@@ -76,13 +77,15 @@ const scheduleMemberBaseSchema = z.object({
   confirmedAt: optionalDateTime,
   replacedByMemberId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   observations: optionalText,
-  allowMinistryException: z.boolean()
+  allowMinistryException: z.boolean(),
+  instrumentAssignment: scheduleInstrumentAssignmentSchema.optional()
 });
 
 export const scheduleMemberCreateSchema = scheduleMemberBaseSchema.extend({
   role: z.enum(ScheduleMemberRole).default(ScheduleMemberRole.OTHER),
   status: z.enum(ScheduleMemberStatus).default(ScheduleMemberStatus.PENDING),
-  allowMinistryException: z.boolean().default(false)
+  allowMinistryException: z.boolean().default(false),
+  instrumentAssignment: scheduleInstrumentAssignmentSchema.optional()
 });
 
 export const scheduleMemberUpdateSchema = scheduleMemberBaseSchema.partial();

@@ -30,6 +30,7 @@ export { eventNotificationService } from "./event-notification.service";
 export { passwordResetRequestService } from "./password-reset-request.service";
 export { reportService } from "./report.service";
 export { resolveScheduleAccessContext } from "./schedule-access.service";
+export { scheduleInstrumentAssignmentService } from "./schedule-instrument-assignment.service";
 export { scheduleService } from "./schedule.service";
 export { songService } from "./song.service";
 export { songUsageHistoryService } from "./song-usage-history.service";
