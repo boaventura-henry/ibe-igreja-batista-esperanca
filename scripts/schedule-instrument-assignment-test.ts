@@ -134,12 +134,26 @@ async function main() {
     assert.match(serviceSource, /replacedByMemberId[\s\S]*endActiveAssignmentInTransaction/, "17: substituicao nao transfere assignment.");
     const historical = await participant(ScheduleMemberRole.INSTRUMENT);
     assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: historical.id } }), 0, "18: escala antiga sem assignment permanece valida.");
+    await assign(historical.id, historical.role, ScheduleInstrumentSource.REGISTERED, bass.id, instruments[0].id);
     await prisma.instrument.update({ where: { id: instruments[0].id }, data: { status: InstrumentStatus.INACTIVE } });
     await prisma.instrumentCategory.update({ where: { id: bass.id }, data: { isActive: false } });
     const preserved = await prisma.scheduleMemberInstrumentAssignment.findUnique({ where: { id: first.id }, include: { instrument: true, instrumentCategory: true } });
     assert.equal(preserved?.instrument?.id, instruments[0].id, "19: instrumento inativo preservado.");
     assert.equal(preserved?.instrumentCategory.id, bass.id, "20: categoria inativa preservada.");
-    console.log("Schedule instrument assignments: 28 scenarios passed.");
+    const unchangedHistorical = await prisma.$transaction((db) => setActiveAssignmentInTransaction(
+      historical.id,
+      historical.role,
+      { source: ScheduleInstrumentSource.REGISTERED, instrumentCategoryId: bass.id, instrumentId: instruments[0].id },
+      userId,
+      db
+    ));
+    assert.equal(unchangedHistorical.instrument?.id, instruments[0].id, "21: edicao identica preserva instrumento historico inativo.");
+    assert.equal(
+      await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: historical.id } }),
+      1,
+      "22: edicao historica identica nao cria novo assignment."
+    );
+    console.log("Schedule instrument assignments: 30 scenarios passed.");
   } finally {
     await prisma.scheduleMemberInstrumentAssignment.deleteMany({ where: { scheduleMember: { scheduleId: schedule.id } } });
     await prisma.scheduleMember.deleteMany({ where: { scheduleId: schedule.id } });

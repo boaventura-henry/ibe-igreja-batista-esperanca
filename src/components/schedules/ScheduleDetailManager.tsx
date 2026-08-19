@@ -1,7 +1,7 @@
 "use client";
 
 import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   getScheduleMemberRolePresentation,
@@ -21,6 +21,10 @@ type ApiResponse<T> =
   | { success: false; error: { code: string; message: string } };
 
 type AvailableScheduleMember = { id: string; name: string; nickname: string | null; displayName: string; status: string };
+type InstrumentCategoryOption = { id: string; name: string; isActive: boolean };
+type EligibleInstrument = { id: string; name: string; brand: string | null; model: string | null; status: string };
+type InstrumentAssignmentDraft = { instrumentCategoryId: string; source: "" | "REGISTERED" | "OWN"; instrumentId: string };
+type MemberForm = Omit<ScheduleMemberFormValues, "instrumentAssignment"> & { instrumentAssignment?: InstrumentAssignmentDraft };
 
 const statusOptions = [
   ScheduleMemberStatus.PENDING,
@@ -40,7 +44,7 @@ const scheduleStatusLabels: Record<ScheduleStatus, string> = {
   CANCELED: "Cancelada"
 };
 
-const emptyMemberForm: ScheduleMemberFormValues = {
+const emptyMemberForm: MemberForm = {
   memberId: "",
   role: ScheduleMemberRole.OTHER,
   status: ScheduleMemberStatus.PENDING,
@@ -62,8 +66,12 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value));
 }
 
-function normalizeMemberForm(form: ScheduleMemberFormValues) {
-  return {
+function instrumentLabel(instrument: EligibleInstrument, historical = false) {
+  return instrument.name + (historical && instrument.status !== "ACTIVE" ? " (Indisponivel)" : "");
+}
+
+function normalizeMemberForm(form: MemberForm, allowMissingHistoricalAssignment = false) {
+  const payload = {
     memberId: form.memberId || undefined,
     role: form.role,
     status: form.status,
@@ -71,6 +79,45 @@ function normalizeMemberForm(form: ScheduleMemberFormValues) {
     replacedByMemberId: form.replacedByMemberId || undefined,
     observations: form.observations?.trim() || undefined,
     allowMinistryException: form.allowMinistryException
+  };
+
+  if (
+    form.role !== ScheduleMemberRole.INSTRUMENT ||
+    form.status === ScheduleMemberStatus.REPLACED ||
+    !form.instrumentAssignment
+  ) {
+    return payload;
+  }
+
+  const assignment = form.instrumentAssignment;
+
+  if (!assignment.instrumentCategoryId && !assignment.source && !assignment.instrumentId) {
+    if (allowMissingHistoricalAssignment) {
+      return payload;
+    }
+
+    throw new Error("Informe a categoria musical.");
+  }
+
+  if (!assignment.instrumentCategoryId) {
+    throw new Error("Informe a categoria musical.");
+  }
+
+  if (!assignment.source) {
+    throw new Error("Informe a origem do instrumento.");
+  }
+
+  if (assignment.source === "REGISTERED" && !assignment.instrumentId) {
+    throw new Error("Selecione o instrumento da igreja.");
+  }
+
+  return {
+    ...payload,
+    instrumentAssignment: {
+      instrumentCategoryId: assignment.instrumentCategoryId,
+      source: assignment.source,
+      instrumentId: assignment.source === "REGISTERED" ? assignment.instrumentId : null
+    }
   };
 }
 
@@ -81,8 +128,14 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   const [formMessage, setFormMessage] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [memberForm, setMemberForm] = useState<ScheduleMemberFormValues>(emptyMemberForm);
+  const [memberForm, setMemberForm] = useState<MemberForm>(emptyMemberForm);
   const [availableMembers, setAvailableMembers] = useState<AvailableScheduleMember[]>([]);
+  const [instrumentCategories, setInstrumentCategories] = useState<InstrumentCategoryOption[]>([]);
+  const [eligibleInstruments, setEligibleInstruments] = useState<EligibleInstrument[]>([]);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
+  const [isInstrumentsLoading, setIsInstrumentsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const instrumentRequest = useRef(0);
 
   const permissionCodes = session?.user.permissionCodes ?? [];
   const canUpdate = permissionCodes.includes("schedule.update");
@@ -91,6 +144,33 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   const isLocked = schedule.status === ScheduleStatus.COMPLETED || schedule.status === ScheduleStatus.CANCELED;
 
   const selectedScheduleMember = editingId ? schedule.members.find((member) => member.id === editingId) : null;
+  const historicalAssignment = selectedScheduleMember?.instrumentAssignment ?? null;
+  const showInstrumentFields =
+    memberForm.role === ScheduleMemberRole.INSTRUMENT &&
+    memberForm.status !== ScheduleMemberStatus.REPLACED;
+  const categoryOptions = useMemo(() => {
+    const current = historicalAssignment?.instrumentCategory;
+
+    if (current && !instrumentCategories.some((category) => category.id === current.id)) {
+      return [{ id: current.id, name: current.name, isActive: false }, ...instrumentCategories];
+    }
+
+    return instrumentCategories;
+  }, [historicalAssignment, instrumentCategories]);
+  const instrumentOptions = useMemo(() => {
+    const current = historicalAssignment?.instrument;
+
+    if (
+      current &&
+      memberForm.instrumentAssignment?.source === "REGISTERED" &&
+      memberForm.instrumentAssignment.instrumentCategoryId === historicalAssignment?.instrumentCategory.id &&
+      !eligibleInstruments.some((instrument) => instrument.id === current.id)
+    ) {
+      return [current, ...eligibleInstruments];
+    }
+
+    return eligibleInstruments;
+  }, [eligibleInstruments, historicalAssignment, memberForm.instrumentAssignment]);
   const selectableMembers = useMemo(() => {
     if (!memberForm.memberId || availableMembers.some((member) => member.id === memberForm.memberId)) {
       return availableMembers;
@@ -123,6 +203,62 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     }
   }
 
+  async function loadInstrumentCategories() {
+    setIsCategoriesLoading(true);
+
+    try {
+      const response = await fetch("/api/instrument-categories?isActive=true&pageSize=100", { cache: "no-store" });
+      const payload = (await response.json()) as ApiResponse<{ categories: InstrumentCategoryOption[] }>;
+
+      if (!payload.success) {
+        throw new Error(payload.error.message);
+      }
+
+      setInstrumentCategories(payload.data.categories);
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel carregar as categorias musicais.");
+    } finally {
+      setIsCategoriesLoading(false);
+    }
+  }
+
+  async function loadEligibleInstruments(categoryId: string) {
+    const requestId = ++instrumentRequest.current;
+
+    if (!categoryId) {
+      setEligibleInstruments([]);
+      setIsInstrumentsLoading(false);
+      return;
+    }
+
+    setIsInstrumentsLoading(true);
+
+    try {
+      const response = await fetch(
+        "/api/schedules/" + schedule.id + "/eligible-instruments?categoryId=" + encodeURIComponent(categoryId),
+        { cache: "no-store" }
+      );
+      const payload = (await response.json()) as ApiResponse<{ instruments: EligibleInstrument[] }>;
+
+      if (!payload.success) {
+        throw new Error(payload.error.message);
+      }
+
+      if (requestId === instrumentRequest.current) {
+        setEligibleInstruments(payload.data.instruments);
+      }
+    } catch (error) {
+      if (requestId === instrumentRequest.current) {
+        setEligibleInstruments([]);
+        setFormMessage(error instanceof Error ? error.message : "Nao foi possivel carregar os instrumentos elegiveis.");
+      }
+    } finally {
+      if (requestId === instrumentRequest.current) {
+        setIsInstrumentsLoading(false);
+      }
+    }
+  }
+
   function updateAllowMinistryException(value: boolean) {
     updateForm("allowMinistryException", value);
     void loadAvailableMembers(value, selectedScheduleMember?.member);
@@ -137,7 +273,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     }
   }
 
-  function updateForm<K extends keyof ScheduleMemberFormValues>(name: K, value: ScheduleMemberFormValues[K]) {
+  function updateForm<K extends keyof MemberForm>(name: K, value: MemberForm[K]) {
     setMemberForm((current) => ({
       ...current,
       [name]: value,
@@ -147,14 +283,73 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     }));
   }
 
+  function updateRole(role: ScheduleMemberRole) {
+    setMemberForm((current) => ({
+      ...current,
+      role,
+      ...(role === ScheduleMemberRole.INSTRUMENT ? {} : { instrumentAssignment: undefined })
+    }));
+
+    if (role !== ScheduleMemberRole.INSTRUMENT) {
+      instrumentRequest.current += 1;
+      setEligibleInstruments([]);
+      setIsInstrumentsLoading(false);
+    }
+  }
+
+  function updateInstrumentCategory(instrumentCategoryId: string) {
+    const source = memberForm.instrumentAssignment?.source ?? "";
+
+    setMemberForm((form) => ({
+      ...form,
+      instrumentAssignment: { instrumentCategoryId, source, instrumentId: "" }
+    }));
+    setEligibleInstruments([]);
+
+    if (source === "REGISTERED" && instrumentCategoryId) {
+      void loadEligibleInstruments(instrumentCategoryId);
+    }
+  }
+
+  function updateInstrumentSource(source: InstrumentAssignmentDraft["source"]) {
+    const instrumentCategoryId = memberForm.instrumentAssignment?.instrumentCategoryId ?? "";
+
+    setMemberForm((form) => ({
+      ...form,
+      instrumentAssignment: { instrumentCategoryId, source, instrumentId: "" }
+    }));
+
+    if (source === "REGISTERED" && instrumentCategoryId) {
+      void loadEligibleInstruments(instrumentCategoryId);
+    } else {
+      instrumentRequest.current += 1;
+      setEligibleInstruments([]);
+      setIsInstrumentsLoading(false);
+    }
+  }
+
+  function updateInstrumentId(instrumentId: string) {
+    setMemberForm((form) => ({
+      ...form,
+      instrumentAssignment: {
+        instrumentCategoryId: form.instrumentAssignment?.instrumentCategoryId ?? "",
+        source: form.instrumentAssignment?.source ?? "",
+        instrumentId
+      }
+    }));
+  }
+
   function openCreateForm() {
     setEditingId(null);
     setMemberForm(emptyMemberForm);
     setAvailableMembers([]);
+    setInstrumentCategories([]);
+    setEligibleInstruments([]);
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
     void loadAvailableMembers(false);
+    void loadInstrumentCategories();
   }
 
   function openEditForm(memberId: string) {
@@ -165,6 +360,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     }
 
     setEditingId(memberId);
+    const assignment = item.instrumentAssignment;
     setMemberForm({
       memberId: item.member.id,
       role: item.role,
@@ -172,18 +368,38 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
       confirmedAt: item.confirmedAt ?? "",
       replacedByMemberId: item.replacedByMember?.id ?? "",
       observations: item.observations ?? "",
-      allowMinistryException: false
+      allowMinistryException: false,
+      instrumentAssignment: assignment
+        ? {
+            instrumentCategoryId: assignment.instrumentCategory.id,
+            source: assignment.source,
+            instrumentId: assignment.instrument?.id ?? ""
+          }
+        : undefined
     });
     setAvailableMembers([]);
+    setInstrumentCategories([]);
+    setEligibleInstruments([]);
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
     void loadAvailableMembers(false, item.member);
+    void loadInstrumentCategories();
+
+    if (assignment?.source === "REGISTERED") {
+      void loadEligibleInstruments(assignment.instrumentCategory.id);
+    }
   }
 
   async function handleMemberSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
     setFormMessage("");
+    setIsSubmitting(true);
 
     try {
       const response = await fetch(
@@ -191,7 +407,9 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
         {
           method: editingId ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(normalizeMemberForm(memberForm))
+          body: JSON.stringify(
+            normalizeMemberForm(memberForm, Boolean(editingId && !selectedScheduleMember?.instrumentAssignment))
+          )
         }
       );
       const payload = (await response.json()) as ApiResponse<unknown>;
@@ -205,6 +423,8 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
       await reloadSchedule();
     } catch (error) {
       setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o membro da escala.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -287,7 +507,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
               {schedule.members.map((item) => (
                 <tr key={item.id}>
                   <td className="px-4 py-4 font-semibold text-ink-900">{item.member.displayName}</td>
-                  <td className="px-4 py-4 text-ink-700">{roleLabel(item.role)}</td>
+                  <td className="px-4 py-4 text-ink-700">{item.role === ScheduleMemberRole.INSTRUMENT && item.instrumentAssignment ? item.instrumentAssignment.instrumentCategory.name : roleLabel(item.role)}</td>
                   <td className="px-4 py-4"><ScheduleMemberStatusBadge status={item.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{item.replacedByMember?.displayName ?? "-"}</td>
                   <td className="px-4 py-4 text-right">
@@ -332,10 +552,70 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                   ) : null}
                 </Field>
                 <Field label="Funcao">
-                  <select value={memberForm.role} onChange={(event) => updateForm("role", event.target.value as ScheduleMemberRole)} className={inputClass}>
+                  <select value={memberForm.role} onChange={(event) => updateRole(event.target.value as ScheduleMemberRole)} className={inputClass}>
                     {scheduleMemberRoleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
                   </select>
                 </Field>
+                {showInstrumentFields ? (
+                  <>
+                    <Field label="Categoria musical">
+                      <select
+                        value={memberForm.instrumentAssignment?.instrumentCategoryId ?? ""}
+                        onChange={(event) => updateInstrumentCategory(event.target.value)}
+                        disabled={isCategoriesLoading}
+                        className={inputClass}
+                        aria-busy={isCategoriesLoading}
+                      >
+                        <option value="">{isCategoriesLoading ? "Carregando categorias..." : "Categoria nao informada"}</option>
+                        {categoryOptions.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}{!category.isActive ? " (Inativa)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <fieldset className="grid gap-2 text-xs font-bold uppercase tracking-wide text-ink-500">
+                      <legend>Origem do instrumento</legend>
+                      <label className="flex items-center gap-2 text-sm font-semibold normal-case tracking-normal text-ink-700">
+                        <input type="radio" name="instrument-source" value="REGISTERED" checked={memberForm.instrumentAssignment?.source === "REGISTERED"} onChange={() => updateInstrumentSource("REGISTERED")} />
+                        Instrumento da igreja
+                      </label>
+                      <label className="flex items-center gap-2 text-sm font-semibold normal-case tracking-normal text-ink-700">
+                        <input type="radio" name="instrument-source" value="OWN" checked={memberForm.instrumentAssignment?.source === "OWN"} onChange={() => updateInstrumentSource("OWN")} />
+                        Instrumento próprio
+                      </label>
+                    </fieldset>
+                    {memberForm.instrumentAssignment?.source === "REGISTERED" ? (
+                      <Field label="Instrumento" className="md:col-span-2">
+                        <select
+                          value={memberForm.instrumentAssignment.instrumentId}
+                          onChange={(event) => updateInstrumentId(event.target.value)}
+                          disabled={!memberForm.instrumentAssignment.instrumentCategoryId || isInstrumentsLoading}
+                          className={inputClass}
+                          aria-busy={isInstrumentsLoading}
+                        >
+                          <option value="">
+                            {!memberForm.instrumentAssignment.instrumentCategoryId
+                              ? "Selecione uma categoria primeiro"
+                              : isInstrumentsLoading
+                                ? "Carregando instrumentos..."
+                                : instrumentOptions.length === 0
+                                  ? "Nenhum instrumento ativo disponivel para esta categoria."
+                                  : "Selecione"}
+                          </option>
+                          {instrumentOptions.map((instrument) => (
+                            <option key={instrument.id} value={instrument.id}>
+                              {instrumentLabel(instrument, instrument.id === historicalAssignment?.instrument?.id)}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    ) : null}
+                    {memberForm.instrumentAssignment?.source === "OWN" ? (
+                      <p className="text-sm font-semibold text-ink-600 md:col-span-2">Será utilizado um instrumento próprio do membro.</p>
+                    ) : null}
+                  </>
+                ) : null}
                 <Field label="Status">
                   <select value={memberForm.status} onChange={(event) => updateForm("status", event.target.value as ScheduleMemberStatus)} className={inputClass}>
                     {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
@@ -360,7 +640,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
               </div>
               <div className="flex justify-end gap-3 border-t border-hope-100 px-5 py-4">
                 <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">Cancelar</button>
-                <button type="submit" className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">Salvar membro</button>
+                <button type="submit" disabled={isSubmitting} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">{isSubmitting ? "Salvando..." : "Salvar membro"}</button>
               </div>
             </form>
           </div>

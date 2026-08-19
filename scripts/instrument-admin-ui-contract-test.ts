@@ -11,7 +11,7 @@ async function main() {
   ]);
 
   assert.match(instrumentRepository, /categoryId:true/, "A projecao precisa devolver categoryId para edicao.");
-  assert.match(categoryRoute, /requireAnyPermission\(\["instrument\.view","instrument\.create","instrument\.update","instrument\.category\.manage"\]\)/, "Categorias precisam estar disponiveis para visualizacao e formularios autorizados.");
+  assert.match(categoryRoute, /requireAnyPermission\(\["instrument\.view","instrument\.create","instrument\.update","instrument\.category\.manage","schedule\.update"\]\)/, "Categorias precisam estar disponiveis para visualizacao e formularios autorizados.");
   assert.match(manager, /categoryId:\s*string/, "A lista precisa preservar categoryId ao abrir edicao.");
   assert.match(detail, /categoryId:\s*string/, "Os detalhes precisam preservar categoryId ao abrir edicao.");
   assert.match(detail, /relatedInstrumentId\?\s*:\s*string\s*\|\s*null/, "A edicao do historico precisa receber o instrumento relacionado.");

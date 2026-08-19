@@ -108,9 +108,10 @@ export async function setActiveAssignmentInTransaction(
     );
   }
 
-  await validateNewAssignment(input, database);
   const current = await scheduleInstrumentAssignmentRepository.findCurrent(scheduleMemberId, database);
   if (current && matchesActiveAssignment(current, input)) return current;
+
+  await validateNewAssignment(input, database);
 
   if (current) {
     await endActiveAssignmentInTransaction(scheduleMemberId, userId, database);
