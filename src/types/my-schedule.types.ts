@@ -4,6 +4,7 @@ export type MyScheduleParticipant = {
   id: string;
   role: ScheduleMemberRole;
   status: ScheduleMemberStatus;
+  instrumentAssignment: { instrumentCategory: { id: string; name: string } } | null;
   member: {
     id: string;
     name: string;
@@ -40,6 +41,7 @@ export type MyScheduleSummary = {
   startTime: string | null;
   endTime: string | null;
   role: ScheduleMemberRole;
+  instrumentAssignment: { instrumentCategory: { id: string; name: string } } | null;
   status: ScheduleMemberStatus;
   scheduleStatus: ScheduleStatus;
   location: string | null;

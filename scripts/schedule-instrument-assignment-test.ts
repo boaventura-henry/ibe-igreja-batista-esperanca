@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { InstrumentStatus, PrismaClient, ScheduleInstrumentSource, ScheduleMemberRole } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { getScheduleMemberDisplayRole } from "@/lib/schedule-member-role";
 import { createInitialAssignmentInTransaction, endActiveAssignmentInTransaction, setActiveAssignmentInTransaction } from "@/services/schedule-instrument-assignment.service";
 import { scheduleInstrumentAssignmentSchema } from "@/validators";
 const prisma = new PrismaClient();
@@ -46,6 +47,11 @@ async function main() {
     const registered = await participant(ScheduleMemberRole.INSTRUMENT);
     const first = await assign(registered.id, registered.role, ScheduleInstrumentSource.REGISTERED, bass.id, instruments[0].id);
     assert.equal(first.instrument?.id, instruments[0].id, "1/7: INSTRUMENT aceita Instrument ACTIVE.");
+    assert.equal(
+      getScheduleMemberDisplayRole(registered.role, first),
+      bass.name,
+      "1b: REGISTERED apresenta a categoria, nunca o patrimonio fisico."
+    );
     const repeatedRegistered = await prisma.$transaction((db) => setActiveAssignmentInTransaction(
       registered.id,
       registered.role,
@@ -82,6 +88,11 @@ async function main() {
     const own = await participant(ScheduleMemberRole.INSTRUMENT);
     const ownAssignment = await assign(own.id, own.role, ScheduleInstrumentSource.OWN, bass.id, null);
     assert.equal(ownAssignment.instrument, null, "12: proprio nao cria Instrument.");
+    assert.equal(
+      getScheduleMemberDisplayRole(own.role, ownAssignment),
+      bass.name,
+      "12b: OWN apresenta a categoria sem expor a origem administrativa."
+    );
     await expectCode(() => assign(registered.id, registered.role, ScheduleInstrumentSource.OWN, bass.id, null), "SCHEDULE_INSTRUMENT_ALREADY_ASSIGNED");
     const concurrent = await participant(ScheduleMemberRole.INSTRUMENT);
     const attempts = await Promise.allSettled([
@@ -134,12 +145,32 @@ async function main() {
     assert.match(serviceSource, /replacedByMemberId[\s\S]*endActiveAssignmentInTransaction/, "17: substituicao nao transfere assignment.");
     const historical = await participant(ScheduleMemberRole.INSTRUMENT);
     assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: historical.id } }), 0, "18: escala antiga sem assignment permanece valida.");
+    assert.equal(
+      getScheduleMemberDisplayRole(historical.role),
+      "Instrumento",
+      "18b: escala antiga sem assignment usa fallback amigavel."
+    );
     await assign(historical.id, historical.role, ScheduleInstrumentSource.REGISTERED, bass.id, instruments[0].id);
     await prisma.instrument.update({ where: { id: instruments[0].id }, data: { status: InstrumentStatus.INACTIVE } });
     await prisma.instrumentCategory.update({ where: { id: bass.id }, data: { isActive: false } });
     const preserved = await prisma.scheduleMemberInstrumentAssignment.findUnique({ where: { id: first.id }, include: { instrument: true, instrumentCategory: true } });
     assert.equal(preserved?.instrument?.id, instruments[0].id, "19: instrumento inativo preservado.");
     assert.equal(preserved?.instrumentCategory.id, bass.id, "20: categoria inativa preservada.");
+    assert.equal(
+      getScheduleMemberDisplayRole(registered.role, preserved),
+      bass.name,
+      "20b: categoria inativa e instrumento inativo preservam a apresentacao historica."
+    );
+    await prisma.instrument.update({ where: { id: instruments[0].id }, data: { deletedAt: new Date() } });
+    const softDeletedPreserved = await prisma.scheduleMemberInstrumentAssignment.findUnique({
+      where: { id: first.id },
+      include: { instrument: true, instrumentCategory: true }
+    });
+    assert.equal(
+      getScheduleMemberDisplayRole(registered.role, softDeletedPreserved),
+      bass.name,
+      "20c: patrimonio removido preserva a categoria no display historico."
+    );
     const unchangedHistorical = await prisma.$transaction((db) => setActiveAssignmentInTransaction(
       historical.id,
       historical.role,
@@ -153,7 +184,7 @@ async function main() {
       1,
       "22: edicao historica identica nao cria novo assignment."
     );
-    console.log("Schedule instrument assignments: 30 scenarios passed.");
+    console.log("Schedule instrument assignments: 34 scenarios passed.");
   } finally {
     await prisma.scheduleMemberInstrumentAssignment.deleteMany({ where: { scheduleMember: { scheduleId: schedule.id } } });
     await prisma.scheduleMember.deleteMany({ where: { scheduleId: schedule.id } });

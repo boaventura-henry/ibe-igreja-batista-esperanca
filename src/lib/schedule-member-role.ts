@@ -31,3 +31,20 @@ export function getScheduleMemberRolePresentation(
 
   return { value: null, label: "Função não informada" };
 }
+
+type ScheduleMemberInstrumentAssignmentDisplay = {
+  instrumentCategory?: { name?: string | null } | null;
+} | null | undefined;
+
+export function getScheduleMemberDisplayRole(
+  role: string | null | undefined,
+  instrumentAssignment?: ScheduleMemberInstrumentAssignmentDisplay
+) {
+  const categoryName = instrumentAssignment?.instrumentCategory?.name?.trim();
+
+  if (role === ScheduleMemberRole.INSTRUMENT && categoryName) {
+    return categoryName;
+  }
+
+  return getScheduleMemberRolePresentation(role).label;
+}

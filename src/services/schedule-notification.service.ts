@@ -7,7 +7,7 @@ import {
 } from "@prisma/client";
 import { performance } from "node:perf_hooks";
 import { NOTIFICATION_ENTITY_TYPES } from "@/lib/notification-catalog";
-import { getScheduleMemberRolePresentation } from "@/lib/schedule-member-role";
+import { getScheduleMemberDisplayRole } from "@/lib/schedule-member-role";
 import {
   notificationRepository,
   type NotificationDatabase
@@ -93,6 +93,7 @@ type Recipient = {
   participantId: string;
   role: ScheduleMemberRole;
   status: ScheduleMemberStatus;
+  instrumentAssignment: ScheduleMemberRecord["instrumentAssignments"][number] | null;
 };
 
 export type ScheduleRelevantChange =
@@ -169,7 +170,8 @@ export function activeScheduleRecipients(
       userId,
       participantId: participant.id,
       role: participant.role,
-      status: participant.status
+      status: participant.status,
+      instrumentAssignment: participant.instrumentAssignments?.[0] ?? null
     });
   }
 
@@ -458,7 +460,7 @@ export const scheduleNotificationService = {
     const immediate = recipients.map((recipient) =>
       notificationInput(schedule, recipient, {
         title: "Voce foi escalado",
-        message: `Voce foi incluido na escala ${formatScheduleContext(schedule)}. Funcao: ${getScheduleMemberRolePresentation(recipient.role).label}.`,
+        message: `Voce foi incluido na escala ${formatScheduleContext(schedule)}. Funcao: ${getScheduleMemberDisplayRole(recipient.role, recipient.instrumentAssignment)}.`,
         createdById,
         deduplicationKey: `schedule:published:v${schedule.notificationVersion}:${schedule.id}:${recipient.userId}`
       })
@@ -478,7 +480,7 @@ export const scheduleNotificationService = {
     const immediate = recipients.map((recipient) =>
       notificationInput(schedule, recipient, {
         title: "Voce foi escalado",
-        message: `Voce foi incluido na escala ${formatScheduleContext(schedule)}. Funcao: ${getScheduleMemberRolePresentation(recipient.role).label}.`,
+        message: `Voce foi incluido na escala ${formatScheduleContext(schedule)}. Funcao: ${getScheduleMemberDisplayRole(recipient.role, recipient.instrumentAssignment)}.`,
         createdById,
         deduplicationKey: `schedule:participant-added:v${schedule.notificationVersion}:${schedule.id}:${participant.id}`
       })

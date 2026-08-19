@@ -17,6 +17,7 @@ function serializeDate(value: Date | null) {
 function serialize(record: MyScheduleRecord): MyScheduleSummary {
   const participants = record.schedule.members.map((participant) => ({
     ...participant,
+    instrumentAssignment: participant.instrumentAssignments[0] ?? null,
     member: { ...participant.member, displayName: getMemberDisplayName(participant.member) },
     replacedByMember: participant.replacedByMember ? { ...participant.replacedByMember, displayName: getMemberDisplayName(participant.replacedByMember) } : null
   }));
@@ -35,6 +36,7 @@ function serialize(record: MyScheduleRecord): MyScheduleSummary {
     startTime: record.schedule.startTime,
     endTime: record.schedule.endTime,
     role: record.role,
+    instrumentAssignment: record.instrumentAssignments[0] ?? null,
     status: record.status,
     scheduleStatus: record.schedule.status,
     location: record.schedule.location,

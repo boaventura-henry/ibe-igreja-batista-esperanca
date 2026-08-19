@@ -126,6 +126,7 @@ export type PortalDashboardSchedule = {
   endTime: string | null;
   location: string | null;
   role: string;
+  instrumentAssignment: { instrumentCategory: { id: string; name: string } } | null;
   status: string;
   ministry: {
     id: string;

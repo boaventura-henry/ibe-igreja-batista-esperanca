@@ -13,6 +13,11 @@ const myScheduleMemberSelect = {
   observations: true,
   createdAt: true,
   updatedAt: true,
+  instrumentAssignments: {
+    where: { endedAt: null },
+    select: { instrumentCategory: { select: { id: true, name: true } } },
+    take: 1
+  },
   replacedByMember: {
     select: { id: true, name: true, nickname: true, status: true }
   },
@@ -48,6 +53,11 @@ const myScheduleMemberSelect = {
           id: true,
           role: true,
           status: true,
+          instrumentAssignments: {
+            where: { endedAt: null },
+            select: { instrumentCategory: { select: { id: true, name: true } } },
+            take: 1
+          },
           member: {
             select: { id: true, name: true, nickname: true, status: true }
           },

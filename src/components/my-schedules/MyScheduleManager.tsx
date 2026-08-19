@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
 import { PortalScheduleRepertoire } from "@/components/portal/PortalScheduleRepertoire";
 import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
-import { getScheduleMemberRolePresentation } from "@/lib/schedule-member-role";
+import { getScheduleMemberDisplayRole } from "@/lib/schedule-member-role";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -137,7 +137,7 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
                     </div>
                   </td>
                   <td className="px-4 py-4 font-semibold text-hope-700">{schedule.title}<PortalScheduleRepertoire scheduleMemberId={schedule.id} /></td>
-                  <td className="px-4 py-4 text-ink-700">{getScheduleMemberRolePresentation(schedule.role).label}</td>
+                  <td className="px-4 py-4 text-ink-700">{getScheduleMemberDisplayRole(schedule.role, schedule.instrumentAssignment)}</td>
                   <td className="px-4 py-4"><ScheduleMemberStatusBadge status={schedule.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{schedule.location || "-"}</td>
                   <td className="px-4 py-4 text-right">

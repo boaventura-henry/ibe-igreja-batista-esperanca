@@ -32,6 +32,8 @@
     "test:instruments": "tsx scripts/instrument-domain-test.ts",
     "test:schedule-instruments": "tsx scripts/schedule-instrument-assignment-test.ts",
     "test:schedule-instrument-selection": "tsx scripts/schedule-instrument-selection-ui-test.ts",
+    "test:schedule-instrument-display": "tsx scripts/schedule-instrument-display-test.ts",
+    "test:schedule-instrument-display-functional": "tsx scripts/schedule-instrument-display-functional-test.ts",
     "test:instruments-ui": "tsx scripts/instrument-admin-ui-contract-test.ts",
     "test:permission-sync": "tsx scripts/permission-sync-test.ts"
   },

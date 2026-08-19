@@ -4,7 +4,7 @@ import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prism
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
-  getScheduleMemberRolePresentation,
+  getScheduleMemberDisplayRole,
   scheduleMemberRoleOptions
 } from "@/lib/schedule-member-role";
 import { getMemberOptionLabel } from "@/utils";
@@ -53,10 +53,6 @@ const emptyMemberForm: MemberForm = {
   observations: "",
   allowMinistryException: false
 };
-
-function roleLabel(role: ScheduleMemberRole) {
-  return getScheduleMemberRolePresentation(role).label;
-}
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -507,7 +503,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
               {schedule.members.map((item) => (
                 <tr key={item.id}>
                   <td className="px-4 py-4 font-semibold text-ink-900">{item.member.displayName}</td>
-                  <td className="px-4 py-4 text-ink-700">{item.role === ScheduleMemberRole.INSTRUMENT && item.instrumentAssignment ? item.instrumentAssignment.instrumentCategory.name : roleLabel(item.role)}</td>
+                  <td className="px-4 py-4 text-ink-700">{getScheduleMemberDisplayRole(item.role, item.instrumentAssignment)}</td>
                   <td className="px-4 py-4"><ScheduleMemberStatusBadge status={item.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{item.replacedByMember?.displayName ?? "-"}</td>
                   <td className="px-4 py-4 text-right">
