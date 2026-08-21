@@ -18,8 +18,8 @@ export const appReleases: readonly AppRelease[] = [
     title: "Correcao de acesso ao modulo de Instrumentos",
     summary: "O menu e as paginas de Instrumentos agora refletem as permissoes atuais do usuario com protecao reforcada de acesso.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-08-21",
     highlights: [
       "O menu de Instrumentos passa a refletir permissoes concedidas depois do inicio da sessao",
       "Revogacoes de acesso tambem sao aplicadas ao menu administrativo",
