@@ -806,6 +806,12 @@ async function main() {
       ((id: string) => Promise.resolve(lifecycleMembers.get(id) ?? null)) as never
     );
     replace(
+      "lifecycle:lockScheduleMemberById",
+      scheduleRepo,
+      "lockScheduleMemberById",
+      ((id: string) => Promise.resolve(lifecycleMembers.get(id) ?? null)) as never
+    );
+    replace(
       "lifecycle:updateMember",
       scheduleRepo,
       "updateMember",

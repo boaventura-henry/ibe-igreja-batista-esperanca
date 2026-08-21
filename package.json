@@ -23,6 +23,7 @@
     "test:announcement-notifications": "tsx scripts/announcement-notifications-test.ts",
     "test:expired-lifecycle": "tsx scripts/expired-lifecycle-test.ts",
     "test:my-schedules-page": "tsx scripts/my-schedules-page-test.ts",
+    "test:member-schedule-instrument-change": "tsx scripts/member-schedule-instrument-change-test.ts",
     "test:navigation": "tsx scripts/navigation-order-test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

@@ -86,6 +86,10 @@ export const scheduleInstrumentAssignmentRepository = {
     });
   },
 
+  async lockParticipant(id: string, scheduleId: string, database: ScheduleDatabase) {
+    await database.$queryRaw`SELECT "id" FROM "ScheduleMember" WHERE "id" = ${id} AND "scheduleId" = ${scheduleId} AND "deletedAt" IS NULL FOR UPDATE`;
+    return this.findParticipant(id, scheduleId, database);
+  },
   findParticipant(id: string, scheduleId: string, database: ScheduleDatabase = prisma) {
     return database.scheduleMember.findFirst({
       where: { id, scheduleId, deletedAt: null },

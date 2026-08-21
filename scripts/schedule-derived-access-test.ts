@@ -293,6 +293,10 @@ async function main() {
       childCalls += 1;
       return Promise.resolve(null);
     });
+    replace("schedule", "lockScheduleMemberById", () => {
+      childCalls += 1;
+      return Promise.resolve(null);
+    });
 
     for (const method of [
       "list",

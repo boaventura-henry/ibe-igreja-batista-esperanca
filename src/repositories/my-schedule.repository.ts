@@ -1,4 +1,5 @@
 import { Prisma, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
+import type { ScheduleDatabase } from "@/repositories/schedule.repository";
 import { prisma } from "@/prisma/client";
 import { applicationDateOnlyCutoff } from "@/lib/application-time";
 import type { MyScheduleListQueryInput } from "@/validators";
@@ -113,6 +114,29 @@ export const myScheduleRepository = {
     });
   },
 
+  findInstrumentChangeScheduleForMember(id: string, memberId: string) {
+    return prisma.scheduleMember.findFirst({
+      where: { id, memberId, deletedAt: null, schedule: { deletedAt: null } },
+      select: { scheduleId: true }
+    });
+  },
+  findInstrumentChangeForMember(id: string, memberId: string, database: ScheduleDatabase = prisma) {
+    return database.scheduleMember.findFirst({
+      where: { id, memberId, deletedAt: null, schedule: { deletedAt: null } },
+      select: {
+        id: true, memberId: true, role: true, status: true,
+        schedule: { select: { id: true, status: true, date: true, startTime: true, endTime: true, deletedAt: true } },
+        instrumentAssignments: {
+          where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1,
+          select: { id: true, source: true, changeReason: true, instrumentCategory: { select: { id: true, name: true, isActive: true, deletedAt: true } }, instrument: { select: { id: true, name: true, status: true, deletedAt: true } } }
+        }
+      }
+    });
+  },
+  async lockInstrumentChangeForMember(id: string, memberId: string, database: ScheduleDatabase) {
+    await database.$queryRaw`SELECT "id" FROM "ScheduleMember" WHERE "id" = ${id} AND "memberId" = ${memberId} AND "deletedAt" IS NULL FOR UPDATE`;
+    return this.findInstrumentChangeForMember(id, memberId, database);
+  },
   findRepertoireForMember(id: string, memberId: string) {
     return prisma.scheduleMember.findFirst({
       where: {

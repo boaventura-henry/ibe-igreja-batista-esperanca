@@ -1,9 +1,10 @@
-import { ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
+import { ScheduleInstrumentSource, ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
-import { myScheduleRepository, type MyScheduleRecord } from "@/repositories";
+import { myScheduleRepository, scheduleInstrumentAssignmentRepository, scheduleRepository, type MyScheduleRecord } from "@/repositories";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
-import type { MyScheduleDeclineInput, MyScheduleListQueryInput } from "@/validators";
+import type { MyScheduleDeclineInput, MyScheduleInstrumentChangeInput, MyScheduleListQueryInput } from "@/validators";
 import { getMemberDisplayName } from "@/utils";
+import { setActiveAssignmentInTransaction } from "@/services/schedule-instrument-assignment.service";
 
 type MyScheduleSessionUser = {
   id: string;
@@ -82,6 +83,26 @@ function ensureCanSelfRespond(scheduleMember: MyScheduleSummary, action: "confir
   }
 }
 
+function ensureCanChangeInstrument(participant: {
+  role: ScheduleMemberRole;
+  status: ScheduleMemberStatus;
+  schedule: { status: ScheduleStatus };
+}) {
+  if (participant.role !== ScheduleMemberRole.INSTRUMENT) {
+    throw new AppError("Esta participacao nao utiliza instrumento.", 409, "SCHEDULE_INSTRUMENT_ROLE_REQUIRED");
+  }
+  if (participant.schedule.status !== ScheduleStatus.PUBLISHED) {
+    throw new AppError("Esta escala nao permite alterar instrumento.", 409, "SCHEDULE_INSTRUMENT_CLOSED");
+  }
+  if (
+    participant.status === ScheduleMemberStatus.REPLACED ||
+    participant.status === ScheduleMemberStatus.DECLINED ||
+    participant.status === ScheduleMemberStatus.ABSENT
+  ) {
+    throw new AppError("Esta participacao nao permite alterar instrumento.", 409, "SCHEDULE_INSTRUMENT_MEMBER_INACTIVE");
+  }
+}
+
 export const myScheduleService = {
   async list(
     user: MyScheduleSessionUser,
@@ -109,6 +130,58 @@ export const myScheduleService = {
     const record = await myScheduleRepository.findRepertoireForMember(scheduleMemberId, memberId);
     if (!record) throw new AppError("Escala nao encontrada para este membro.", 404, "MY_SCHEDULE_NOT_FOUND");
     return { songs: record.schedule.songs.map((song) => ({ ...song, leadMember: song.leadMember ? { ...song.leadMember, displayName: getMemberDisplayName(song.leadMember) } : null })) };
+  },
+
+  async getInstrumentChange(scheduleMemberId: string, user: MyScheduleSessionUser) {
+    const memberId = getSessionMemberId(user);
+    const participant = await myScheduleRepository.findInstrumentChangeForMember(scheduleMemberId, memberId);
+    if (!participant) throw new AppError("Escala nao encontrada para este membro.", 404, "MY_SCHEDULE_NOT_FOUND");
+    ensureCanChangeInstrument(participant);
+    const current = participant.instrumentAssignments[0] ?? null;
+    if (!current) {
+      throw new AppError("Seu instrumento ainda nao foi definido nesta escala. Solicite ao responsavel pela escala que configure sua funcao/instrumento.", 409, "SCHEDULE_INSTRUMENT_NOT_DEFINED");
+    }
+    return {
+      category: current.instrumentCategory,
+      current,
+      instruments: await scheduleInstrumentAssignmentRepository.listEligible(current.instrumentCategory.id)
+    };
+  },
+
+  async changeInstrument(scheduleMemberId: string, input: MyScheduleInstrumentChangeInput, user: MyScheduleSessionUser) {
+    const memberId = getSessionMemberId(user);
+    const target = await myScheduleRepository.findInstrumentChangeScheduleForMember(
+      scheduleMemberId,
+      memberId
+    );
+    if (!target) throw new AppError("Escala nao encontrada para este membro.", 404, "MY_SCHEDULE_NOT_FOUND");
+
+    return scheduleRepository.transaction(async (database) => {
+      const scheduleLocked = await scheduleRepository.lockById(target.scheduleId, database);
+      if (!scheduleLocked) throw new AppError("Escala nao encontrada para este membro.", 404, "MY_SCHEDULE_NOT_FOUND");
+
+      const participant = await myScheduleRepository.lockInstrumentChangeForMember(scheduleMemberId, memberId, database);
+      if (!participant) throw new AppError("Escala nao encontrada para este membro.", 404, "MY_SCHEDULE_NOT_FOUND");
+      ensureCanChangeInstrument(participant);
+
+      const current = participant.instrumentAssignments[0] ?? null;
+      if (!current) {
+        throw new AppError("Seu instrumento ainda nao foi definido nesta escala. Solicite ao responsavel pela escala que configure sua funcao/instrumento.", 409, "SCHEDULE_INSTRUMENT_NOT_DEFINED");
+      }
+      if (input.currentAssignmentId !== current.id) {
+        throw new AppError("O instrumento foi alterado enquanto este formulario estava aberto. Atualize a pagina e tente novamente.", 409, "SCHEDULE_INSTRUMENT_STALE");
+      }
+
+      const same = current.source === input.source && (current.instrument?.id ?? null) === (input.instrumentId ?? null);
+      if (same) return current;
+      if (!input.changeReason?.trim()) throw new AppError("Informe o motivo da alteracao.", 400, "SCHEDULE_INSTRUMENT_REASON_REQUIRED");
+
+      const assignment = input.source === ScheduleInstrumentSource.REGISTERED
+        ? { instrumentCategoryId: current.instrumentCategory.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: input.instrumentId, changeReason: input.changeReason ?? null }
+        : { instrumentCategoryId: current.instrumentCategory.id, source: ScheduleInstrumentSource.OWN, instrumentId: null, changeReason: input.changeReason ?? null };
+
+      return setActiveAssignmentInTransaction(participant.id, participant.role, assignment, user.id, database);
+    }, { maxWait: 5_000, timeout: 15_000 });
   },
 
   async confirm(scheduleMemberId: string, user: MyScheduleSessionUser) {

@@ -187,8 +187,11 @@ export function buildScheduleWhere(
 }
 
 export const scheduleRepository = {
-  transaction<T>(callback: (database: Prisma.TransactionClient) => Promise<T>) {
-    return prisma.$transaction(callback);
+  transaction<T>(
+    callback: (database: Prisma.TransactionClient) => Promise<T>,
+    options?: { maxWait?: number; timeout?: number }
+  ) {
+    return prisma.$transaction(callback, options);
   },
 
   async list(filters: ScheduleListQueryInput, accessContext: ScheduleAccessContext) {
@@ -362,6 +365,10 @@ export const scheduleRepository = {
     });
   },
 
+  async lockScheduleMemberById(id: string, scheduleId: string, database: ScheduleDatabase) {
+    await database.$queryRaw`SELECT "id" FROM "ScheduleMember" WHERE "id" = ${id} AND "scheduleId" = ${scheduleId} AND "deletedAt" IS NULL FOR UPDATE`;
+    return this.findScheduleMemberById(id, scheduleId, database);
+  },
   findScheduleMemberById(
     id: string,
     scheduleId?: string,
@@ -478,6 +485,16 @@ export const scheduleRepository = {
     });
   },
 
+  async lockById(id: string, database: ScheduleDatabase) {
+    const locked = await database.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "Schedule"
+      WHERE "id" = ${id}
+        AND "deletedAt" IS NULL
+      FOR UPDATE
+    `;
+    return locked.length > 0;
+  },
   async lockByIdWithinScope(
     id: string,
     accessContext: ScheduleAccessContext,

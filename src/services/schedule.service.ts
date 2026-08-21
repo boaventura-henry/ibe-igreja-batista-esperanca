@@ -779,7 +779,7 @@ export const scheduleService = {
         authorization.accessContext,
         database
       );
-      const transactionalCurrent = await scheduleRepository.findScheduleMemberById(
+      const transactionalCurrent = await scheduleRepository.lockScheduleMemberById(
         memberScheduleId,
         scheduleId,
         database
@@ -910,7 +910,7 @@ export const scheduleService = {
         }
       }
       return result;
-    });
+    }, { maxWait: 5_000, timeout: 15_000 });
     await notificationPublisher.deliverPush(notificationIds);
     return serializeMember(updated);
   },
@@ -927,7 +927,7 @@ export const scheduleService = {
         authorization.accessContext,
         database
       );
-      const transactionalCurrent = await scheduleRepository.findScheduleMemberById(
+      const transactionalCurrent = await scheduleRepository.lockScheduleMemberById(
         memberScheduleId,
         scheduleId,
         database

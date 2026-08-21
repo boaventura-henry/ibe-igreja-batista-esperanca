@@ -150,7 +150,7 @@ export const scheduleInstrumentAssignmentService = {
         database
       );
       if (!schedule) throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
-      const participant = await scheduleInstrumentAssignmentRepository.findParticipant(
+      const participant = await scheduleInstrumentAssignmentRepository.lockParticipant(
         scheduleMemberId,
         scheduleId,
         database
@@ -166,7 +166,7 @@ export const scheduleInstrumentAssignmentService = {
         authorization.user.id,
         database
       );
-    });
+    }, { maxWait: 5_000, timeout: 15_000 });
     return serialize(value);
   },
 
