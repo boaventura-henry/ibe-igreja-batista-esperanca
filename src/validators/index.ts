@@ -60,6 +60,8 @@ export { instrumentCategoryCreateSchema, instrumentCategoryListQuerySchema, inst
 export { eligibleScheduleInstrumentsQuerySchema, scheduleInstrumentAssignmentSchema } from "./schedule-instrument-assignment.validator";
 export type { ScheduleInstrumentAssignmentInput } from "./schedule-instrument-assignment.validator";
 export type { InstrumentCategoryCreateInput, InstrumentCategoryListQueryInput, InstrumentCategoryUpdateInput, InstrumentCreateInput, InstrumentHistoryCreateInput, InstrumentHistoryListQueryInput, InstrumentHistoryUpdateInput, InstrumentListQueryInput, InstrumentUpdateInput } from "./instrument.validator";
+export { instrumentUsageHistoryQuerySchema } from "./instrument-usage-history.validator";
+export type { InstrumentUsageHistoryQueryInput } from "./instrument-usage-history.validator";
 export { requireEnv } from "./env";
 export {
   memberCreateSchema,

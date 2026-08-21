@@ -29,6 +29,11 @@ export { instrumentRepository } from "./instrument.repository";
 export type { InstrumentRecord } from "./instrument.repository";
 export { instrumentHistoryRepository } from "./instrument-history.repository";
 export type { InstrumentHistoryRecord } from "./instrument-history.repository";
+export {
+  buildInstrumentUsageHistoryWhere,
+  instrumentUsageHistoryRepository
+} from "./instrument-usage-history.repository";
+export type { InstrumentUsageRecord } from "./instrument-usage-history.repository";
 export { memberRepository } from "./member.repository";
 export type { MemberDetail, MemberListItem } from "./member.repository";
 export { memberMinistryRepository } from "./member-ministry.repository";

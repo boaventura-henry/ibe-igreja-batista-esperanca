@@ -10,6 +10,7 @@ export { eventService } from "./event.service";
 export { instrumentCategoryService } from "./instrument-category.service";
 export { instrumentService } from "./instrument.service";
 export { instrumentHistoryService } from "./instrument-history.service";
+export { instrumentUsageHistoryService } from "./instrument-usage-history.service";
 export { lifecycleService } from "./lifecycle.service";
 export { scheduledJobsService } from "./scheduled-jobs.service";
 export { financialCategoryService } from "./financial-category.service";

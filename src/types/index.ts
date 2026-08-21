@@ -64,6 +64,10 @@ export type {
   MemberSummary
 } from "./member.types";
 export type {
+  InstrumentUsageHistoryItem,
+  InstrumentUsageHistoryResult
+} from "./instrument-usage-history.types";
+export type {
   MemberAccountChangePasswordInput,
   MemberAccountData,
   MemberAccountUpdateInput
