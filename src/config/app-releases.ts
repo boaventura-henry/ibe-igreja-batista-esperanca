@@ -14,6 +14,20 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.3",
+    title: "Correcao de acesso ao modulo de Instrumentos",
+    summary: "O menu e as paginas de Instrumentos agora refletem as permissoes atuais do usuario com protecao reforcada de acesso.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: [
+      "O menu de Instrumentos passa a refletir permissoes concedidas depois do inicio da sessao",
+      "Revogacoes de acesso tambem sao aplicadas ao menu administrativo",
+      "As paginas de listagem e detalhes de Instrumentos receberam protecao adicional de acesso",
+      "A rota de Instrumentos foi incorporada ao fluxo de autenticacao do sistema"
+    ]
+  },
+  {
     version: "0.2.2",
     title: "Instrumentos e utilizacao em escalas",
     summary: "Gestao administrativa de instrumentos e integracao com as escalas de louvor, com historico e identificacao amigavel para membros e liderancas.",
