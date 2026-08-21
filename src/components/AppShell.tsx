@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useMobileMenu } from "@/hooks";
 import { getAllowedNavigationItems, navigationItems } from "@/lib/navigation";
@@ -23,11 +22,15 @@ const iconMap: Record<(typeof navigationItems)[number]["icon"], string> = {
   Dizimos: "$"
 };
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+export function AppShell({
+  children,
+  permissionCodes
+}: {
+  children: React.ReactNode;
+  permissionCodes: string[];
+}) {
   const pathname = usePathname();
   const mobileMenu = useMobileMenu();
-  const permissionCodes = session?.user.permissionCodes ?? [];
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f7faf8] text-ink-900">

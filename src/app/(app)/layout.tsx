@@ -1,9 +1,12 @@
 import { AppShell } from "@/components/AppShell";
+import { requireCurrentUser } from "@/lib/session";
 
-export default function InternalLayout({
+export default async function InternalLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <AppShell>{children}</AppShell>;
+  const user = await requireCurrentUser();
+
+  return <AppShell permissionCodes={user.permissionCodes}>{children}</AppShell>;
 }

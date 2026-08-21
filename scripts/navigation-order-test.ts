@@ -71,6 +71,34 @@ test("filtro administrativo preserva a ordem relativa", () => {
   );
 });
 
+test("instrumentos aparece somente com permissao de visualizacao", () => {
+  const withInstrumentView = getAllowedNavigationItems(["instrument.view"]);
+  const withoutInstrumentView = getAllowedNavigationItems([]);
+  const instrumentItem = withInstrumentView.find((item) => item.href === "/instrumentos");
+
+  assert.deepEqual(
+    instrumentItem,
+    { href: "/instrumentos", label: "Instrumentos", icon: "Agenda", permission: "instrument.view" }
+  );
+  assert(!withoutInstrumentView.some((item) => item.href === "/instrumentos"));
+});
+
+test("permissao server-side atual prevalece sobre JWT antigo sem instrument.view", () => {
+  const staleJwtPermissions: string[] = [];
+  const currentServerPermissions = ["instrument.view"];
+
+  assert(!getAllowedNavigationItems(staleJwtPermissions).some((item) => item.href === "/instrumentos"));
+  assert(getAllowedNavigationItems(currentServerPermissions).some((item) => item.href === "/instrumentos"));
+});
+
+test("revogacao server-side atual prevalece sobre JWT antigo com instrument.view", () => {
+  const staleJwtPermissions = ["instrument.view"];
+  const currentServerPermissions: string[] = [];
+
+  assert(getAllowedNavigationItems(staleJwtPermissions).some((item) => item.href === "/instrumentos"));
+  assert(!getAllowedNavigationItems(currentServerPermissions).some((item) => item.href === "/instrumentos"));
+});
+
 test("filtro administrativo nao concede nem remove acesso", () => {
   const allPermissions = navigationItems.flatMap((item) => item.permission ? [item.permission] : []);
   assert.deepEqual(getAllowedNavigationItems(allPermissions), navigationItems);
@@ -103,8 +131,19 @@ test("menus nao possuem rotas duplicadas", () => {
 
 test("desktop e mobile reutilizam a mesma navegacao", () => {
   const appShell = readFileSync("src/components/AppShell.tsx", "utf8");
+  const appLayout = readFileSync("src/app/(app)/layout.tsx", "utf8");
+  const middleware = readFileSync("src/middleware.ts", "utf8");
+  const instrumentsPage = readFileSync("src/app/(app)/instrumentos/page.tsx", "utf8");
+  const instrumentDetailPage = readFileSync("src/app/(app)/instrumentos/[id]/page.tsx", "utf8");
   const portalShell = readFileSync("src/components/portal/PortalShell.tsx", "utf8");
   assert.equal((appShell.match(/<Navigation/g) ?? []).length, 2);
+  assert(appLayout.includes("requireCurrentUser()"));
+  assert(appLayout.includes("permissionCodes={user.permissionCodes}"));
+  assert(!appShell.includes("session?.user.permissionCodes"));
+  assert(middleware.includes('"/instrumentos"'));
+  assert(middleware.includes('"/instrumentos/:path*"'));
+  assert(instrumentsPage.includes('requirePermission("instrument.view")'));
+  assert(instrumentDetailPage.includes('requirePermission("instrument.view")'));
   assert.equal((portalShell.match(/<Navigation/g) ?? []).length, 2);
   assert(portalShell.includes("getAllowedPortalNavigationItems(permissionCodes)"));
   assert(!portalShell.includes("const portalNavigation ="));
