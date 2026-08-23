@@ -17,26 +17,28 @@ const publishedReleases: AppRelease[] = [
 ];
 const unreleasedReleases: AppRelease[] = [
   ...publishedReleases,
-  { version: "0.2.3", title: "Futura", summary: "Entrega ainda nao publicada.", type: "PATCH", status: "UNRELEASED", releaseDate: null, highlights: ["Em desenvolvimento"] }
+  { version: "0.2.4", title: "Futura", summary: "Entrega ainda nao publicada.", type: "PATCH", status: "UNRELEASED", releaseDate: null, highlights: ["Em desenvolvimento"] }
 ];
 
 async function main() {
 
-assert.equal(APP_VERSION, "0.2.3", "0: versao ativa aponta para a release 0.2.3");
+assert.equal(APP_VERSION, "0.2.4", "0: versao ativa aponta para a release 0.2.4");
 assert.equal(appReleases.filter((release) => release.version === APP_VERSION).length, 1, "0: existe uma unica release configurada como versao ativa");
-assert.equal(appReleases.find((release) => release.version === "0.2.3")?.type, "PATCH", "0: 0.2.3 e uma release PATCH");
+assert.equal(appReleases.find((release) => release.version === "0.2.4")?.type, "PATCH", "0: 0.2.4 e uma release PATCH");
+assert.equal(appReleases.find((release) => release.version === "0.2.4")?.status, "UNRELEASED", "0: 0.2.4 esta em desenvolvimento");
+assert.equal(appReleases.find((release) => release.version === "0.2.4")?.releaseDate, null, "0: 0.2.4 nao possui data de publicacao");
 assert.equal(appReleases.find((release) => release.version === "0.2.3")?.status, "PUBLISHED", "0: 0.2.3 esta publicada");
 assert.equal(appReleases.find((release) => release.version === "0.2.3")?.releaseDate, "2026-08-21", "0: 0.2.3 possui a data oficial de publicacao");
 assert.equal(appReleases.find((release) => release.version === "0.2.2")?.status, "PUBLISHED", "0: 0.2.2 esta publicada");
 assert.equal(appReleases.find((release) => release.version === "0.2.2")?.releaseDate, "2026-08-21", "0: 0.2.2 possui a data oficial de publicacao");
 assert.equal(appReleases.find((release) => release.version === "0.2.1")?.status, "PUBLISHED", "0: 0.2.1 preserva seu estado historico publicado");
 assert.equal(appReleases.find((release) => release.version === "0.2.1")?.releaseDate, "2026-07-26", "0: 0.2.1 preserva a data comprovada da tag v0.2.1");
-assert.deepEqual(appReleases.filter((release) => release.status === "UNRELEASED"), [], "0: nao existe versao em desenvolvimento acima da release publicada");
-assert.deepEqual(appReleases.slice(0, 4).map((release) => release.version), ["0.2.3", "0.2.2", "0.2.1", "0.2.0"], "0: catalogo mantem a versao ativa antes do historico");
+assert.deepEqual(appReleases.filter((release) => release.status === "UNRELEASED").map((release) => release.version), [APP_VERSION], "0: somente a versao ativa esta em desenvolvimento");
+assert.deepEqual(appReleases.slice(0, 5).map((release) => release.version), ["0.2.4", "0.2.3", "0.2.2", "0.2.1", "0.2.0"], "0: catalogo mantem a versao ativa antes do historico");
 
 
 assert.equal(appReleases.find((release) => release.version === "0.2.0")?.status, "PUBLISHED", "1: 0.2.0 permanece publicada");
-assert.equal(getLatestPublishedRelease(appReleases)?.version, "0.2.3", "1: catalogo retorna a versao ativa como ultima release publicada");
+assert.equal(getLatestPublishedRelease(appReleases)?.version, "0.2.3", "1: catalogo preserva 0.2.3 como ultima release publicada durante o desenvolvimento");
 const catalogSeen = await markPublishedReleaseAsSeen(
   { userId: "user-1", version: "0.2.3" },
   {
@@ -57,7 +59,7 @@ assert.deepEqual(persisted, { userId: "user-1", version: "0.2.0" }, "5: confirma
 assert.deepEqual(unrelatedUserState, { name: "Usuario", email: "user@example.test" }, "5: outros campos permanecem intactos");
 
 await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "9.9.9" }, { releases: publishedReleases }), /nao encontrada/i, "6: versao inexistente e rejeitada");
-await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "0.2.3" }, { releases: unreleasedReleases }), /nao foi publicada/i, "7: versao futura nao publicada e rejeitada");
+await assert.rejects(() => markPublishedReleaseAsSeen({ userId: "user-1", version: "0.2.4" }, { releases: unreleasedReleases }), /nao foi publicada/i, "7: versao futura nao publicada e rejeitada");
 assert.equal(releaseSeenSchema.safeParse({ userId: "outro-usuario", version: "0.2.0" }).success, false, "8: payload nao aceita manipulacao de userId");
 
 assert(compareSemanticVersions("0.2.0", "0.1.0") > 0 && compareSemanticVersions("0.10.0", "0.9.0") > 0 && compareSemanticVersions("1.0.0", "0.99.0") > 0, "9: comparacao SemVer e numerica");

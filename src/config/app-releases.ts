@@ -14,6 +14,15 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.4",
+    title: "Versao 0.2.4 em desenvolvimento",
+    summary: "Versao em desenvolvimento.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: []
+  },
+  {
     version: "0.2.3",
     title: "Correcao de acesso ao modulo de Instrumentos",
     summary: "O menu e as paginas de Instrumentos agora refletem as permissoes atuais do usuario com protecao reforcada de acesso.",
