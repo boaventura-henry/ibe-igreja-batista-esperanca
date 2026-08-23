@@ -14,6 +14,15 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.5",
+    title: "Versao 0.2.5 em desenvolvimento",
+    summary: "Versao em desenvolvimento.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: []
+  },
+  {
     version: "0.2.4",
     title: "Sugestao da ultima configuracao instrumental",
     summary: "A montagem das escalas agora pode aproveitar a ultima configuracao instrumental conhecida de cada instrumentista.",
