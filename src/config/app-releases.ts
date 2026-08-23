@@ -15,12 +15,19 @@ export type AppRelease = {
 export const appReleases: readonly AppRelease[] = [
   {
     version: "0.2.4",
-    title: "Versao 0.2.4 em desenvolvimento",
-    summary: "Versao em desenvolvimento.",
+    title: "Sugestao da ultima configuracao instrumental",
+    summary: "A montagem das escalas agora pode aproveitar a ultima configuracao instrumental conhecida de cada instrumentista.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
-    highlights: []
+    status: "PUBLISHED",
+    releaseDate: "2026-08-22",
+    highlights: [
+      "Ao adicionar um instrumentista, o sistema sugere sua ultima categoria musical, origem e instrumento utilizados",
+      "A sugestao tambem considera membros adicionados por excecao e pessoas sem vinculo atual com o Ministerio de Louvor",
+      "Somente historicos instrumentais sao considerados; funcoes como backing e vocal nao geram sugestoes",
+      "Instrumentos proprios utilizados anteriormente podem ser sugeridos",
+      "Patrimonios atualmente indisponiveis nao sao selecionados automaticamente",
+      "O lider pode revisar e alterar livremente todos os dados sugeridos antes de salvar"
+    ]
   },
   {
     version: "0.2.3",
