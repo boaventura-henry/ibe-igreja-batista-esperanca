@@ -32,6 +32,14 @@ export type ScheduleInstrumentAssignmentSummary = {
   instrument: { id: string; name: string; brand: string | null; model: string | null; status: string } | null;
 };
 
+export type ScheduleInstrumentSuggestion = {
+  hasSuggestion: boolean;
+  role: "INSTRUMENT" | null;
+  instrumentCategory: { id: string; name: string } | null;
+  source: "REGISTERED" | "OWN" | null;
+  instrument: { id: string; name: string } | null;
+};
+
 export type ScheduleMemberSummary = {
   id: string;
   role: ScheduleMemberRole;

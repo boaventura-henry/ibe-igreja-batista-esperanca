@@ -1,4 +1,4 @@
-import { Prisma, ScheduleInstrumentSource, ScheduleMemberRole, ScheduleMemberStatus } from "@prisma/client";
+import { MemberStatus, Prisma, ScheduleInstrumentSource, ScheduleMemberRole, ScheduleMemberStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
@@ -129,6 +129,66 @@ export async function setActiveAssignmentInTransaction(
   }
 }
 export const scheduleInstrumentAssignmentService = {
+  async getSuggestion(scheduleId: string, memberId: string, authorization: ScheduleAuthorization) {
+    const schedule = await scheduleRepository.findByIdWithinScope(scheduleId, authorization.accessContext);
+    if (!schedule) throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
+
+    const member = await scheduleRepository.findMemberById(memberId);
+    if (!member || member.status !== MemberStatus.ACTIVE) {
+      throw new AppError("Membro nao encontrado.", 404, "MEMBER_NOT_FOUND");
+    }
+
+    const history = await scheduleInstrumentAssignmentRepository.findLatestInstrumentSuggestionHistory({
+      memberId,
+      scheduleId,
+      scheduleDate: schedule.date,
+      scheduleStartTime: schedule.startTime
+    });
+    const assignment = history?.instrumentAssignments[0];
+
+    if (!assignment) {
+      return {
+        hasSuggestion: false,
+        role: null,
+        instrumentCategory: null,
+        source: null,
+        instrument: null
+      };
+    }
+
+    const category = await scheduleInstrumentAssignmentRepository.findCategoryForNewAssignment(
+      assignment.instrumentCategory.id
+    );
+    if (!category) {
+      return {
+        hasSuggestion: true,
+        role: ScheduleMemberRole.INSTRUMENT,
+        instrumentCategory: null,
+        source: null,
+        instrument: null
+      };
+    }
+
+    const instrument =
+      assignment.source === ScheduleInstrumentSource.REGISTERED && assignment.instrument
+        ? await scheduleInstrumentAssignmentRepository.findEligibleInstrument(
+            assignment.instrument.id,
+            category.id
+          )
+        : null;
+
+    return {
+      hasSuggestion: true,
+      role: ScheduleMemberRole.INSTRUMENT,
+      instrumentCategory: category,
+      source: assignment.source,
+      instrument:
+        assignment.source === ScheduleInstrumentSource.REGISTERED && instrument
+          ? { id: instrument.id, name: instrument.name }
+          : null
+    };
+  },
+
   async getCurrent(scheduleId: string, scheduleMemberId: string, authorization: ScheduleAuthorization) {
     const schedule = await scheduleRepository.findByIdWithinScope(scheduleId, authorization.accessContext);
     if (!schedule) throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");

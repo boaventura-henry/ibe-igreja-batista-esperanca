@@ -1,4 +1,4 @@
-import { InstrumentStatus, Prisma } from "@prisma/client";
+import { InstrumentStatus, Prisma, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import type { ScheduleDatabase } from "@/repositories/schedule.repository";
 import type { ScheduleInstrumentAssignmentInput } from "@/validators/schedule-instrument-assignment.validator";
@@ -21,7 +21,66 @@ export type ScheduleInstrumentAssignmentRecord = Prisma.ScheduleMemberInstrument
   select: typeof assignmentSelect;
 }>;
 
+const suggestionHistorySelect = {
+  id: true,
+  schedule: { select: { id: true, date: true, startTime: true } },
+  instrumentAssignments: {
+    select: assignmentSelect,
+    orderBy: [{ startedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    take: 1
+  }
+} satisfies Prisma.ScheduleMemberSelect;
+
+export type ScheduleInstrumentSuggestionHistoryRecord = Prisma.ScheduleMemberGetPayload<{
+  select: typeof suggestionHistorySelect;
+}>;
+
+export function buildInstrumentSuggestionHistoryWhere(input: {
+  memberId: string;
+  scheduleId: string;
+  scheduleDate: Date;
+  scheduleStartTime: string | null;
+}): Prisma.ScheduleMemberWhereInput {
+  return {
+    memberId: input.memberId,
+    scheduleId: { not: input.scheduleId },
+    status: { not: ScheduleMemberStatus.REPLACED },
+    deletedAt: null,
+    instrumentAssignments: { some: {} },
+    schedule: {
+      deletedAt: null,
+      status: { not: ScheduleStatus.CANCELED },
+      OR: [
+        { date: { lt: input.scheduleDate } },
+        ...(input.scheduleStartTime
+          ? [{ date: input.scheduleDate, startTime: { not: null, lt: input.scheduleStartTime } }]
+          : [])
+      ]
+    }
+  };
+}
+
 export const scheduleInstrumentAssignmentRepository = {
+  findLatestInstrumentSuggestionHistory(
+    input: {
+      memberId: string;
+      scheduleId: string;
+      scheduleDate: Date;
+      scheduleStartTime: string | null;
+    },
+    database: ScheduleDatabase = prisma
+  ) {
+    return database.scheduleMember.findFirst({
+      where: buildInstrumentSuggestionHistoryWhere(input),
+      select: suggestionHistorySelect,
+      orderBy: [
+        { schedule: { date: "desc" } },
+        { schedule: { startTime: "desc" } },
+        { id: "desc" }
+      ]
+    });
+  },
+
   findCurrent(scheduleMemberId: string, database: ScheduleDatabase = prisma) {
     return database.scheduleMemberInstrumentAssignment.findFirst({
       where: { scheduleMemberId, endedAt: null },

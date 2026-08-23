@@ -57,7 +57,7 @@ export type {
   FinancialEntryUpdateInput
 } from "./financial-entry.validator";
 export { instrumentCategoryCreateSchema, instrumentCategoryListQuerySchema, instrumentCategoryUpdateSchema, instrumentCreateSchema, instrumentHistoryCreateSchema, instrumentHistoryListQuerySchema, instrumentHistoryUpdateSchema, instrumentListQuerySchema, instrumentUpdateSchema } from "./instrument.validator";
-export { eligibleScheduleInstrumentsQuerySchema, scheduleInstrumentAssignmentSchema } from "./schedule-instrument-assignment.validator";
+export { eligibleScheduleInstrumentsQuerySchema, scheduleInstrumentAssignmentSchema, scheduleInstrumentSuggestionQuerySchema } from "./schedule-instrument-assignment.validator";
 export type { ScheduleInstrumentAssignmentInput } from "./schedule-instrument-assignment.validator";
 export type { InstrumentCategoryCreateInput, InstrumentCategoryListQueryInput, InstrumentCategoryUpdateInput, InstrumentCreateInput, InstrumentHistoryCreateInput, InstrumentHistoryListQueryInput, InstrumentHistoryUpdateInput, InstrumentListQueryInput, InstrumentUpdateInput } from "./instrument.validator";
 export { instrumentUsageHistoryQuerySchema } from "./instrument-usage-history.validator";

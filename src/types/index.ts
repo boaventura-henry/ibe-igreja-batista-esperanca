@@ -132,6 +132,7 @@ export type {
   ScheduleMemberFormValues,
   ScheduleMemberSummary,
   ScheduleInstrumentAssignmentSummary,
+  ScheduleInstrumentSuggestion,
   ScheduleMinistry,
   SchedulePerson,
   ScheduleSummary

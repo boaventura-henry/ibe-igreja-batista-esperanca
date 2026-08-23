@@ -22,4 +22,8 @@ export const eligibleScheduleInstrumentsQuerySchema = z.object({
   categoryId: cuid
 });
 
+export const scheduleInstrumentSuggestionQuerySchema = z.object({
+  memberId: cuid
+});
+
 export type ScheduleInstrumentAssignmentInput = z.infer<typeof scheduleInstrumentAssignmentSchema>;

@@ -14,7 +14,11 @@ import {
   getScheduleMemberStatusPresentation,
   ScheduleMemberStatusBadge
 } from "@/components/schedules/ScheduleMemberStatusBadge";
-import type { ScheduleMemberFormValues, ScheduleSummary } from "@/types";
+import type {
+  ScheduleInstrumentSuggestion,
+  ScheduleMemberFormValues,
+  ScheduleSummary
+} from "@/types";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -130,8 +134,12 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   const [eligibleInstruments, setEligibleInstruments] = useState<EligibleInstrument[]>([]);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
   const [isInstrumentsLoading, setIsInstrumentsLoading] = useState(false);
+  const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
+  const [suggestionMessage, setSuggestionMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const instrumentRequest = useRef(0);
+  const suggestionRequest = useRef(0);
+  const suggestedMember = useRef<string | null>(null);
 
   const permissionCodes = session?.user.permissionCodes ?? [];
   const canUpdate = permissionCodes.includes("schedule.update");
@@ -255,6 +263,97 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     }
   }
 
+  async function loadInstrumentSuggestion(memberId: string) {
+    const requestId = ++suggestionRequest.current;
+    setIsSuggestionLoading(true);
+
+    try {
+      const response = await fetch(
+        "/api/schedules/" + schedule.id + "/instrument-suggestion?memberId=" + encodeURIComponent(memberId),
+        { cache: "no-store" }
+      );
+      const payload = (await response.json()) as ApiResponse<ScheduleInstrumentSuggestion>;
+
+      if (!payload.success) {
+        throw new Error(payload.error.message);
+      }
+
+      if (requestId !== suggestionRequest.current) {
+        return;
+      }
+
+      if (!payload.data.hasSuggestion) {
+        suggestedMember.current = null;
+        setSuggestionMessage("");
+        return;
+      }
+
+      const category = payload.data.instrumentCategory;
+      const source = payload.data.source;
+      setMemberForm((current) => {
+        if (current.memberId !== memberId || requestId !== suggestionRequest.current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          role: ScheduleMemberRole.INSTRUMENT,
+          instrumentAssignment:
+            category && source
+              ? {
+                  instrumentCategoryId: category.id,
+                  source,
+                  instrumentId:
+                    source === "REGISTERED" ? payload.data.instrument?.id ?? "" : ""
+                }
+              : undefined
+        };
+      });
+      suggestedMember.current = memberId;
+      setSuggestionMessage(
+        category && source
+          ? "Sugestao baseada na ultima escala como instrumentista."
+          : "Existe historico instrumental, mas a configuracao anterior nao esta mais disponivel."
+      );
+
+      if (category && source === "REGISTERED") {
+        void loadEligibleInstruments(category.id);
+      }
+    } catch (error) {
+      if (requestId === suggestionRequest.current) {
+        suggestedMember.current = null;
+        setSuggestionMessage("");
+        setFormMessage(
+          error instanceof Error
+            ? error.message
+            : "Nao foi possivel consultar a configuracao instrumental anterior."
+        );
+      }
+    } finally {
+      if (requestId === suggestionRequest.current) {
+        setIsSuggestionLoading(false);
+      }
+    }
+  }
+
+  function updateMemberId(memberId: string) {
+    suggestionRequest.current += 1;
+    setIsSuggestionLoading(false);
+    setSuggestionMessage("");
+    setMemberForm((current) => ({
+      ...current,
+      memberId,
+      ...(suggestedMember.current === current.memberId
+        ? { role: ScheduleMemberRole.OTHER, instrumentAssignment: undefined }
+        : {})
+    }));
+    suggestedMember.current = null;
+
+    if (memberId && !editingId) {
+      void loadInstrumentSuggestion(memberId);
+    }
+  }
+
   function updateAllowMinistryException(value: boolean) {
     updateForm("allowMinistryException", value);
     void loadAvailableMembers(value, selectedScheduleMember?.member);
@@ -280,6 +379,8 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   }
 
   function updateRole(role: ScheduleMemberRole) {
+    suggestionRequest.current += 1;
+    setIsSuggestionLoading(false);
     setMemberForm((current) => ({
       ...current,
       role,
@@ -336,11 +437,15 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   }
 
   function openCreateForm() {
+    suggestionRequest.current += 1;
+    suggestedMember.current = null;
     setEditingId(null);
     setMemberForm(emptyMemberForm);
     setAvailableMembers([]);
     setInstrumentCategories([]);
     setEligibleInstruments([]);
+    setIsSuggestionLoading(false);
+    setSuggestionMessage("");
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
@@ -355,6 +460,8 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
       return;
     }
 
+    suggestionRequest.current += 1;
+    suggestedMember.current = null;
     setEditingId(memberId);
     const assignment = item.instrumentAssignment;
     setMemberForm({
@@ -376,6 +483,8 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     setAvailableMembers([]);
     setInstrumentCategories([]);
     setEligibleInstruments([]);
+    setIsSuggestionLoading(false);
+    setSuggestionMessage("");
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
@@ -539,12 +648,28 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                   <FormMessage id="schedule-member-form-message">{formMessage}</FormMessage>
                 </div>
                 <Field label="Membro">
-                  <select required value={memberForm.memberId} onChange={(event) => updateForm("memberId", event.target.value)} className={inputClass}>
+                  <select
+                    required
+                    value={memberForm.memberId}
+                    onChange={(event) => updateMemberId(event.target.value)}
+                    className={inputClass}
+                    aria-busy={isSuggestionLoading}
+                  >
                     <option value="">Selecione</option>
                     {selectableMembers.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
                   </select>
                   {!memberForm.allowMinistryException && availableMembers.length === 0 ? (
                     <span className="text-xs font-semibold normal-case tracking-normal text-ink-500">Nao ha membros ativos vinculados a este ministerio.</span>
+                  ) : null}
+                  {isSuggestionLoading ? (
+                    <span className="text-xs font-semibold normal-case tracking-normal text-ink-500" role="status">
+                      Consultando ultima configuracao instrumental...
+                    </span>
+                  ) : null}
+                  {suggestionMessage ? (
+                    <span className="text-xs font-semibold normal-case tracking-normal text-hope-700" role="status">
+                      {suggestionMessage}
+                    </span>
                   ) : null}
                 </Field>
                 <Field label="Funcao">
