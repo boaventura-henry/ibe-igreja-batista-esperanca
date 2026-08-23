@@ -1,5 +1,6 @@
 import { MemberStatus, Prisma, ScheduleInstrumentSource, ScheduleMemberRole, ScheduleMemberStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { hasInstrumentRole, type ScheduleMemberRoleSource } from "@/lib/schedule-member-role";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
   scheduleInstrumentAssignmentRepository,
@@ -46,12 +47,12 @@ async function validateNewAssignment(input: ScheduleInstrumentAssignmentInput, d
 
 export async function createInitialAssignmentInTransaction(
   scheduleMemberId: string,
-  role: ScheduleMemberRole,
+  roles: ScheduleMemberRoleSource,
   input: ScheduleInstrumentAssignmentInput,
   userId: string,
   database: ScheduleDatabase
 ) {
-  if (role !== ScheduleMemberRole.INSTRUMENT) {
+  if (!hasInstrumentRole(roles)) {
     throw new AppError(
       "Somente participantes com funcao Instrumento podem receber instrumento.",
       409,
@@ -95,12 +96,12 @@ function matchesActiveAssignment(
 
 export async function setActiveAssignmentInTransaction(
   scheduleMemberId: string,
-  role: ScheduleMemberRole,
+  roles: ScheduleMemberRoleSource,
   input: ScheduleInstrumentAssignmentInput,
   userId: string,
   database: ScheduleDatabase
 ) {
-  if (role !== ScheduleMemberRole.INSTRUMENT) {
+  if (!hasInstrumentRole(roles)) {
     throw new AppError(
       "Somente participantes com funcao Instrumento podem receber instrumento.",
       409,
@@ -221,7 +222,7 @@ export const scheduleInstrumentAssignmentService = {
       }
       return setActiveAssignmentInTransaction(
         participant.id,
-        participant.role,
+        participant,
         input,
         authorization.user.id,
         database

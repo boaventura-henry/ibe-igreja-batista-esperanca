@@ -5,9 +5,20 @@ type ScheduleMemberRolePresentation = {
   label: string;
 };
 
+type ScheduleMemberRoleEntry = ScheduleMemberRole | { role: ScheduleMemberRole };
+
+export type ScheduleMemberRoleSource =
+  | ScheduleMemberRole
+  | {
+      role?: ScheduleMemberRole | null;
+      roles?: readonly ScheduleMemberRoleEntry[] | null;
+    };
+
 const scheduleMemberRoleLabels: Record<ScheduleMemberRole, string> = {
+  MINISTER: "Ministro",
   LEADER: "Líder",
   VOCAL: "Vocal",
+  BACKING: "Backing",
   INSTRUMENT: "Instrumento",
   MEDIA: "Mídia",
   RECEPTION: "Recepção",
@@ -20,6 +31,49 @@ export const scheduleMemberRoleOptions = Object.values(ScheduleMemberRole).map((
   value,
   label: scheduleMemberRoleLabels[value]
 }));
+
+const scheduleMemberRolePriority = new Map(
+  scheduleMemberRoleOptions.map((option, index) => [option.value, index])
+);
+
+export function normalizeScheduleMemberRoles(roles: readonly ScheduleMemberRole[]) {
+  return [...new Set(roles)].sort(
+    (left, right) =>
+      (scheduleMemberRolePriority.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (scheduleMemberRolePriority.get(right) ?? Number.MAX_SAFE_INTEGER)
+  );
+}
+
+export function getScheduleMemberRoles(source: ScheduleMemberRoleSource) {
+  if (typeof source === "string") return [source];
+  if (source.roles !== undefined && source.roles !== null) {
+    const assigned = source.roles.map((entry) =>
+      typeof entry === "string" ? entry : entry.role
+    );
+    return normalizeScheduleMemberRoles(assigned);
+  }
+  return source.role ? [source.role] : [];
+}
+
+export function hasScheduleMemberRole(
+  source: ScheduleMemberRoleSource,
+  role: ScheduleMemberRole
+) {
+  return getScheduleMemberRoles(source).includes(role);
+}
+
+export function hasInstrumentRole(source: ScheduleMemberRoleSource) {
+  return hasScheduleMemberRole(source, ScheduleMemberRole.INSTRUMENT);
+}
+
+export function resolveLegacyScheduleMemberRole(
+  currentRole: ScheduleMemberRole | null | undefined,
+  roles: readonly ScheduleMemberRole[]
+) {
+  const normalized = normalizeScheduleMemberRoles(roles);
+  if (!normalized.length) return null;
+  return currentRole && normalized.includes(currentRole) ? currentRole : normalized[0];
+}
 
 export function getScheduleMemberRolePresentation(
   role: string | null | undefined

@@ -11,6 +11,12 @@ import { myScheduleInstrumentChangeSchema } from "../src/validators/my-schedule.
 const prisma = new PrismaClient();
 const stamp = Date.now().toString();
 const key = (value: string) => `__member_instrument_${stamp}_${value}`;
+const participantData = (scheduleId: string, memberId: string, role: ScheduleMemberRole) => ({
+  scheduleId,
+  memberId,
+  role,
+  roles: { create: { role } }
+});
 let scenarios = 0;
 const test = async (name: string, run: () => Promise<void>) => { await run(); scenarios += 1; console.log(`PASS ${scenarios}: ${name}`); };
 const expectCode = async (run: () => Promise<unknown>, code: string) => assert.rejects(run, (error: unknown) => error instanceof AppError && error.code === code);
@@ -36,7 +42,7 @@ async function main() {
       prisma.instrument.create({ data: { name: key("maintenance"), categoryId: bass.id, status: InstrumentStatus.MAINTENANCE } }), prisma.instrument.create({ data: { name: key("inactive"), categoryId: bass.id, status: InstrumentStatus.INACTIVE } }), prisma.instrument.create({ data: { name: key("deleted"), categoryId: bass.id, deletedAt: new Date() } }), prisma.instrument.create({ data: { name: key("guitar"), categoryId: guitar.id } })
     ]); ids.instruments.push(tagima.id, yamaha.id, maintenance.id, inactive.id, deleted.id, guitarInstrument.id);
     const schedule = await prisma.schedule.create({ data: { title: key("schedule"), ministryId: ministry.id, date: new Date("2099-01-01"), status: ScheduleStatus.PUBLISHED, createdById: user.id } }); ids.schedules.push(schedule.id);
-    const participant = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(participant.id);
+    const participant = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(participant.id);
     const current = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: participant.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
     const session = { id: user.id, memberId: member.id };
     const registered = (instrumentId: string, reason: string | undefined, currentAssignmentId: string) => ({ source: ScheduleInstrumentSource.REGISTERED, instrumentId, changeReason: reason ?? null, currentAssignmentId });
@@ -44,8 +50,8 @@ async function main() {
     await test("proprio instrumentista publicado com assignment ativo pode consultar", async () => { const result = await myScheduleService.getInstrumentChange(participant.id, session); assert.equal(result.current.id, current.id); assert.equal(result.category.id, bass.id); });
     await test("outro membro nao acessa a participacao", () => expectCode(() => myScheduleService.getInstrumentChange(participant.id, { id: otherUser.id, memberId: other.id }), "MY_SCHEDULE_NOT_FOUND"));
     await test("usuario sem memberId e bloqueado", () => expectCode(() => myScheduleService.getInstrumentChange(participant.id, { id: user.id, memberId: null }), "USER_WITHOUT_MEMBER"));
-    await test("role diferente de INSTRUMENT e bloqueado", async () => { const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: other.id, role: ScheduleMemberRole.VOCAL } }); ids.participants.push(p.id); await expectCode(() => myScheduleService.getInstrumentChange(p.id, { id: otherUser.id, memberId: other.id }), "SCHEDULE_INSTRUMENT_ROLE_REQUIRED"); });
-    await test("sem assignment recebe orientacao funcional e nao cria definicao", async () => { const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: other.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id); await expectCode(() => myScheduleService.changeInstrument(p.id, { source: ScheduleInstrumentSource.REGISTERED, instrumentId: yamaha.id, changeReason: "x" } as never, { id: otherUser.id, memberId: other.id }), "SCHEDULE_INSTRUMENT_NOT_DEFINED"); assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: p.id } }), 0); });
+    await test("role diferente de INSTRUMENT e bloqueado", async () => { const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, other.id, ScheduleMemberRole.VOCAL) }); ids.participants.push(p.id); await expectCode(() => myScheduleService.getInstrumentChange(p.id, { id: otherUser.id, memberId: other.id }), "SCHEDULE_INSTRUMENT_ROLE_REQUIRED"); });
+    await test("sem assignment recebe orientacao funcional e nao cria definicao", async () => { const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, other.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id); await expectCode(() => myScheduleService.changeInstrument(p.id, { source: ScheduleInstrumentSource.REGISTERED, instrumentId: yamaha.id, changeReason: "x" } as never, { id: otherUser.id, memberId: other.id }), "SCHEDULE_INSTRUMENT_NOT_DEFINED"); assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: p.id } }), 0); });
     await test("REGISTERED troca preserva categoria, motivo, autoria e historico", async () => { const next = await myScheduleService.changeInstrument(participant.id, registered(yamaha.id, "troca", current.id), session); assert.equal(next.instrument?.id, yamaha.id); assert.equal(next.instrumentCategory.id, bass.id); assert.equal((await prisma.scheduleMemberInstrumentAssignment.findUniqueOrThrow({ where: { id: next.id } })).createdById, user.id); assert.equal((await prisma.scheduleMemberInstrumentAssignment.findUnique({ where: { id: current.id } }))?.endedAt instanceof Date, true); });
     await test("REGISTERED identico e idempotente", async () => { const active = await prisma.scheduleMemberInstrumentAssignment.findFirstOrThrow({ where: { scheduleMemberId: participant.id, endedAt: null } }); const count = await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: participant.id } }); await myScheduleService.changeInstrument(participant.id, registered(yamaha.id, "novo motivo", active.id), session); assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: participant.id } }), count); });
     await test("REGISTERED para OWN encerra predecessor", async () => { const active = await prisma.scheduleMemberInstrumentAssignment.findFirstOrThrow({ where: { scheduleMemberId: participant.id, endedAt: null } }); const result = await myScheduleService.changeInstrument(participant.id, own("proprio", active.id), session); assert.equal(result.source, ScheduleInstrumentSource.OWN); assert.equal(result.instrument, null); });
@@ -71,12 +77,12 @@ async function main() {
       assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: participant.id } }), count);
     });
     await test("currentAssignmentId de outro participante e rejeitado", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: other.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, other.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const assignment = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: otherUser.id, updatedById: otherUser.id } });
       await expectCode(() => myScheduleService.changeInstrument(participant.id, registered(yamaha.id, "outro", assignment.id), session), "SCHEDULE_INSTRUMENT_STALE");
     });
     await test("duas trocas simultaneas mantem exatamente um assignment ativo", async () => {
-      const concurrent = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(concurrent.id);
+      const concurrent = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(concurrent.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: concurrent.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       const results = await Promise.allSettled([myScheduleService.changeInstrument(concurrent.id, registered(yamaha.id, "yamaha", initial.id), session), myScheduleService.changeInstrument(concurrent.id, own("proprio", initial.id), session)]);
       const active = await prisma.scheduleMemberInstrumentAssignment.findMany({ where: { scheduleMemberId: concurrent.id, endedAt: null } });
@@ -84,7 +90,7 @@ async function main() {
       assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: concurrent.id } }), 2);
     });    const adminAuthorization = { user: { id: user.id }, accessContext: { scope: ScheduleScope.ALL, memberId: null, authorizedMinistryIds: null } } as never;
     await test("self-service e fluxo administrativo concorrem sem duplicar assignment ativo", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       const results = await Promise.allSettled([myScheduleService.changeInstrument(p.id, own("membro", initial.id), session), scheduleInstrumentAssignmentService.createInitial(schedule.id, p.id, { source: ScheduleInstrumentSource.REGISTERED, instrumentCategoryId: bass.id, instrumentId: yamaha.id }, adminAuthorization)]);
       const history = await prisma.scheduleMemberInstrumentAssignment.findMany({ where: { scheduleMemberId: p.id }, orderBy: { startedAt: "asc" } });
@@ -94,14 +100,14 @@ async function main() {
       assert.ok(results.some((item) => item.status === "fulfilled"));
     });
     await test("admin primeiro torna snapshot do membro obsoleto", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       await scheduleInstrumentAssignmentService.createInitial(schedule.id, p.id, { source: ScheduleInstrumentSource.REGISTERED, instrumentCategoryId: bass.id, instrumentId: yamaha.id }, adminAuthorization);
       await expectCode(() => myScheduleService.changeInstrument(p.id, own("stale", initial.id), session), "SCHEDULE_INSTRUMENT_STALE");
       const active = await prisma.scheduleMemberInstrumentAssignment.findFirstOrThrow({ where: { scheduleMemberId: p.id, endedAt: null } }); assert.equal(active.instrumentId, yamaha.id);
     });
     await test("mudanca de role primeiro bloqueia troca e encerra assignment", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       const acquired = deferred(); const release = deferred();
       const originalLock = scheduleRepository.lockByIdWithinScope.bind(scheduleRepository);
@@ -121,7 +127,7 @@ async function main() {
       assert.equal(history.length, 1); assert.equal(history[0].id, initial.id); assert.ok(history[0].endedAt);
     });
     await test("troca do membro primeiro e encerrada pela mudanca posterior de role", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       const acquired = deferred(); const release = deferred();
       const originalLock = scheduleRepository.lockById.bind(scheduleRepository);
@@ -141,7 +147,7 @@ async function main() {
       assert.equal(history.length, 2); assert.ok(history.every((item) => item.endedAt)); assert.ok(history.some((item) => item.source === ScheduleInstrumentSource.OWN));
     });
     await test("concorrencia livre entre troca e role preserva invariant", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       const results = await Promise.allSettled([myScheduleService.changeInstrument(p.id, own("role", initial.id), session), scheduleService.updateMember(schedule.id, p.id, { role: ScheduleMemberRole.VOCAL }, adminAuthorization)]);
       assert.ok(!results.map(settledCode).includes("P2028")); assert.ok(!results.map(settledCode).includes("40P01"));
@@ -170,7 +176,7 @@ async function main() {
       return history;
     };
     await test("substituicao primeiro bloqueia troca self-service e nao transfere assignment", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       const acquired = deferred(); const release = deferred();
       const originalLock = scheduleRepository.lockByIdWithinScope.bind(scheduleRepository);
@@ -190,7 +196,7 @@ async function main() {
       assert.equal(history.length, 1);
     });
     await test("troca self-service primeiro e encerrada pela substituicao posterior", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       const acquired = deferred(); const release = deferred();
       const originalLock = scheduleRepository.lockById.bind(scheduleRepository);
@@ -211,7 +217,7 @@ async function main() {
       assert.ok(history.some((item) => item.instrumentId === yamaha.id));
     });
     await test("concorrencia livre entre troca self-service e substituicao preserva invariant", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
       const results = await Promise.allSettled([
         myScheduleService.changeInstrument(p.id, registered(yamaha.id, "substituicao", initial.id), session),
@@ -224,7 +230,7 @@ async function main() {
       assert.ok(history.length === 1 || history.length === 2);
     });
     await test("falha real apos encerrar predecessor reverte toda a troca", async () => {
-      const p = await prisma.scheduleMember.create({ data: { scheduleId: schedule.id, memberId: member.id, role: ScheduleMemberRole.INSTRUMENT } }); ids.participants.push(p.id);
+      const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({
         data: {
           scheduleMemberId: p.id,

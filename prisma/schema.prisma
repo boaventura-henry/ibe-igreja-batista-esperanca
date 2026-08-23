@@ -158,8 +158,10 @@ enum ScheduleMemberStatus {
 }
 
 enum ScheduleMemberRole {
+  MINISTER
   LEADER
   VOCAL
+  BACKING
   INSTRUMENT
   MEDIA
   RECEPTION
@@ -308,71 +310,71 @@ enum NotificationType {
 }
 
 model User {
-  id                             String                        @id @default(cuid())
-  name                           String
-  username                       String                        @unique
-  email                          String                        @unique
-  passwordHash                   String
-  role                           UserRole                      @default(LEADER)
-  memberId                       String?                       @unique
-  accessRoleId                   String?
-  isActive                       Boolean                       @default(true)
-  mustChangePassword             Boolean                       @default(false)
-  lastLoginAt                    DateTime?
-  failedLoginAttempts            Int                           @default(0)
-  lockedUntil                    DateTime?
-  lastSeenAppVersion             String?
-  member                         Member?                       @relation("MemberUser", fields: [memberId], references: [id], onDelete: SetNull)
-  accessRole                     AccessRole?                   @relation("UserAccessRole", fields: [accessRoleId], references: [id], onDelete: SetNull)
-  createdMembers                 Member[]                      @relation("MemberCreatedBy")
-  updatedMembers                 Member[]                      @relation("MemberUpdatedBy")
-  createdMemberMinistries        MemberMinistry[]              @relation("MemberMinistryCreatedBy")
-  updatedMemberMinistries        MemberMinistry[]              @relation("MemberMinistryUpdatedBy")
-  createdSchedules               Schedule[]                    @relation("ScheduleCreatedBy")
-  updatedSchedules               Schedule[]                    @relation("ScheduleUpdatedBy")
-  createdSongs                   Song[]                        @relation("SongCreatedBy")
-  updatedSongs                   Song[]                        @relation("SongUpdatedBy")
-  createdScheduleSongs           ScheduleSong[]                @relation("ScheduleSongCreatedBy")
-  updatedScheduleSongs           ScheduleSong[]                @relation("ScheduleSongUpdatedBy")
-  createdScheduleMembers         ScheduleMember[]              @relation("ScheduleMemberCreatedBy")
-  updatedScheduleMembers         ScheduleMember[]              @relation("ScheduleMemberUpdatedBy")
-  createdEvents                  Event[]                       @relation("EventCreatedBy")
-  updatedEvents                  Event[]                       @relation("EventUpdatedBy")
-  createdFinancialCategories     FinancialCategory[]           @relation("FinancialCategoryCreatedBy")
-  updatedFinancialCategories     FinancialCategory[]           @relation("FinancialCategoryUpdatedBy")
-  createdFinancialEntries        FinancialEntry[]              @relation("FinancialEntryCreatedBy")
-  updatedFinancialEntries        FinancialEntry[]              @relation("FinancialEntryUpdatedBy")
-  openedFinancialClosings        FinancialClosing[]            @relation("FinancialClosingOpenedBy")
-  closedFinancialClosings        FinancialClosing[]            @relation("FinancialClosingClosedBy")
-  createdAnnouncements           Announcement[]                @relation("AnnouncementCreatedBy")
-  updatedAnnouncements           Announcement[]                @relation("AnnouncementUpdatedBy")
-  announcementReads              AnnouncementRead[]
-  approvedAccessRequests         UserAccessRequest[]           @relation("UserAccessRequestApprovedBy")
-  rejectedAccessRequests         UserAccessRequest[]           @relation("UserAccessRequestRejectedBy")
-  passwordResetRequests          PasswordResetRequest[]        @relation("PasswordResetRequestUser")
-  processedPasswordResetRequests PasswordResetRequest[]        @relation("PasswordResetRequestProcessedBy")
-  pushSubscriptions              PushSubscription[]
-  notificationPreference         NotificationPreference?
-  notifications                  Notification[]                @relation("NotificationRecipient")
-  createdNotifications           Notification[]                @relation("NotificationCreatedBy")
-  inAppNotificationPreferences   InAppNotificationPreference[]
-  createdPushNotificationLogs    PushNotificationLog[]         @relation("PushNotificationLogCreatedBy")
-  retriedPushNotificationLogs    PushNotificationLog[]         @relation("PushNotificationLogRetriedBy")
-  pushNotificationLogDevices     PushNotificationLogDevice[]   @relation("PushNotificationLogDeviceUser")
-  createdMinistries              Ministry[]                    @relation("MinistryCreatedBy")
-  updatedMinistries              Ministry[]                    @relation("MinistryUpdatedBy")
-  createdAccessRoles             AccessRole[]                  @relation("AccessRoleCreatedBy")
-  updatedAccessRoles             AccessRole[]                  @relation("AccessRoleUpdatedBy")
-  createdInstrumentCategories    InstrumentCategory[]          @relation("InstrumentCategoryCreatedBy")
-  updatedInstrumentCategories    InstrumentCategory[]          @relation("InstrumentCategoryUpdatedBy")
-  createdInstruments             Instrument[]                  @relation("InstrumentCreatedBy")
-  updatedInstruments             Instrument[]                  @relation("InstrumentUpdatedBy")
-  createdInstrumentHistories     InstrumentHistory[]           @relation("InstrumentHistoryCreatedBy")
-  updatedInstrumentHistories     InstrumentHistory[]           @relation("InstrumentHistoryUpdatedBy")
+  id                                   String                               @id @default(cuid())
+  name                                 String
+  username                             String                               @unique
+  email                                String                               @unique
+  passwordHash                         String
+  role                                 UserRole                             @default(LEADER)
+  memberId                             String?                              @unique
+  accessRoleId                         String?
+  isActive                             Boolean                              @default(true)
+  mustChangePassword                   Boolean                              @default(false)
+  lastLoginAt                          DateTime?
+  failedLoginAttempts                  Int                                  @default(0)
+  lockedUntil                          DateTime?
+  lastSeenAppVersion                   String?
+  member                               Member?                              @relation("MemberUser", fields: [memberId], references: [id], onDelete: SetNull)
+  accessRole                           AccessRole?                          @relation("UserAccessRole", fields: [accessRoleId], references: [id], onDelete: SetNull)
+  createdMembers                       Member[]                             @relation("MemberCreatedBy")
+  updatedMembers                       Member[]                             @relation("MemberUpdatedBy")
+  createdMemberMinistries              MemberMinistry[]                     @relation("MemberMinistryCreatedBy")
+  updatedMemberMinistries              MemberMinistry[]                     @relation("MemberMinistryUpdatedBy")
+  createdSchedules                     Schedule[]                           @relation("ScheduleCreatedBy")
+  updatedSchedules                     Schedule[]                           @relation("ScheduleUpdatedBy")
+  createdSongs                         Song[]                               @relation("SongCreatedBy")
+  updatedSongs                         Song[]                               @relation("SongUpdatedBy")
+  createdScheduleSongs                 ScheduleSong[]                       @relation("ScheduleSongCreatedBy")
+  updatedScheduleSongs                 ScheduleSong[]                       @relation("ScheduleSongUpdatedBy")
+  createdScheduleMembers               ScheduleMember[]                     @relation("ScheduleMemberCreatedBy")
+  updatedScheduleMembers               ScheduleMember[]                     @relation("ScheduleMemberUpdatedBy")
+  createdEvents                        Event[]                              @relation("EventCreatedBy")
+  updatedEvents                        Event[]                              @relation("EventUpdatedBy")
+  createdFinancialCategories           FinancialCategory[]                  @relation("FinancialCategoryCreatedBy")
+  updatedFinancialCategories           FinancialCategory[]                  @relation("FinancialCategoryUpdatedBy")
+  createdFinancialEntries              FinancialEntry[]                     @relation("FinancialEntryCreatedBy")
+  updatedFinancialEntries              FinancialEntry[]                     @relation("FinancialEntryUpdatedBy")
+  openedFinancialClosings              FinancialClosing[]                   @relation("FinancialClosingOpenedBy")
+  closedFinancialClosings              FinancialClosing[]                   @relation("FinancialClosingClosedBy")
+  createdAnnouncements                 Announcement[]                       @relation("AnnouncementCreatedBy")
+  updatedAnnouncements                 Announcement[]                       @relation("AnnouncementUpdatedBy")
+  announcementReads                    AnnouncementRead[]
+  approvedAccessRequests               UserAccessRequest[]                  @relation("UserAccessRequestApprovedBy")
+  rejectedAccessRequests               UserAccessRequest[]                  @relation("UserAccessRequestRejectedBy")
+  passwordResetRequests                PasswordResetRequest[]               @relation("PasswordResetRequestUser")
+  processedPasswordResetRequests       PasswordResetRequest[]               @relation("PasswordResetRequestProcessedBy")
+  pushSubscriptions                    PushSubscription[]
+  notificationPreference               NotificationPreference?
+  notifications                        Notification[]                       @relation("NotificationRecipient")
+  createdNotifications                 Notification[]                       @relation("NotificationCreatedBy")
+  inAppNotificationPreferences         InAppNotificationPreference[]
+  createdPushNotificationLogs          PushNotificationLog[]                @relation("PushNotificationLogCreatedBy")
+  retriedPushNotificationLogs          PushNotificationLog[]                @relation("PushNotificationLogRetriedBy")
+  pushNotificationLogDevices           PushNotificationLogDevice[]          @relation("PushNotificationLogDeviceUser")
+  createdMinistries                    Ministry[]                           @relation("MinistryCreatedBy")
+  updatedMinistries                    Ministry[]                           @relation("MinistryUpdatedBy")
+  createdAccessRoles                   AccessRole[]                         @relation("AccessRoleCreatedBy")
+  updatedAccessRoles                   AccessRole[]                         @relation("AccessRoleUpdatedBy")
+  createdInstrumentCategories          InstrumentCategory[]                 @relation("InstrumentCategoryCreatedBy")
+  updatedInstrumentCategories          InstrumentCategory[]                 @relation("InstrumentCategoryUpdatedBy")
+  createdInstruments                   Instrument[]                         @relation("InstrumentCreatedBy")
+  updatedInstruments                   Instrument[]                         @relation("InstrumentUpdatedBy")
+  createdInstrumentHistories           InstrumentHistory[]                  @relation("InstrumentHistoryCreatedBy")
+  updatedInstrumentHistories           InstrumentHistory[]                  @relation("InstrumentHistoryUpdatedBy")
   createdScheduleInstrumentAssignments ScheduleMemberInstrumentAssignment[] @relation("ScheduleInstrumentAssignmentCreatedBy")
   updatedScheduleInstrumentAssignments ScheduleMemberInstrumentAssignment[] @relation("ScheduleInstrumentAssignmentUpdatedBy")
-  createdAt                      DateTime                      @default(now())
-  updatedAt                      DateTime                      @updatedAt
+  createdAt                            DateTime                             @default(now())
+  updatedAt                            DateTime                             @updatedAt
 
   @@index([accessRoleId])
 }
@@ -813,27 +815,28 @@ model Schedule {
 }
 
 model ScheduleMember {
-  id                 String               @id @default(cuid())
-  scheduleId         String
-  memberId           String
-  role               ScheduleMemberRole   @default(OTHER)
-  status             ScheduleMemberStatus @default(PENDING)
-  confirmedAt        DateTime?
-  declinedAt         DateTime?
-  declineReason      String?
-  replacedByMemberId String?
-  observations       String?
-  createdById        String?
-  updatedById        String?
-  deletedAt          DateTime?
-  schedule           Schedule             @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  member             Member               @relation("ScheduleMemberMember", fields: [memberId], references: [id], onDelete: Cascade)
-  replacedByMember   Member?              @relation("ScheduleMemberReplacement", fields: [replacedByMemberId], references: [id], onDelete: SetNull)
-  createdBy          User?                @relation("ScheduleMemberCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy          User?                @relation("ScheduleMemberUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  id                    String                               @id @default(cuid())
+  scheduleId            String
+  memberId              String
+  role                  ScheduleMemberRole                   @default(OTHER)
+  status                ScheduleMemberStatus                 @default(PENDING)
+  confirmedAt           DateTime?
+  declinedAt            DateTime?
+  declineReason         String?
+  replacedByMemberId    String?
+  observations          String?
+  createdById           String?
+  updatedById           String?
+  deletedAt             DateTime?
+  schedule              Schedule                             @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  member                Member                               @relation("ScheduleMemberMember", fields: [memberId], references: [id], onDelete: Cascade)
+  replacedByMember      Member?                              @relation("ScheduleMemberReplacement", fields: [replacedByMemberId], references: [id], onDelete: SetNull)
+  createdBy             User?                                @relation("ScheduleMemberCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy             User?                                @relation("ScheduleMemberUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  roles                 ScheduleMemberRoleAssignment[]
   instrumentAssignments ScheduleMemberInstrumentAssignment[]
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  createdAt             DateTime                             @default(now())
+  updatedAt             DateTime                             @updatedAt
 
   @@index([scheduleId])
   @@index([memberId])
@@ -844,6 +847,18 @@ model ScheduleMember {
   @@index([declinedAt])
   @@index([deletedAt])
   @@index([scheduleId, memberId, deletedAt])
+}
+
+model ScheduleMemberRoleAssignment {
+  id               String             @id @default(cuid())
+  scheduleMemberId String
+  role             ScheduleMemberRole
+  scheduleMember   ScheduleMember     @relation(fields: [scheduleMemberId], references: [id], onDelete: Cascade)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([scheduleMemberId, role])
+  @@index([role])
 }
 
 model Song {
@@ -1157,49 +1172,49 @@ model FinancialClosing {
 }
 
 model InstrumentCategory {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  description String?
-  isActive    Boolean      @default(true)
-  deletedAt   DateTime?
-  createdById String?
-  updatedById String?
-  instruments Instrument[]
+  id                  String                               @id @default(cuid())
+  name                String                               @unique
+  description         String?
+  isActive            Boolean                              @default(true)
+  deletedAt           DateTime?
+  createdById         String?
+  updatedById         String?
+  instruments         Instrument[]
   scheduleAssignments ScheduleMemberInstrumentAssignment[]
-  createdBy   User?        @relation("InstrumentCategoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   User?        @relation("InstrumentCategoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdBy           User?                                @relation("InstrumentCategoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy           User?                                @relation("InstrumentCategoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt           DateTime                             @default(now())
+  updatedAt           DateTime                             @updatedAt
 
   @@index([name])
   @@index([isActive, deletedAt])
 }
 
 model Instrument {
-  id               String              @id @default(cuid())
-  name             String
-  categoryId       String
-  brand            String?
-  model            String?
-  serialNumber     String?             @unique
-  assetNumber      String?             @unique
-  acquisitionDate  DateTime?
-  acquisitionValue Decimal?            @db.Decimal(12, 2)
-  status           InstrumentStatus    @default(ACTIVE)
-  ministryId       String?
-  notes            String?
-  deletedAt        DateTime?
-  createdById      String?
-  updatedById      String?
-  category         InstrumentCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  ministry         Ministry?           @relation(fields: [ministryId], references: [id], onDelete: SetNull)
-  histories        InstrumentHistory[] @relation("InstrumentHistoryPrimary")
-  relatedHistories InstrumentHistory[] @relation("InstrumentHistoryRelated")
+  id                  String                               @id @default(cuid())
+  name                String
+  categoryId          String
+  brand               String?
+  model               String?
+  serialNumber        String?                              @unique
+  assetNumber         String?                              @unique
+  acquisitionDate     DateTime?
+  acquisitionValue    Decimal?                             @db.Decimal(12, 2)
+  status              InstrumentStatus                     @default(ACTIVE)
+  ministryId          String?
+  notes               String?
+  deletedAt           DateTime?
+  createdById         String?
+  updatedById         String?
+  category            InstrumentCategory                   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  ministry            Ministry?                            @relation(fields: [ministryId], references: [id], onDelete: SetNull)
+  histories           InstrumentHistory[]                  @relation("InstrumentHistoryPrimary")
+  relatedHistories    InstrumentHistory[]                  @relation("InstrumentHistoryRelated")
   scheduleAssignments ScheduleMemberInstrumentAssignment[]
-  createdBy        User?               @relation("InstrumentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy        User?               @relation("InstrumentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdBy           User?                                @relation("InstrumentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy           User?                                @relation("InstrumentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt           DateTime                             @default(now())
+  updatedAt           DateTime                             @updatedAt
 
   @@index([name])
   @@index([categoryId])
@@ -1233,23 +1248,23 @@ model InstrumentHistory {
 }
 
 model ScheduleMemberInstrumentAssignment {
-  id                   String                    @id @default(cuid())
+  id                   String                   @id @default(cuid())
   scheduleMemberId     String
   instrumentCategoryId String
   source               ScheduleInstrumentSource
   instrumentId         String?
-  startedAt            DateTime                  @default(now())
+  startedAt            DateTime                 @default(now())
   endedAt              DateTime?
   changeReason         String?
   createdById          String
   updatedById          String?
-  scheduleMember       ScheduleMember            @relation(fields: [scheduleMemberId], references: [id], onDelete: Restrict)
-  instrumentCategory   InstrumentCategory        @relation(fields: [instrumentCategoryId], references: [id], onDelete: Restrict)
-  instrument           Instrument?               @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
-  createdBy            User                      @relation("ScheduleInstrumentAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy            User?                     @relation("ScheduleInstrumentAssignmentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
+  scheduleMember       ScheduleMember           @relation(fields: [scheduleMemberId], references: [id], onDelete: Restrict)
+  instrumentCategory   InstrumentCategory       @relation(fields: [instrumentCategoryId], references: [id], onDelete: Restrict)
+  instrument           Instrument?              @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  createdBy            User                     @relation("ScheduleInstrumentAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy            User?                    @relation("ScheduleInstrumentAssignmentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 
   @@index([scheduleMemberId])
   @@index([instrumentId, startedAt])
@@ -1257,6 +1272,7 @@ model ScheduleMemberInstrumentAssignment {
   @@index([startedAt])
   @@index([endedAt])
 }
+
 model Donation {
   id        String       @id @default(cuid())
   amount    Decimal      @db.Decimal(12, 2)

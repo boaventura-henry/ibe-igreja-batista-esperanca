@@ -206,8 +206,10 @@ async function main() {
       "mudancas multiplas sao consolidadas"
     );
     const expectedRoleLabels: Record<ScheduleMemberRole, string> = {
+      MINISTER: "Ministro",
       LEADER: "Líder",
       VOCAL: "Vocal",
+      BACKING: "Backing",
       INSTRUMENT: "Instrumento",
       MEDIA: "Mídia",
       RECEPTION: "Recepção",

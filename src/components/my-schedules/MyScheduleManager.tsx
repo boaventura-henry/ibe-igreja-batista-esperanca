@@ -1,11 +1,11 @@
 "use client";
 
-import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
+import { ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { useCallback, useEffect, useState } from "react";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
 import { PortalScheduleRepertoire } from "@/components/portal/PortalScheduleRepertoire";
 import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
-import { getScheduleMemberDisplayRole } from "@/lib/schedule-member-role";
+import { getScheduleMemberDisplayRole, hasInstrumentRole } from "@/lib/schedule-member-role";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -145,8 +145,8 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
                     <div className="flex flex-wrap justify-end gap-2">
                       {canSelfRespond(schedule) ? <ActionButton onClick={() => postAction(schedule.id, "confirm")}>Confirmar Presenca</ActionButton> : null}
                       {canSelfRespond(schedule) ? <ActionButton onClick={() => decline(schedule.id)}>Nao poderei participar</ActionButton> : null}
-                      {schedule.role === ScheduleMemberRole.INSTRUMENT && schedule.status !== ScheduleMemberStatus.REPLACED && schedule.status !== ScheduleMemberStatus.DECLINED && schedule.status !== ScheduleMemberStatus.ABSENT && schedule.scheduleStatus === ScheduleStatus.PUBLISHED && schedule.instrumentAssignment ? <ActionButton onClick={() => setInstrumentScheduleMemberId(schedule.id)}>Alterar instrumento</ActionButton> : null}
-                      {schedule.role === ScheduleMemberRole.INSTRUMENT && schedule.status !== ScheduleMemberStatus.REPLACED && schedule.status !== ScheduleMemberStatus.DECLINED && schedule.status !== ScheduleMemberStatus.ABSENT && schedule.scheduleStatus === ScheduleStatus.PUBLISHED && !schedule.instrumentAssignment ? <span className="self-center text-xs font-semibold text-ink-500">Instrumento ainda nao definido.</span> : null}
+                      {hasInstrumentRole(schedule) && schedule.status !== ScheduleMemberStatus.REPLACED && schedule.status !== ScheduleMemberStatus.DECLINED && schedule.status !== ScheduleMemberStatus.ABSENT && schedule.scheduleStatus === ScheduleStatus.PUBLISHED && schedule.instrumentAssignment ? <ActionButton onClick={() => setInstrumentScheduleMemberId(schedule.id)}>Alterar instrumento</ActionButton> : null}
+                      {hasInstrumentRole(schedule) && schedule.status !== ScheduleMemberStatus.REPLACED && schedule.status !== ScheduleMemberStatus.DECLINED && schedule.status !== ScheduleMemberStatus.ABSENT && schedule.scheduleStatus === ScheduleStatus.PUBLISHED && !schedule.instrumentAssignment ? <span className="self-center text-xs font-semibold text-ink-500">Instrumento ainda nao definido.</span> : null}
                     </div>
                   </td>
                 </tr>

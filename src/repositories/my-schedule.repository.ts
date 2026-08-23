@@ -7,6 +7,7 @@ import type { MyScheduleListQueryInput } from "@/validators";
 const myScheduleMemberSelect = {
   id: true,
   role: true,
+  roles: { select: { role: true } },
   status: true,
   confirmedAt: true,
   declinedAt: true,
@@ -53,6 +54,7 @@ const myScheduleMemberSelect = {
         select: {
           id: true,
           role: true,
+          roles: { select: { role: true } },
           status: true,
           instrumentAssignments: {
             where: { endedAt: null },
@@ -124,7 +126,7 @@ export const myScheduleRepository = {
     return database.scheduleMember.findFirst({
       where: { id, memberId, deletedAt: null, schedule: { deletedAt: null } },
       select: {
-        id: true, memberId: true, role: true, status: true,
+        id: true, memberId: true, role: true, roles: { select: { role: true } }, status: true,
         schedule: { select: { id: true, status: true, date: true, startTime: true, endTime: true, deletedAt: true } },
         instrumentAssignments: {
           where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1,

@@ -1,5 +1,6 @@
 import { ScheduleInstrumentSource, ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { getScheduleMemberRoles, hasInstrumentRole } from "@/lib/schedule-member-role";
 import { myScheduleRepository, scheduleInstrumentAssignmentRepository, scheduleRepository, type MyScheduleRecord } from "@/repositories";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
 import type { MyScheduleDeclineInput, MyScheduleInstrumentChangeInput, MyScheduleListQueryInput } from "@/validators";
@@ -18,6 +19,7 @@ function serializeDate(value: Date | null) {
 function serialize(record: MyScheduleRecord): MyScheduleSummary {
   const participants = record.schedule.members.map((participant) => ({
     ...participant,
+    roles: getScheduleMemberRoles(participant),
     instrumentAssignment: participant.instrumentAssignments[0] ?? null,
     member: { ...participant.member, displayName: getMemberDisplayName(participant.member) },
     replacedByMember: participant.replacedByMember ? { ...participant.replacedByMember, displayName: getMemberDisplayName(participant.replacedByMember) } : null
@@ -37,6 +39,7 @@ function serialize(record: MyScheduleRecord): MyScheduleSummary {
     startTime: record.schedule.startTime,
     endTime: record.schedule.endTime,
     role: record.role,
+    roles: getScheduleMemberRoles(record),
     instrumentAssignment: record.instrumentAssignments[0] ?? null,
     status: record.status,
     scheduleStatus: record.schedule.status,
@@ -85,10 +88,11 @@ function ensureCanSelfRespond(scheduleMember: MyScheduleSummary, action: "confir
 
 function ensureCanChangeInstrument(participant: {
   role: ScheduleMemberRole;
+  roles: Array<{ role: ScheduleMemberRole }>;
   status: ScheduleMemberStatus;
   schedule: { status: ScheduleStatus };
 }) {
-  if (participant.role !== ScheduleMemberRole.INSTRUMENT) {
+  if (!hasInstrumentRole(participant)) {
     throw new AppError("Esta participacao nao utiliza instrumento.", 409, "SCHEDULE_INSTRUMENT_ROLE_REQUIRED");
   }
   if (participant.schedule.status !== ScheduleStatus.PUBLISHED) {
@@ -180,7 +184,7 @@ export const myScheduleService = {
         ? { instrumentCategoryId: current.instrumentCategory.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: input.instrumentId, changeReason: input.changeReason ?? null }
         : { instrumentCategoryId: current.instrumentCategory.id, source: ScheduleInstrumentSource.OWN, instrumentId: null, changeReason: input.changeReason ?? null };
 
-      return setActiveAssignmentInTransaction(participant.id, participant.role, assignment, user.id, database);
+      return setActiveAssignmentInTransaction(participant.id, participant, assignment, user.id, database);
     }, { maxWait: 5_000, timeout: 15_000 });
   },
 

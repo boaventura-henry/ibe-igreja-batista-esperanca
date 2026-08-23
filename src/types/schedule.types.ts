@@ -43,6 +43,7 @@ export type ScheduleInstrumentSuggestion = {
 export type ScheduleMemberSummary = {
   id: string;
   role: ScheduleMemberRole;
+  roles: ScheduleMemberRole[];
   status: ScheduleMemberStatus;
   confirmedAt: string | null;
   declinedAt: string | null;
@@ -103,6 +104,7 @@ export type ScheduleFormValues = {
 export type ScheduleMemberFormValues = {
   memberId: string;
   role: ScheduleMemberRole;
+  roles?: ScheduleMemberRole[];
   status: ScheduleMemberStatus;
   confirmedAt?: string;
   replacedByMemberId?: string;

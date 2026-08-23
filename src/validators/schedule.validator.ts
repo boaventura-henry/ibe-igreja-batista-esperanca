@@ -73,6 +73,14 @@ export const scheduleListQuerySchema = z.object({
 const scheduleMemberBaseSchema = z.object({
   memberId: z.string().cuid("Informe um membro valido."),
   role: z.enum(ScheduleMemberRole),
+  roles: z.array(z.enum(ScheduleMemberRole))
+    .min(1, "Informe pelo menos uma funcao.")
+    .superRefine((roles, context) => {
+      if (new Set(roles).size !== roles.length) {
+        context.addIssue({ code: "custom", message: "Nao repita a mesma funcao." });
+      }
+    })
+    .optional(),
   status: z.enum(ScheduleMemberStatus),
   confirmedAt: optionalDateTime,
   replacedByMemberId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),

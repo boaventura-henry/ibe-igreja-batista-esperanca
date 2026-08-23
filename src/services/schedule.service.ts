@@ -1,5 +1,11 @@
 import { MemberStatus, ScheduleMemberRole, ScheduleMemberStatus, ScheduleScope, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import {
+  getScheduleMemberRoles,
+  hasInstrumentRole,
+  normalizeScheduleMemberRoles,
+  resolveLegacyScheduleMemberRole
+} from "@/lib/schedule-member-role";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
   scheduleRepository,
@@ -61,6 +67,7 @@ function serializeMember(member: ScheduleMemberRecord): ScheduleMemberSummary {
   return {
     id: member.id,
     role: member.role,
+    roles: getScheduleMemberRoles(member),
     status: member.status,
     confirmedAt: serializeDate(member.confirmedAt),
     declinedAt: serializeDate(member.declinedAt),
@@ -153,6 +160,37 @@ function hasRelevantMemberChange(
     (data.observations !== undefined &&
       data.observations !== (current.observations ?? undefined))
   );
+}
+
+function sameRoles(left: readonly ScheduleMemberRole[], right: readonly ScheduleMemberRole[]) {
+  return left.length === right.length && left.every((role, index) => role === right[index]);
+}
+
+function resolveRequestedRoles(
+  data: ScheduleMemberCreateInput | ScheduleMemberUpdateInput,
+  current?: ScheduleMemberRecord
+) {
+  if (data.roles && new Set(data.roles).size !== data.roles.length) {
+    throw new AppError("Nao repita a mesma funcao.", 400, "SCHEDULE_MEMBER_ROLE_DUPLICATE");
+  }
+
+  const currentRoles = current ? getScheduleMemberRoles(current) : [];
+  const requested = data.roles !== undefined
+    ? normalizeScheduleMemberRoles(data.roles)
+    : current && (data.role === undefined || data.role === current.role)
+      ? currentRoles
+      : normalizeScheduleMemberRoles([data.role ?? ScheduleMemberRole.OTHER]);
+
+  if (!requested.length) {
+    throw new AppError("Informe pelo menos uma funcao.", 400, "SCHEDULE_MEMBER_ROLE_REQUIRED");
+  }
+
+  const legacyRole = resolveLegacyScheduleMemberRole(current?.role ?? data.role, requested);
+  if (!legacyRole) {
+    throw new AppError("Informe pelo menos uma funcao.", 400, "SCHEDULE_MEMBER_ROLE_REQUIRED");
+  }
+
+  return { roles: requested, legacyRole, changed: !current || !sameRoles(currentRoles, requested) };
 }
 
 async function ensureActiveMinistry(ministryId: string) {
@@ -729,16 +767,19 @@ export const scheduleService = {
       }
       ensureScheduleCanReceiveMembers(transactionalSchedule);
       await ensureMemberRules(transactionalSchedule, data, { database });
+      const roleConfiguration = resolveRequestedRoles(data);
       let created = await scheduleRepository.addMember(
         scheduleId,
         data,
+        roleConfiguration.roles,
+        roleConfiguration.legacyRole,
         authorization.user.id,
         database
       );
       if (data.instrumentAssignment) {
         await createInitialAssignmentInTransaction(
           created.id,
-          created.role,
+          created,
           data.instrumentAssignment,
           authorization.user.id,
           database
@@ -761,7 +802,7 @@ export const scheduleService = {
         ));
       }
       return created;
-    });
+    }, { maxWait: 5_000, timeout: 15_000 });
     await notificationPublisher.deliverPush(notificationIds);
     return serializeMember(participant);
   },
@@ -808,18 +849,24 @@ export const scheduleService = {
           transactionalCurrent.replacedByMember?.id ?? null,
         database
       });
-      const changed = hasRelevantMemberChange(transactionalCurrent, data);
+      const roleConfiguration = resolveRequestedRoles(data, transactionalCurrent);
+      const changed = hasRelevantMemberChange(transactionalCurrent, {
+        ...data,
+        role: roleConfiguration.legacyRole
+      }) || roleConfiguration.changed;
       if (!changed && !data.instrumentAssignment) return transactionalCurrent;
       let result = changed
         ? await scheduleRepository.updateMember(
             memberScheduleId,
-            data,
+            { ...data, role: roleConfiguration.legacyRole },
+            roleConfiguration.changed ? roleConfiguration.roles : undefined,
+            roleConfiguration.legacyRole,
             authorization.user.id,
             database
           )
         : transactionalCurrent;
       const mustEndAssignment =
-        result.role !== ScheduleMemberRole.INSTRUMENT ||
+        !hasInstrumentRole(result) ||
         result.status === ScheduleMemberStatus.REPLACED ||
         (data.memberId !== undefined && data.memberId !== transactionalCurrent.member.id) ||
         (data.replacedByMemberId !== undefined &&
@@ -836,7 +883,7 @@ export const scheduleService = {
       } else if (data.instrumentAssignment) {
         await setActiveAssignmentInTransaction(
           memberScheduleId,
-          result.role,
+          result,
           data.instrumentAssignment,
           authorization.user.id,
           database
@@ -882,7 +929,7 @@ export const scheduleService = {
           }
         } else if (nextUserId) {
           const participantChanges: ScheduleRelevantChange[] = [];
-          if (data.role !== undefined && data.role !== transactionalCurrent.role) {
+          if (roleConfiguration.changed) {
             participantChanges.push("role");
           }
           if (data.status !== undefined && data.status !== transactionalCurrent.status) {

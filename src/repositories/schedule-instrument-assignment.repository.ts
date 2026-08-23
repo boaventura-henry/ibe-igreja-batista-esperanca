@@ -152,7 +152,7 @@ export const scheduleInstrumentAssignmentRepository = {
   findParticipant(id: string, scheduleId: string, database: ScheduleDatabase = prisma) {
     return database.scheduleMember.findFirst({
       where: { id, scheduleId, deletedAt: null },
-      select: { id: true, role: true, status: true, scheduleId: true }
+      select: { id: true, role: true, roles: { select: { role: true } }, status: true, scheduleId: true }
     });
   }
 };
