@@ -5,7 +5,8 @@ import { ScheduleStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
-import type { ScheduleFormValues, ScheduleListResult, ScheduleSummary } from "@/types";
+import { ScheduleMemberNames } from "@/components/schedules/ScheduleMemberNames";
+import type { ScheduleFormValues, ScheduleListItem, ScheduleListResult, ScheduleSummary } from "@/types";
 import { formatDateForInput } from "@/utils";
 
 type ApiResponse<T> =
@@ -152,7 +153,7 @@ export function ScheduleManager() {
     setIsFormOpen(true);
   }
 
-  async function openEditForm(schedule: ScheduleSummary) {
+  async function openEditForm(schedule: ScheduleListItem) {
     setEditingId(schedule.id);
     setForm({
       title: schedule.title,
@@ -328,7 +329,9 @@ export function ScheduleManager() {
                     <p className="text-xs text-ink-500">{[schedule.startTime, schedule.endTime].filter(Boolean).join(" - ") || "Horario nao informado"}</p>
                   </td>
                   <td className="px-4 py-4"><StatusBadge status={schedule.status} /></td>
-                  <td className="px-4 py-4 text-ink-700">{schedule.members.length}</td>
+                  <td className="max-w-xs px-4 py-4 align-top text-ink-700">
+                    <ScheduleMemberNames members={schedule.members} memberCount={schedule.memberCount} />
+                  </td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
                       <Link href={`/escalas/${schedule.id}`} className={actionClass}>Detalhes</Link>

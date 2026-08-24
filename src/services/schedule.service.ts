@@ -10,6 +10,7 @@ import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
   scheduleRepository,
   type ScheduleDatabase,
+  type ScheduleListRecord,
   type ScheduleMemberRecord,
   type ScheduleRecord
 } from "@/repositories";
@@ -20,7 +21,7 @@ import {
 } from "@/services/schedule-notification.service";
 import { notificationPublisher } from "@/services/notification-publisher.service";
 import { createInitialAssignmentInTransaction, endActiveAssignmentInTransaction, setActiveAssignmentInTransaction } from "@/services/schedule-instrument-assignment.service";
-import type { ScheduleListResult, ScheduleMemberSummary, ScheduleSummary } from "@/types";
+import type { ScheduleListItem, ScheduleListResult, ScheduleMemberSummary, ScheduleSummary } from "@/types";
 import type {
   ScheduleCreateInput,
   ScheduleListQueryInput,
@@ -109,6 +110,41 @@ function serialize(schedule: ScheduleRecord): ScheduleSummary {
         }
       : null,
     members: schedule.members.map(serializeMember),
+    createdAt: schedule.createdAt.toISOString(),
+    updatedAt: schedule.updatedAt.toISOString()
+  };
+}
+
+function serializeListItem(schedule: ScheduleListRecord): ScheduleListItem {
+  const members = schedule.members.map((participant) => ({
+    id: participant.id,
+    member: {
+      id: participant.member.id,
+      name: participant.member.name,
+      displayName: getMemberDisplayName(participant.member)
+    }
+  }));
+
+  return {
+    id: schedule.id,
+    title: schedule.title,
+    description: schedule.description,
+    date: schedule.date.toISOString(),
+    startTime: schedule.startTime,
+    endTime: schedule.endTime,
+    location: schedule.location,
+    status: schedule.status,
+    publishedAt: serializeDate(schedule.publishedAt),
+    observations: schedule.observations,
+    ministry: schedule.ministry,
+    event: schedule.event
+      ? {
+          ...schedule.event,
+          startDate: schedule.event.startDate.toISOString()
+        }
+      : null,
+    members,
+    memberCount: members.length,
     createdAt: schedule.createdAt.toISOString(),
     updatedAt: schedule.updatedAt.toISOString()
   };
@@ -442,7 +478,7 @@ export const scheduleService = {
     ]);
 
     return {
-      schedules: result.schedules.map(serialize),
+      schedules: result.schedules.map(serializeListItem),
       pagination: {
         page: filters.page,
         pageSize: filters.pageSize,

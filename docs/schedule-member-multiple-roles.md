@@ -69,8 +69,26 @@ The 0.2.4 suggestion remains exclusively instrumental: it may select
 infers `BACKING`, `VOCAL`, `MINISTER` or another non-instrument role. Manual
 changes and a newly selected member invalidate an outstanding suggestion.
 
-Existing notification wording and normal display surfaces remain singular in
-this administrative Story.
+The administrative schedule detail now presents every assigned role through
+`getScheduleMemberDisplayRoles`. Presentation is deterministic and follows the
+central role priority with two explicit product conventions: `LEADER` is shown
+before `MINISTER`, and an `INSTRUMENT` category is shown before `BACKING` while
+remaining after `MINISTER`. Thus the supported examples are `Lider • Ministro`,
+`Baixo • Backing` and `Ministro • Violao`. When no category exists, the helper
+uses `Instrumento`; physical asset names are never included.
+
+The administrative list selects participant names in the same relational query
+as the paginated schedules and keeps the existing participant order (legacy
+projection followed by member name). It exposes names and `memberCount`, but no
+roles, assignments, User data or asset data. Mobile shows up to three complete
+names and desktop up to five before a pluralized `+N membros` summary. One
+`ScheduleMember` always counts once, regardless of its role count. `REPLACED`
+participants remain included because this Story preserves the previous rule of
+counting every non-deleted `ScheduleMember`.
+
+Portal, My Schedules and notification wording remain singular for the next
+presentation Story. The administrative Dashboard does not display participant
+roles and is therefore not applicable to this change.
 
 Future Stories must migrate all presentation surfaces and notifications, and
 finally remove the legacy column

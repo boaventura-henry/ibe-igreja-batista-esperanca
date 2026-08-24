@@ -102,3 +102,32 @@ export function getScheduleMemberDisplayRole(
 
   return getScheduleMemberRolePresentation(role).label;
 }
+
+export function getScheduleMemberDisplayRoles(
+  source: ScheduleMemberRoleSource,
+  instrumentAssignment?: ScheduleMemberInstrumentAssignmentDisplay
+) {
+  const categoryName = instrumentAssignment?.instrumentCategory?.name?.trim();
+  const presentationRoles = [...getScheduleMemberRoles(source)].sort((left, right) => {
+    const presentationPriority = (role: ScheduleMemberRole) => {
+      const officialPriority = scheduleMemberRolePriority.get(role) ?? Number.MAX_SAFE_INTEGER;
+      if (role === ScheduleMemberRole.LEADER) return officialPriority - 2;
+      if (role === ScheduleMemberRole.INSTRUMENT) return officialPriority - 1.5;
+      return officialPriority;
+    };
+
+    return presentationPriority(left) - presentationPriority(right);
+  });
+
+  if (!presentationRoles.length) {
+    return "Função não informada";
+  }
+
+  return presentationRoles
+    .map((role) =>
+      role === ScheduleMemberRole.INSTRUMENT && categoryName
+        ? categoryName
+        : getScheduleMemberRolePresentation(role).label
+    )
+    .join(" • ");
+}

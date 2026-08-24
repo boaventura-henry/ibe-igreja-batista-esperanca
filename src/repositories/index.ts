@@ -68,6 +68,7 @@ export type { ScheduleInstrumentAssignmentRecord } from "./schedule-instrument-a
 export { scheduleRepository } from "./schedule.repository";
 export type {
   ScheduleDatabase,
+  ScheduleListRecord,
   ScheduleMemberRecord,
   ScheduleRecord
 } from "./schedule.repository";

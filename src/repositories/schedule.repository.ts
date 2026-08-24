@@ -83,7 +83,39 @@ const scheduleSelect = {
   }
 } satisfies Prisma.ScheduleSelect;
 
+const scheduleListSelect = {
+  id: true,
+  title: true,
+  description: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  location: true,
+  status: true,
+  publishedAt: true,
+  observations: true,
+  createdAt: true,
+  updatedAt: true,
+  ministry: {
+    select: { id: true, name: true, color: true, isActive: true }
+  },
+  event: {
+    select: { id: true, title: true, startDate: true, ministryId: true }
+  },
+  members: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      member: {
+        select: { id: true, name: true, nickname: true }
+      }
+    },
+    orderBy: [{ role: "asc" }, { member: { name: "asc" } }]
+  }
+} satisfies Prisma.ScheduleSelect;
+
 export type ScheduleRecord = Prisma.ScheduleGetPayload<{ select: typeof scheduleSelect }>;
+export type ScheduleListRecord = Prisma.ScheduleGetPayload<{ select: typeof scheduleListSelect }>;
 export type ScheduleMemberRecord = Prisma.ScheduleMemberGetPayload<{ select: typeof scheduleMemberSelect }>;
 export type ScheduleDatabase = Prisma.TransactionClient | typeof prisma;
 
@@ -203,7 +235,7 @@ export const scheduleRepository = {
     const [schedules, total] = await prisma.$transaction([
       prisma.schedule.findMany({
         where,
-        select: scheduleSelect,
+        select: scheduleListSelect,
         orderBy: { [filters.sortBy]: filters.sortOrder },
         skip,
         take: filters.pageSize

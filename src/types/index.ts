@@ -128,6 +128,7 @@ export type {
 } from "./report.types";
 export type {
   ScheduleFormValues,
+  ScheduleListItem,
   ScheduleListResult,
   ScheduleMemberFormValues,
   ScheduleMemberSummary,

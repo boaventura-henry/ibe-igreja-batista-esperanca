@@ -5,7 +5,7 @@ import { FormEvent, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   getScheduleMemberRoles,
-  getScheduleMemberDisplayRole,
+  getScheduleMemberDisplayRoles,
   hasInstrumentRole,
   normalizeScheduleMemberRoles,
   scheduleMemberRoleOptions
@@ -637,7 +637,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
             <thead className="bg-hope-50 text-left text-xs font-bold uppercase tracking-wide text-ink-500">
               <tr>
                 <th className="px-4 py-3">Membro</th>
-                <th className="px-4 py-3">Funcao</th>
+                <th className="px-4 py-3">Funções</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Substituto</th>
                 <th className="px-4 py-3 text-right">Acoes</th>
@@ -650,7 +650,9 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
               {schedule.members.map((item) => (
                 <tr key={item.id}>
                   <td className="px-4 py-4 font-semibold text-ink-900">{item.member.displayName}</td>
-                  <td className="px-4 py-4 text-ink-700">{getScheduleMemberDisplayRole(item.role, item.instrumentAssignment)}</td>
+                  <td className="min-w-32 max-w-56 whitespace-normal break-words px-4 py-4 text-ink-700">
+                    {getScheduleMemberDisplayRoles(item, item.instrumentAssignment)}
+                  </td>
                   <td className="px-4 py-4"><ScheduleMemberStatusBadge status={item.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{item.replacedByMember?.displayName ?? "-"}</td>
                   <td className="px-4 py-4 text-right">

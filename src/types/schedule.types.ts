@@ -74,8 +74,20 @@ export type ScheduleSummary = {
   updatedAt: string;
 };
 
+export type ScheduleListItem = Omit<ScheduleSummary, "members"> & {
+  members: Array<{
+    id: string;
+    member: {
+      id: string;
+      name: string;
+      displayName: string;
+    };
+  }>;
+  memberCount: number;
+};
+
 export type ScheduleListResult = {
-  schedules: ScheduleSummary[];
+  schedules: ScheduleListItem[];
   pagination: {
     page: number;
     pageSize: number;
