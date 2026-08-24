@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
 import { PortalScheduleRepertoire } from "@/components/portal/PortalScheduleRepertoire";
 import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
-import { getScheduleMemberDisplayRole, hasInstrumentRole } from "@/lib/schedule-member-role";
+import { getScheduleMemberDisplayRoles, hasInstrumentRole } from "@/lib/schedule-member-role";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -112,7 +112,7 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
                 <th className="px-4 py-3">Data</th>
                 <th className="px-4 py-3">Ministerio</th>
                 <th className="px-4 py-3">Escala</th>
-                <th className="px-4 py-3">Funcao</th>
+                <th className="px-4 py-3">Funções</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Local</th>
                 <th className="px-4 py-3 text-right">Acoes</th>
@@ -138,7 +138,9 @@ export function MyScheduleManager({ initialData }: { initialData: MyScheduleList
                     </div>
                   </td>
                   <td className="px-4 py-4 font-semibold text-hope-700">{schedule.title}<PortalScheduleRepertoire scheduleMemberId={schedule.id} /></td>
-                  <td className="px-4 py-4 text-ink-700">{getScheduleMemberDisplayRole(schedule.role, schedule.instrumentAssignment)}</td>
+                  <td className="min-w-32 max-w-56 whitespace-normal break-words px-4 py-4 text-ink-700">
+                    {getScheduleMemberDisplayRoles(schedule, schedule.instrumentAssignment)}
+                  </td>
                   <td className="px-4 py-4"><ScheduleMemberStatusBadge status={schedule.status} /></td>
                   <td className="px-4 py-4 text-ink-700">{schedule.location || "-"}</td>
                   <td className="px-4 py-4 text-right">

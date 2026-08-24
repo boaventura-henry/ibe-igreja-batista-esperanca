@@ -37,6 +37,7 @@
     "test:schedule-member-roles": "tsx scripts/schedule-member-roles-test.ts",
     "test:schedule-member-multiple-roles-admin": "tsx scripts/schedule-member-multiple-roles-admin-test.ts",
     "test:schedule-multiple-roles-display": "tsx scripts/schedule-multiple-roles-display-test.ts",
+    "test:portal-multiple-schedule-roles": "tsx scripts/portal-multiple-schedule-roles-test.ts",
     "test:schedule-instrument-display": "tsx scripts/schedule-instrument-display-test.ts",
     "test:schedule-instrument-display-functional": "tsx scripts/schedule-instrument-display-functional-test.ts",
     "test:instruments-ui": "tsx scripts/instrument-admin-ui-contract-test.ts",

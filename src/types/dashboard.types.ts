@@ -1,3 +1,4 @@
+import type { ScheduleMemberRole, ScheduleMemberStatus } from "@prisma/client";
 import type { DashboardWidgetCode, DashboardWidgetComponentKey } from "@/config/dashboard-widgets";
 import type { DashboardLayoutConfiguration, DashboardWidgetBadge, DashboardWidgetCategory, DashboardWidgetIconKey, DashboardWidgetPriority, DashboardWidgetSensitivity, DashboardWidgetSize, DashboardWidgetVisualVariant } from "@/config/dashboard-widget-enums";
 import type { BirthdayDashboardData } from "./birthday.types";
@@ -125,10 +126,10 @@ export type PortalDashboardSchedule = {
   startTime: string | null;
   endTime: string | null;
   location: string | null;
-  role: string;
-  roles: string[];
+  role: ScheduleMemberRole;
+  roles: ScheduleMemberRole[];
   instrumentAssignment: { instrumentCategory: { id: string; name: string } } | null;
-  status: string;
+  status: ScheduleMemberStatus;
   ministry: {
     id: string;
     name: string;

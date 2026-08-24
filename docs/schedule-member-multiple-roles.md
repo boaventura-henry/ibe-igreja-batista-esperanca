@@ -86,12 +86,21 @@ names and desktop up to five before a pluralized `+N membros` summary. One
 participants remain included because this Story preserves the previous rule of
 counting every non-deleted `ScheduleMember`.
 
-Portal, My Schedules and notification wording remain singular for the next
-presentation Story. The administrative Dashboard does not display participant
-roles and is therefore not applicable to this change.
+Portal and My Schedules now present every role through
+`getScheduleMemberDisplayRoles`, including the friendly instrumental category
+without exposing the physical asset. They still render one participation, one
+status and one set of confirmation/refusal actions per `ScheduleMember`.
+Instrument self-service eligibility uses the role collection. The Portal
+Dashboard uses the same projection for the next schedule, and both surfaces
+allow natural text wrapping on mobile.
 
-Future Stories must migrate all presentation surfaces and notifications, and
-finally remove the legacy column
+Notification wording remains singular and continues to use
+`getScheduleMemberDisplayRole` until its dedicated migration Story. The
+administrative Dashboard does not display participant roles and is therefore
+not applicable to this change.
+
+Future Stories must migrate notifications and any remaining legacy consumers,
+and finally remove the legacy column
 after every reader and writer uses the collection. Removal is allowed only
 after the administrative UI, Portal, My Schedules, notifications, all writes,
 legacy tests and any external consumers no longer depend on

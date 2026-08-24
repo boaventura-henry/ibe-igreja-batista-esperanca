@@ -111,7 +111,10 @@ async function main() {
     assert.doesNotMatch(listMethod, /\.map\([\s\S]*?(?:scheduleMember|findMembers|findMany)/);
   });
   await test("select resumido nao fabrica substituto como participante", () => assert.doesNotMatch(repositorySource.match(/const scheduleListSelect[\s\S]*?satisfies Prisma\.ScheduleSelect/)?.[0] ?? "", /replacedByMember/));
-  await test("Portal continua no helper singular", () => assert.match(portalSource, /getScheduleMemberDisplayRole/));
+  await test("Portal usa o helper multiplo", () => {
+    assert.match(portalSource, /getScheduleMemberDisplayRoles\(/);
+    assert.doesNotMatch(portalSource, /getScheduleMemberDisplayRole\(/);
+  });
   await test("notificacoes continuam no helper singular", () => assert.match(notificationSource, /getScheduleMemberDisplayRole/));
   await test("resumo mobile e desktop usam limites por participante", () => {
     assert.match(summarySource, /members\.slice/);

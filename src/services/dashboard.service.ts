@@ -1,4 +1,5 @@
 import { dashboardWidgetByCode, isDashboardWidgetCode, type DashboardWidgetCode } from "@/config/dashboard-widgets";
+import type { ScheduleMemberRole, ScheduleMemberStatus } from "@prisma/client";
 import { dashboardWidgetCategoryByCode } from "@/config/dashboard-widget-categories";
 import { defaultDashboardLayout, type DashboardLayoutConfiguration, type DashboardWidgetPriority } from "@/config/dashboard-widget-enums";
 import { APP_VERSION } from "@/lib/app-version";
@@ -119,7 +120,7 @@ export function resolveAuthorizedWidgetConfigurations(configurations: WidgetConf
     .sort((left, right) => left.order - right.order || priorityOrder[left.configuration.priority] - priorityOrder[right.configuration.priority] || left.configuration.code.localeCompare(right.configuration.code));
 }
 
-function serializePortalSchedule(schedule: { id: string; role: string; roles: Array<{ role: string }>; status: string; instrumentAssignments: Array<{ instrumentCategory: { id: string; name: string } }>; schedule: { id: string; title: string; date: Date; startTime: string | null; endTime: string | null; location: string | null; ministry: { id: string; name: string; color: string } } }): PortalDashboardSchedule {
+function serializePortalSchedule(schedule: { id: string; role: ScheduleMemberRole; roles: Array<{ role: ScheduleMemberRole }>; status: ScheduleMemberStatus; instrumentAssignments: Array<{ instrumentCategory: { id: string; name: string } }>; schedule: { id: string; title: string; date: Date; startTime: string | null; endTime: string | null; location: string | null; ministry: { id: string; name: string; color: string } } }): PortalDashboardSchedule {
   return { id: schedule.schedule.id, scheduleMemberId: schedule.id, title: schedule.schedule.title, date: schedule.schedule.date.toISOString(), startTime: schedule.schedule.startTime, endTime: schedule.schedule.endTime, location: schedule.schedule.location, role: schedule.role, roles: schedule.roles.map((item) => item.role), instrumentAssignment: schedule.instrumentAssignments[0] ?? null, status: schedule.status, ministry: schedule.schedule.ministry };
 }
 
