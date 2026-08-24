@@ -35,6 +35,7 @@
     "test:schedule-instrument-selection": "tsx scripts/schedule-instrument-selection-ui-test.ts",
     "test:schedule-instrument-suggestion": "tsx scripts/schedule-instrument-suggestion-test.ts",
     "test:schedule-member-roles": "tsx scripts/schedule-member-roles-test.ts",
+    "test:schedule-member-multiple-roles-admin": "tsx scripts/schedule-member-multiple-roles-admin-test.ts",
     "test:schedule-instrument-display": "tsx scripts/schedule-instrument-display-test.ts",
     "test:schedule-instrument-display-functional": "tsx scripts/schedule-instrument-display-functional-test.ts",
     "test:instruments-ui": "tsx scripts/instrument-admin-ui-contract-test.ts",

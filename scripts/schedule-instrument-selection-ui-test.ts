@@ -11,7 +11,7 @@ async function main() {
   ]);
 
   const checks: Array<[RegExp, string, string]> = [
-    [/role === ScheduleMemberRole\.INSTRUMENT/, manager, "1. roles nao instrumentais ocultam os campos"],
+    [/hasInstrumentRole\(\{ roles: memberForm\.roles \}\)/, manager, "1. colecao de roles controla os campos instrumentais"],
     [/Categoria musical/, manager, "2. role INSTRUMENT mostra categoria"],
     [/Origem do instrumento/, manager, "3. role INSTRUMENT mostra origem"],
     [/source === "REGISTERED"/, manager, "4. REGISTERED mostra instrumento"],
@@ -31,7 +31,7 @@ async function main() {
     [/Categoria nao informada/, manager, "18. escala antiga sem assignment permanece editavel"],
     [/(Inativa)|(Indisponivel)/, manager, "19. historico inativo continua visivel"],
     [/SCHEDULE_MEMBER_REPLACED|status === ScheduleMemberStatus\.REPLACED/, manager + assignmentService, "20. substituicao nao transfere assignment"],
-    [/instrumentAssignment: undefined/, manager, "21. trocar role limpa estado"],
+    [/role === ScheduleMemberRole\.INSTRUMENT[\s\S]*instrumentAssignment: undefined/, manager, "21. remover INSTRUMENT limpa estado"],
     [/requireScheduleAccess\("schedule\.update"\)/, eligibleRoute, "22. elegiveis exigem schedule.update"],
     [/schedule\.update/, categoryRoute, "23. categoria pode ser lida por schedule.update"],
     [/isSubmitting/, manager, "24. submit duplicado e bloqueado"],

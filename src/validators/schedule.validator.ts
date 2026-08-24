@@ -90,7 +90,7 @@ const scheduleMemberBaseSchema = z.object({
 });
 
 export const scheduleMemberCreateSchema = scheduleMemberBaseSchema.extend({
-  role: z.enum(ScheduleMemberRole).default(ScheduleMemberRole.OTHER),
+  role: z.enum(ScheduleMemberRole).optional(),
   status: z.enum(ScheduleMemberStatus).default(ScheduleMemberStatus.PENDING),
   allowMinistryException: z.boolean().default(false),
   instrumentAssignment: scheduleInstrumentAssignmentSchema.optional()

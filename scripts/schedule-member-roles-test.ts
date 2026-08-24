@@ -137,15 +137,46 @@ async function main() {
 
     const ministry = await prisma.ministry.create({ data: { name: key("ministry"), slug: key("ministry") } });
     ids.ministries.push(ministry.id);
-    const [normalMember, singleMember, exceptionMember, replacementMember, selfMember] = await Promise.all([
+    const [
+      normalMember,
+      singleMember,
+      exceptionMember,
+      replacementMember,
+      selfMember,
+      projectionMember,
+      legacyMember,
+      divergentMember,
+      concurrentMember
+    ] = await Promise.all([
       prisma.member.create({ data: { name: key("normal") } }),
       prisma.member.create({ data: { name: key("single") } }),
       prisma.member.create({ data: { name: key("exception") } }),
       prisma.member.create({ data: { name: key("replacement") } }),
-      prisma.member.create({ data: { name: key("self") } })
+      prisma.member.create({ data: { name: key("self") } }),
+      prisma.member.create({ data: { name: key("projection") } }),
+      prisma.member.create({ data: { name: key("legacy") } }),
+      prisma.member.create({ data: { name: key("divergent") } }),
+      prisma.member.create({ data: { name: key("concurrent") } })
     ]);
-    ids.members.push(normalMember.id, singleMember.id, exceptionMember.id, replacementMember.id, selfMember.id);
-    const memberLinks = await Promise.all([normalMember.id, singleMember.id].map((memberId) =>
+    ids.members.push(
+      normalMember.id,
+      singleMember.id,
+      exceptionMember.id,
+      replacementMember.id,
+      selfMember.id,
+      projectionMember.id,
+      legacyMember.id,
+      divergentMember.id,
+      concurrentMember.id
+    );
+    const memberLinks = await Promise.all([
+      normalMember.id,
+      singleMember.id,
+      projectionMember.id,
+      legacyMember.id,
+      divergentMember.id,
+      concurrentMember.id
+    ].map((memberId) =>
       prisma.memberMinistry.create({
         data: {
           memberId,
@@ -178,6 +209,97 @@ async function main() {
       assert.equal(singleRole.role, ScheduleMemberRole.VOCAL);
       assert.deepEqual(singleRole.roles, [ScheduleMemberRole.VOCAL]);
       assert.equal(await prisma.scheduleMemberRoleAssignment.count({ where: { scheduleMemberId: singleRole.id } }), 1);
+    });
+
+    const legacyOnly = await scheduleService.addMember(schedule.id, {
+      memberId: legacyMember.id,
+      role: ScheduleMemberRole.BACKING,
+      status: ScheduleMemberStatus.PENDING,
+      allowMinistryException: false
+    }, authorization);
+    ids.participants.push(legacyOnly.id);
+    await test("payload legado somente com role continua compativel", async () => {
+      assert.equal(legacyOnly.role, ScheduleMemberRole.BACKING);
+      assert.deepEqual(legacyOnly.roles, [ScheduleMemberRole.BACKING]);
+      assert.equal(await prisma.scheduleMemberRoleAssignment.count({ where: { scheduleMemberId: legacyOnly.id } }), 1);
+    });
+
+    const divergentCreate = await scheduleService.addMember(schedule.id, {
+      memberId: divergentMember.id,
+      role: ScheduleMemberRole.BACKING,
+      roles: [ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.MINISTER],
+      status: ScheduleMemberStatus.PENDING,
+      allowMinistryException: false,
+      instrumentAssignment: {
+        source: ScheduleInstrumentSource.OWN,
+        instrumentCategoryId: category.id,
+        instrumentId: null
+      }
+    }, authorization);
+    ids.participants.push(divergentCreate.id);
+    await test("roles prevalece sobre role divergente e projeta pela prioridade oficial", async () => {
+      assert.deepEqual(divergentCreate.roles, [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT]);
+      assert.equal(divergentCreate.role, ScheduleMemberRole.MINISTER);
+      assert.equal(await prisma.scheduleMember.count({ where: { scheduleId: schedule.id, memberId: divergentMember.id } }), 1);
+      assert.equal(await prisma.scheduleMemberRoleAssignment.count({ where: { scheduleMemberId: divergentCreate.id } }), 2);
+      assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: divergentCreate.id, endedAt: null } }), 1);
+    });
+
+    const legacyWithInstrument = await scheduleService.updateMember(schedule.id, legacyOnly.id, {
+      roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT],
+      instrumentAssignment: {
+        source: ScheduleInstrumentSource.REGISTERED,
+        instrumentCategoryId: category.id,
+        instrumentId: instrument.id
+      }
+    }, authorization);
+    await test("BACKING para BACKING mais INSTRUMENT cria assignment no submit", async () => {
+      assert.deepEqual(legacyWithInstrument.roles, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT]);
+      assert.equal(legacyWithInstrument.role, ScheduleMemberRole.BACKING);
+      assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: legacyOnly.id, endedAt: null } }), 1);
+    });
+    const legacyInstrumentOnly = await scheduleService.updateMember(schedule.id, legacyOnly.id, {
+      roles: [ScheduleMemberRole.INSTRUMENT]
+    }, authorization);
+    await test("remover BACKING preserva assignment e reprojeta legado para INSTRUMENT", async () => {
+      assert.deepEqual(legacyInstrumentOnly.roles, [ScheduleMemberRole.INSTRUMENT]);
+      assert.equal(legacyInstrumentOnly.role, ScheduleMemberRole.INSTRUMENT);
+      assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: legacyOnly.id, endedAt: null } }), 1);
+    });
+    const legacyVocalInstrument = await scheduleService.updateMember(schedule.id, legacyOnly.id, {
+      roles: [ScheduleMemberRole.VOCAL, ScheduleMemberRole.INSTRUMENT]
+    }, authorization);
+    await test("adicionar VOCAL preserva assignment e status", async () => {
+      assert.deepEqual(legacyVocalInstrument.roles, [ScheduleMemberRole.VOCAL, ScheduleMemberRole.INSTRUMENT]);
+      assert.equal(legacyVocalInstrument.status, ScheduleMemberStatus.PENDING);
+      assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: legacyOnly.id, endedAt: null } }), 1);
+    });
+    const legacyVocalOnly = await scheduleService.updateMember(schedule.id, legacyOnly.id, {
+      roles: [ScheduleMemberRole.VOCAL]
+    }, authorization);
+    await test("remover INSTRUMENT de VOCAL encerra assignment e preserva historico", async () => {
+      assert.deepEqual(legacyVocalOnly.roles, [ScheduleMemberRole.VOCAL]);
+      assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: legacyOnly.id, endedAt: null } }), 0);
+      assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: legacyOnly.id } }), 1);
+    });
+    await scheduleService.updateMember(schedule.id, legacyOnly.id, {
+      roles: [ScheduleMemberRole.VOCAL, ScheduleMemberRole.INSTRUMENT]
+    }, authorization);
+    await test("recolocar INSTRUMENT nao ressuscita assignment historico", async () => {
+      assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: legacyOnly.id, endedAt: null } }), 0);
+      assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: legacyOnly.id } }), 1);
+    });
+
+    const projectedCreate = await scheduleService.addMember(schedule.id, {
+      memberId: projectionMember.id,
+      roles: [ScheduleMemberRole.OTHER, ScheduleMemberRole.BACKING],
+      status: ScheduleMemberStatus.PENDING,
+      allowMinistryException: false
+    }, authorization);
+    ids.participants.push(projectedCreate.id);
+    await test("create moderno projeta legado pela prioridade sem usar default OTHER", () => {
+      assert.equal(projectedCreate.role, ScheduleMemberRole.BACKING);
+      assert.deepEqual(projectedCreate.roles, [ScheduleMemberRole.BACKING, ScheduleMemberRole.OTHER]);
     });
 
     const created = await scheduleService.addMember(schedule.id, {
@@ -328,16 +450,63 @@ async function main() {
       assert.equal(await prisma.scheduleMemberInstrumentAssignment.count({ where: { scheduleMemberId: created.id, endedAt: null } }), 1);
     });
 
+    const concurrentParticipant = await scheduleService.addMember(schedule.id, {
+      memberId: concurrentMember.id,
+      roles: [ScheduleMemberRole.INSTRUMENT],
+      status: ScheduleMemberStatus.PENDING,
+      allowMinistryException: false,
+      instrumentAssignment: {
+        source: ScheduleInstrumentSource.OWN,
+        instrumentCategoryId: category.id,
+        instrumentId: null
+      }
+    }, authorization);
+    ids.participants.push(concurrentParticipant.id);
+    await test("concorrencia entre remover INSTRUMENT e update normal preserva estado serializavel", async () => {
+      await Promise.all([
+        scheduleService.updateMember(schedule.id, concurrentParticipant.id, {
+          roles: [ScheduleMemberRole.VOCAL]
+        }, authorization),
+        scheduleService.updateMember(schedule.id, concurrentParticipant.id, {
+          roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT],
+          instrumentAssignment: {
+            source: ScheduleInstrumentSource.OWN,
+            instrumentCategoryId: category.id,
+            instrumentId: null
+          }
+        }, authorization)
+      ]);
+      const current = await prisma.scheduleMember.findUniqueOrThrow({
+        where: { id: concurrentParticipant.id },
+        include: { roles: true }
+      });
+      const roles = getScheduleMemberRoles(current);
+      const activeAssignments = await prisma.scheduleMemberInstrumentAssignment.count({
+        where: { scheduleMemberId: concurrentParticipant.id, endedAt: null }
+      });
+      const removedWon = assertRoleSetsEqual([ScheduleMemberRole.VOCAL], roles);
+      const updateWon = assertRoleSetsEqual([ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], roles);
+      assert.equal(removedWon || updateWon, true);
+      assert.equal(roles.includes(current.role), true);
+      assert.equal(activeAssignments, removedWon ? 0 : 1);
+    });
+
     const exception = await scheduleService.addMember(schedule.id, {
       memberId: exceptionMember.id,
       role: ScheduleMemberRole.INSTRUMENT,
       roles: [ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.BACKING],
       status: ScheduleMemberStatus.PENDING,
-      allowMinistryException: true
+      allowMinistryException: true,
+      instrumentAssignment: {
+        source: ScheduleInstrumentSource.OWN,
+        instrumentCategoryId: category.id,
+        instrumentId: null
+      }
     }, authorization);
     ids.participants.push(exception.id);
     await test("membro excecao aceita multiplas roles", () => {
       assert.deepEqual(exception.roles, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT]);
+      assert.equal(exception.instrumentAssignment?.source, ScheduleInstrumentSource.OWN);
     });
     const ministerInstrument = await scheduleService.updateMember(schedule.id, exception.id, {
       roles: [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT],
@@ -453,7 +622,7 @@ async function main() {
       }).success, true);
     });
 
-    assert.equal(scenarios, 38, "A suite deve manter os cenarios estruturais obrigatorios.");
+    assert.equal(scenarios, 47, "A suite deve manter os cenarios estruturais obrigatorios.");
     console.log(`Schedule member multiple roles: ${scenarios} scenarios passed.`);
   } finally {
     if (ids.schedules.length) {

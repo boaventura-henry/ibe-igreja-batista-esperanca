@@ -55,11 +55,25 @@ history. Adding `INSTRUMENT` does not create an assignment automatically.
 
 Instrument eligibility, self-service instrument changes and newly serialized
 DTOs use the role collection through the central helpers in
-`src/lib/schedule-member-role.ts`. Existing single-role forms and notification
-wording remain unchanged in this foundation Story.
+`src/lib/schedule-member-role.ts`.
 
-Future Stories must add the administrative multi-role control, migrate all
-presentation surfaces and notifications, and finally remove the legacy column
+The administrative participant form submits the complete `roles` collection
+through one create/update operation. It uses accessible checkboxes in the
+central role order and keeps one `ScheduleMember` regardless of how many roles
+are selected. `INSTRUMENT` alone controls the instrumental fields; removing it
+clears the form draft and lets the transactional Service close any active
+assignment, while changing other roles preserves that assignment.
+
+The 0.2.4 suggestion remains exclusively instrumental: it may select
+`INSTRUMENT` and default category/source/eligible instrument, but it never
+infers `BACKING`, `VOCAL`, `MINISTER` or another non-instrument role. Manual
+changes and a newly selected member invalidate an outstanding suggestion.
+
+Existing notification wording and normal display surfaces remain singular in
+this administrative Story.
+
+Future Stories must migrate all presentation surfaces and notifications, and
+finally remove the legacy column
 after every reader and writer uses the collection. Removal is allowed only
 after the administrative UI, Portal, My Schedules, notifications, all writes,
 legacy tests and any external consumers no longer depend on

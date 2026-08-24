@@ -104,8 +104,8 @@ async function main() {
   await test("troca manual de role invalida request pendente", () => {
     assert.match(managerSource, /function updateRole[\s\S]*suggestionRequest\.current \+= 1/);
   });
-  await test("role nao instrumental limpa estado do instrumento", () => {
-    assert.match(managerSource, /role === ScheduleMemberRole\.INSTRUMENT \? \{\} : \{ instrumentAssignment: undefined \}/);
+  await test("remover a funcao instrumental limpa o estado do instrumento", () => {
+    assert.match(managerSource, /!checked && role === ScheduleMemberRole\.INSTRUMENT[\s\S]*instrumentAssignment: undefined/);
   });
   await test("sugestao e somente GET e submit oficial continua POST ou PUT", () => {
     assert.match(managerSource, /instrument-suggestion\?memberId=/);

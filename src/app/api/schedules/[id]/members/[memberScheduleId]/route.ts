@@ -17,7 +17,13 @@ function validationMessage(error: ZodError) {
 }
 
 function requiresScheduleUpdate(payload: Record<string, unknown>) {
-  return Boolean(payload.memberId || payload.role || payload.replacedByMemberId || payload.instrumentAssignment);
+  return Boolean(
+    payload.memberId ||
+    payload.role ||
+    payload.roles ||
+    payload.replacedByMemberId ||
+    payload.instrumentAssignment
+  );
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {

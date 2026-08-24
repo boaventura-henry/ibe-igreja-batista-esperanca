@@ -4,7 +4,10 @@ import { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prism
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
+  getScheduleMemberRoles,
   getScheduleMemberDisplayRole,
+  hasInstrumentRole,
+  normalizeScheduleMemberRoles,
   scheduleMemberRoleOptions
 } from "@/lib/schedule-member-role";
 import { getMemberOptionLabel } from "@/utils";
@@ -28,7 +31,10 @@ type AvailableScheduleMember = { id: string; name: string; nickname: string | nu
 type InstrumentCategoryOption = { id: string; name: string; isActive: boolean };
 type EligibleInstrument = { id: string; name: string; brand: string | null; model: string | null; status: string };
 type InstrumentAssignmentDraft = { instrumentCategoryId: string; source: "" | "REGISTERED" | "OWN"; instrumentId: string };
-type MemberForm = Omit<ScheduleMemberFormValues, "instrumentAssignment"> & { instrumentAssignment?: InstrumentAssignmentDraft };
+type MemberForm = Omit<ScheduleMemberFormValues, "role" | "roles" | "instrumentAssignment"> & {
+  roles: ScheduleMemberRole[];
+  instrumentAssignment?: InstrumentAssignmentDraft;
+};
 
 const statusOptions = [
   ScheduleMemberStatus.PENDING,
@@ -50,7 +56,7 @@ const scheduleStatusLabels: Record<ScheduleStatus, string> = {
 
 const emptyMemberForm: MemberForm = {
   memberId: "",
-  role: ScheduleMemberRole.OTHER,
+  roles: [],
   status: ScheduleMemberStatus.PENDING,
   confirmedAt: "",
   replacedByMemberId: "",
@@ -71,9 +77,13 @@ function instrumentLabel(instrument: EligibleInstrument, historical = false) {
 }
 
 function normalizeMemberForm(form: MemberForm, allowMissingHistoricalAssignment = false) {
+  if (!form.roles.length) {
+    throw new Error("Informe pelo menos uma funcao.");
+  }
+
   const payload = {
     memberId: form.memberId || undefined,
-    role: form.role,
+    roles: form.roles,
     status: form.status,
     confirmedAt: form.confirmedAt || undefined,
     replacedByMemberId: form.replacedByMemberId || undefined,
@@ -82,14 +92,21 @@ function normalizeMemberForm(form: MemberForm, allowMissingHistoricalAssignment 
   };
 
   if (
-    form.role !== ScheduleMemberRole.INSTRUMENT ||
-    form.status === ScheduleMemberStatus.REPLACED ||
-    !form.instrumentAssignment
+    !hasInstrumentRole({ roles: form.roles }) ||
+    form.status === ScheduleMemberStatus.REPLACED
   ) {
     return payload;
   }
 
   const assignment = form.instrumentAssignment;
+
+  if (!assignment) {
+    if (allowMissingHistoricalAssignment) {
+      return payload;
+    }
+
+    throw new Error("Informe a categoria musical.");
+  }
 
   if (!assignment.instrumentCategoryId && !assignment.source && !assignment.instrumentId) {
     if (allowMissingHistoricalAssignment) {
@@ -150,7 +167,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   const selectedScheduleMember = editingId ? schedule.members.find((member) => member.id === editingId) : null;
   const historicalAssignment = selectedScheduleMember?.instrumentAssignment ?? null;
   const showInstrumentFields =
-    memberForm.role === ScheduleMemberRole.INSTRUMENT &&
+    hasInstrumentRole({ roles: memberForm.roles }) &&
     memberForm.status !== ScheduleMemberStatus.REPLACED;
   const categoryOptions = useMemo(() => {
     const current = historicalAssignment?.instrumentCategory;
@@ -297,7 +314,10 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
 
         return {
           ...current,
-          role: ScheduleMemberRole.INSTRUMENT,
+          roles: normalizeScheduleMemberRoles([
+            ...current.roles,
+            ScheduleMemberRole.INSTRUMENT
+          ]),
           instrumentAssignment:
             category && source
               ? {
@@ -343,13 +363,15 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     setMemberForm((current) => ({
       ...current,
       memberId,
-      ...(suggestedMember.current === current.memberId
-        ? { role: ScheduleMemberRole.OTHER, instrumentAssignment: undefined }
-        : {})
+      roles: [],
+      instrumentAssignment: undefined
     }));
+    instrumentRequest.current += 1;
+    setEligibleInstruments([]);
+    setIsInstrumentsLoading(false);
     suggestedMember.current = null;
 
-    if (memberId && !editingId) {
+    if (memberId && (!editingId || memberId !== selectedScheduleMember?.member.id)) {
       void loadInstrumentSuggestion(memberId);
     }
   }
@@ -378,19 +400,27 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     }));
   }
 
-  function updateRole(role: ScheduleMemberRole) {
+  function updateRole(role: ScheduleMemberRole, checked: boolean) {
     suggestionRequest.current += 1;
     setIsSuggestionLoading(false);
+    setSuggestionMessage("");
     setMemberForm((current) => ({
       ...current,
-      role,
-      ...(role === ScheduleMemberRole.INSTRUMENT ? {} : { instrumentAssignment: undefined })
+      roles: normalizeScheduleMemberRoles(
+        checked
+          ? [...current.roles, role]
+          : current.roles.filter((currentRole) => currentRole !== role)
+      ),
+      ...(!checked && role === ScheduleMemberRole.INSTRUMENT
+        ? { instrumentAssignment: undefined }
+        : {})
     }));
 
-    if (role !== ScheduleMemberRole.INSTRUMENT) {
+    if (!checked && role === ScheduleMemberRole.INSTRUMENT) {
       instrumentRequest.current += 1;
       setEligibleInstruments([]);
       setIsInstrumentsLoading(false);
+      setFormMessage("");
     }
   }
 
@@ -466,7 +496,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     const assignment = item.instrumentAssignment;
     setMemberForm({
       memberId: item.member.id,
-      role: item.role,
+      roles: getScheduleMemberRoles(item),
       status: item.status,
       confirmedAt: item.confirmedAt ?? "",
       replacedByMemberId: item.replacedByMember?.id ?? "",
@@ -513,7 +543,15 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
           method: editingId ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
-            normalizeMemberForm(memberForm, Boolean(editingId && !selectedScheduleMember?.instrumentAssignment))
+            normalizeMemberForm(
+              memberForm,
+              Boolean(
+                editingId &&
+                selectedScheduleMember &&
+                hasInstrumentRole(selectedScheduleMember) &&
+                !selectedScheduleMember.instrumentAssignment
+              )
+            )
           )
         }
       );
@@ -639,7 +677,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
               <div className="flex items-start justify-between border-b border-hope-100 px-5 py-4">
                 <div>
                   <h2 className="text-lg font-bold text-ink-900">{editingId ? "Editar membro escalado" : "Adicionar membro"}</h2>
-                  <p className="text-sm text-ink-500">Funcao, confirmacao, ausencia ou substituicao.</p>
+                  <p className="text-sm text-ink-500">Funções, confirmação, ausência ou substituição.</p>
                 </div>
                 <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-3 py-2 text-sm font-bold text-ink-700">Fechar</button>
               </div>
@@ -672,11 +710,26 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                     </span>
                   ) : null}
                 </Field>
-                <Field label="Funcao">
-                  <select value={memberForm.role} onChange={(event) => updateRole(event.target.value as ScheduleMemberRole)} className={inputClass}>
-                    {scheduleMemberRoleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                  </select>
-                </Field>
+                <fieldset className="grid gap-2 md:col-span-2">
+                  <legend className="text-xs font-bold uppercase tracking-wide text-ink-500">Funções</legend>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {scheduleMemberRoleOptions.map((role) => (
+                      <label key={role.value} className="flex min-h-10 items-center gap-2 rounded-md border border-hope-100 px-3 py-2 text-sm font-semibold text-ink-700">
+                        <input
+                          type="checkbox"
+                          name="schedule-member-roles"
+                          value={role.value}
+                          checked={memberForm.roles.includes(role.value)}
+                          onChange={(event) => updateRole(role.value, event.target.checked)}
+                        />
+                        {role.label}
+                      </label>
+                    ))}
+                  </div>
+                  {memberForm.roles.length === 0 ? (
+                    <span className="text-xs font-semibold text-red-700">Selecione pelo menos uma função.</span>
+                  ) : null}
+                </fieldset>
                 {showInstrumentFields ? (
                   <>
                     <Field label="Categoria musical">
