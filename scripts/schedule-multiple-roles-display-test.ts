@@ -115,7 +115,10 @@ async function main() {
     assert.match(portalSource, /getScheduleMemberDisplayRoles\(/);
     assert.doesNotMatch(portalSource, /getScheduleMemberDisplayRole\(/);
   });
-  await test("notificacoes continuam no helper singular", () => assert.match(notificationSource, /getScheduleMemberDisplayRole/));
+  await test("notificacoes usam o helper multiplo", () => {
+    assert.match(notificationSource, /getScheduleMemberDisplayRoles/);
+    assert.doesNotMatch(notificationSource, /getScheduleMemberDisplayRole\(/);
+  });
   await test("resumo mobile e desktop usam limites por participante", () => {
     assert.match(summarySource, /members\.slice/);
     assert.match(managerSource, /ScheduleMemberNames/);

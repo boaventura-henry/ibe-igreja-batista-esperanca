@@ -114,8 +114,11 @@ async function main() {
   await test("Dashboard carrega escala somente para o memberId", () => assert.match(dashboardRepositorySource, /findNextScheduleForMember\(memberId: string\)/));
   await test("Dashboard serializa colecao de roles", () => assert.match(dashboardServiceSource, /roles: schedule\.roles\.map/));
   await test("administrativo continua usando helper multiplo", () => assert.match(adminSource, /getScheduleMemberDisplayRoles\(item, item\.instrumentAssignment\)/));
-  await test("notificacoes permanecem no helper singular", () => assert.match(notificationSource, /getScheduleMemberDisplayRole\(/));
-  await test("documentacao registra boundary das notificacoes", () => assert.match(docsSource, /Notification wording remains singular/));
+  await test("notificacoes usam o helper multiplo", () => {
+    assert.match(notificationSource, /getScheduleMemberDisplayRoles\(/);
+    assert.doesNotMatch(notificationSource, /getScheduleMemberDisplayRole\(/);
+  });
+  await test("documentacao registra apresentacao multipla nas notificacoes", () => assert.match(docsSource, /Initial schedule publication and later participant inclusion now use/));
 
   const author = await prisma.user.findFirst({ where: { isActive: true }, select: { id: true } });
   assert.ok(author, "Development precisa conter usuario ativo para autoria dos fixtures.");

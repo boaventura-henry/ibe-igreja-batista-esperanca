@@ -690,7 +690,7 @@ export const scheduleService = {
         database
       ));
       return published;
-    });
+    }, { maxWait: 5_000, timeout: 15_000 });
 
     if (!schedule) {
       throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");

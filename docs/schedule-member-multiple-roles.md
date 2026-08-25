@@ -94,13 +94,29 @@ Instrument self-service eligibility uses the role collection. The Portal
 Dashboard uses the same projection for the next schedule, and both surfaces
 allow natural text wrapping on mobile.
 
-Notification wording remains singular and continues to use
-`getScheduleMemberDisplayRole` until its dedicated migration Story. The
-administrative Dashboard does not display participant roles and is therefore
-not applicable to this change.
+Initial schedule publication and later participant inclusion now use
+`getScheduleMemberDisplayRoles`, so the persisted Notification and its
+post-commit Web Push share the same multiple-role presentation as the screens.
+The relational schedule query already loads role assignments and the friendly
+instrument category in one pass; physical asset data is not used in the
+message. Reminders remain unchanged because their current wording does not
+mention a role. `ScheduleMember.role` remains a transitional projection.
 
-Future Stories must migrate notifications and any remaining legacy consumers,
-and finally remove the legacy column
+The singular helper remains exported for compatibility and legacy tests, but
+has no functional consumer in `src` after this migration. Its removal belongs
+to the final legacy-cleanup Story. The administrative Dashboard does not
+display participant roles and is therefore not applicable to this change.
+
+The technical gate reproduced `P2028` in a normal publication with Prisma's
+default five-second interactive-transaction timeout. The transaction performs
+only database work, while Web Push remains post-commit. Publication now uses
+the same local 15-second timeout already established for longer participant
+transactions; no global Prisma timeout or generic retry was added. Normal
+publication, participant inclusion and two controlled concurrent-publication
+scenarios then completed without `P2028`, deadlock or duplicate notifications.
+
+Future Stories must remove remaining legacy compatibility and finally remove
+the legacy column
 after every reader and writer uses the collection. Removal is allowed only
 after the administrative UI, Portal, My Schedules, notifications, all writes,
 legacy tests and any external consumers no longer depend on

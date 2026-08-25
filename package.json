@@ -16,6 +16,7 @@
     "test:birthday-display-name": "tsx scripts/birthday-display-name-test.ts",
     "test:web-push": "tsx scripts/web-push-notifications-test.ts",
     "test:schedule-notifications": "tsx scripts/schedule-notifications-test.ts",
+    "test:schedule-notification-multiple-roles": "tsx scripts/schedule-notification-multiple-roles-test.ts",
     "test:schedule-reminders-cron": "tsx scripts/schedule-reminders-cron-test.ts",
     "test:event-notifications": "tsx scripts/event-notifications-test.ts",
     "test:event-publication": "tsx scripts/event-publication-regression-test.ts",
