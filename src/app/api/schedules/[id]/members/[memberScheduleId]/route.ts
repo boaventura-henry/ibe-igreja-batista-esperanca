@@ -4,7 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
 import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { scheduleService } from "@/services";
-import { scheduleMemberUpdateSchema } from "@/validators";
+import { hasLegacyScheduleMemberRoleField, scheduleMemberUpdateSchema } from "@/validators";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,6 @@ function validationMessage(error: ZodError) {
 function requiresScheduleUpdate(payload: Record<string, unknown>) {
   return Boolean(
     payload.memberId ||
-    payload.role ||
     payload.roles ||
     payload.replacedByMemberId ||
     payload.instrumentAssignment
@@ -29,7 +28,15 @@ function requiresScheduleUpdate(payload: Record<string, unknown>) {
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const { id, memberScheduleId } = await context.params;
-    const payload = scheduleMemberUpdateSchema.parse(await request.json());
+    const body: unknown = await request.json();
+    if (hasLegacyScheduleMemberRoleField(body)) {
+      return apiError(
+        "O campo role nao e mais aceito. Informe a colecao roles.",
+        400,
+        "SCHEDULE_MEMBER_ROLE_LEGACY_UNSUPPORTED"
+      );
+    }
+    const payload = scheduleMemberUpdateSchema.parse(body);
     const authorization = requiresScheduleUpdate(payload)
       ? await requireScheduleAccess("schedule.update")
       : await requireScheduleAccess(["schedule.update", "schedule.confirm"]);
@@ -39,7 +46,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     );
   } catch (error) {
     if (error instanceof ZodError) {
-      return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
+      const code = error.issues[0]?.path[0] === "roles"
+        ? "SCHEDULE_MEMBER_ROLES_REQUIRED"
+        : "VALIDATION_ERROR";
+      return apiError(validationMessage(error), 400, code);
     }
 
     if (error instanceof AppError) {

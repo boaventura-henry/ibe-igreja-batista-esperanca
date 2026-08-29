@@ -23,7 +23,7 @@ const latestContributionSelect = {
   category: { select: { id: true, name: true } }
 } satisfies Prisma.FinancialEntrySelect;
 const portalScheduleSelect = {
-  id: true, role: true, status: true,
+  id: true, status: true,
   roles: { select: { role: true } },
   instrumentAssignments: { where: { endedAt: null }, select: { instrumentCategory: { select: { id: true, name: true } } }, take: 1 },
   schedule: {

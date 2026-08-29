@@ -62,15 +62,15 @@ async function main() {
   await test("MINISTER e INSTRUMENT com Violao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.MINISTER] }, guitar), "Ministro • Violão"));
   await test("tres roles aparecem integralmente", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.LEADER] }, bass), "Líder • Baixo • Backing"));
   await test("ordem de entrada nao altera apresentacao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.MINISTER, ScheduleMemberRole.LEADER] }), getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER] })));
-  await test("roles vazias nao recorrem ao legado", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.VOCAL, roles: [] }), "Função não informada"));
-  await test("roles nao carregadas usam fallback legado", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.VOCAL }), "Vocal"));
+  await test("roles vazias permanecem sem funcao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [] }), "Função não informada"));
+  await test("roles nao carregadas nao usam fallback legado", () => assert.equal(getScheduleMemberDisplayRoles({}), "Função não informada"));
   await test("INSTRUMENT sem categoria permanece visivel", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.BACKING] }), "Instrumento • Backing"));
   await test("categoria inativa permanece legivel", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT] }, { instrumentCategory: { name: "Baixo", isActive: false } } as never), "Baixo"));
   await test("patrimonio nao aparece", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT] }, { instrumentCategory: { name: "Baixo" }, instrument: { name: "Tagima Millennium" } } as never), "Baixo"));
   await test("OWN apresenta categoria e nao origem", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.BACKING] }, { ...bass, source: ScheduleInstrumentSource.OWN } as never), "Baixo • Backing"));
-  await test("BACKING e INSTRUMENT permitem self-service", () => assert.equal(hasInstrumentRole({ role: ScheduleMemberRole.BACKING, roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT] }), true));
-  await test("BACKING isolado bloqueia self-service", () => assert.equal(hasInstrumentRole({ role: ScheduleMemberRole.INSTRUMENT, roles: [ScheduleMemberRole.BACKING] }), false));
-  await test("colecao prevalece sobre role legado divergente", () => assert.equal(hasInstrumentRole({ role: ScheduleMemberRole.BACKING, roles: [ScheduleMemberRole.INSTRUMENT] }), true));
+  await test("BACKING e INSTRUMENT permitem self-service", () => assert.equal(hasInstrumentRole({ roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT] }), true));
+  await test("BACKING isolado bloqueia self-service", () => assert.equal(hasInstrumentRole({ roles: [ScheduleMemberRole.BACKING] }), false));
+  await test("colecao INSTRUMENT permite self-service", () => assert.equal(hasInstrumentRole({ roles: [ScheduleMemberRole.INSTRUMENT] }), true));
   await test("Minhas Escalas usa helper multiplo", () => assert.match(managerSource, /getScheduleMemberDisplayRoles\(schedule, schedule\.instrumentAssignment\)/));
   await test("Minhas Escalas nao usa helper singular", () => assert.doesNotMatch(managerSource, /getScheduleMemberDisplayRole\(/));
   await test("Dashboard Portal usa helper multiplo", () => assert.match(portalSource, /getScheduleMemberDisplayRoles\(data\.nextSchedule, data\.nextSchedule\.instrumentAssignment\)/));
@@ -141,15 +141,15 @@ async function main() {
     ids.users.push(joaoUser.id, anaUser.id);
     const schedules = await Promise.all(members.map((_, index) => prisma.schedule.create({ data: { title: key(`schedule_${index}`), ministryId: ministry.id, date: new Date(`2099-03-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`), status: ScheduleStatus.PUBLISHED, publishedAt: new Date(), createdById: author.id } })));
     ids.schedules.push(...schedules.map((schedule) => schedule.id));
-    const createParticipant = (index: number, role: ScheduleMemberRole, roles: ScheduleMemberRole[], status: ScheduleMemberStatus, replacedByMemberId?: string) => prisma.scheduleMember.create({ data: { scheduleId: schedules[index].id, memberId: members[index].id, role, status, replacedByMemberId, createdById: author.id, roles: { create: roles.map((assignedRole) => ({ role: assignedRole })) } } });
+    const createParticipant = (index: number, roles: ScheduleMemberRole[], status: ScheduleMemberStatus, replacedByMemberId?: string) => prisma.scheduleMember.create({ data: { scheduleId: schedules[index].id, memberId: members[index].id, status, replacedByMemberId, createdById: author.id, roles: { create: roles.map((assignedRole) => ({ role: assignedRole })) } } });
     const [joao, mirian, ana, three, backing, replaced, divergent] = await Promise.all([
-      createParticipant(0, ScheduleMemberRole.BACKING, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], ScheduleMemberStatus.PENDING),
-      createParticipant(1, ScheduleMemberRole.LEADER, [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER], ScheduleMemberStatus.CONFIRMED),
-      createParticipant(2, ScheduleMemberRole.MINISTER, [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT], ScheduleMemberStatus.DECLINED),
-      createParticipant(3, ScheduleMemberRole.BACKING, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.LEADER], ScheduleMemberStatus.ABSENT),
-      createParticipant(4, ScheduleMemberRole.BACKING, [ScheduleMemberRole.BACKING], ScheduleMemberStatus.PENDING),
-      createParticipant(5, ScheduleMemberRole.BACKING, [ScheduleMemberRole.BACKING], ScheduleMemberStatus.REPLACED, members[0].id),
-      createParticipant(6, ScheduleMemberRole.BACKING, [ScheduleMemberRole.INSTRUMENT], ScheduleMemberStatus.PENDING)
+      createParticipant(0, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], ScheduleMemberStatus.PENDING),
+      createParticipant(1, [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER], ScheduleMemberStatus.CONFIRMED),
+      createParticipant(2, [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT], ScheduleMemberStatus.DECLINED),
+      createParticipant(3, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.LEADER], ScheduleMemberStatus.ABSENT),
+      createParticipant(4, [ScheduleMemberRole.BACKING], ScheduleMemberStatus.PENDING),
+      createParticipant(5, [ScheduleMemberRole.BACKING], ScheduleMemberStatus.REPLACED, members[0].id),
+      createParticipant(6, [ScheduleMemberRole.INSTRUMENT], ScheduleMemberStatus.PENDING)
     ]);
     await Promise.all([
       prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: joao.id, instrumentCategoryId: bassCategory.id, source: ScheduleInstrumentSource.OWN, createdById: author.id } }),

@@ -37,9 +37,9 @@ async function main() {
   assert.match(manager, /allowMinistryException/, "12: membro excecao usa o mesmo formulario");
 
   assert.match(manager, /roles: getScheduleMemberRoles\(item\)/, "13: edicao carrega todas as roles reais");
-  assert.deepEqual(getScheduleMemberRoles({ role: ScheduleMemberRole.OTHER, roles: [{ role: ScheduleMemberRole.BACKING }, { role: ScheduleMemberRole.INSTRUMENT }] }), [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], "14: colecao carregada prevalece sobre legado");
-  assert.deepEqual(getScheduleMemberRoles({ role: ScheduleMemberRole.INSTRUMENT, roles: [] }), [], "15: roles vazia nao recorre ao legado");
-  assert.deepEqual(getScheduleMemberRoles({ role: ScheduleMemberRole.BACKING }), [ScheduleMemberRole.BACKING], "16: contrato legado sem colecao possui fallback");
+  assert.deepEqual(getScheduleMemberRoles({ roles: [{ role: ScheduleMemberRole.BACKING }, { role: ScheduleMemberRole.INSTRUMENT }] }), [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], "14: colecao carregada e fonte unica");
+  assert.deepEqual(getScheduleMemberRoles({ roles: [] }), [], "15: roles vazia permanece vazia");
+  assert.deepEqual(getScheduleMemberRoles({}), [], "16: contrato sem colecao nao possui fallback");
 
   assert.match(manager, /hasInstrumentRole\(\{ roles: memberForm\.roles \}\)/, "17: INSTRUMENT controla campos pela colecao");
   assert.equal(hasInstrumentRole({ roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT] }), true, "18: adicionar INSTRUMENT mostra campos");
@@ -54,7 +54,7 @@ async function main() {
   assert.match(manager, /updateInstrumentSource\("OWN"\)/, "25: OWN permanece disponivel");
   assert.match(manager, /instrumentId: assignment\.instrument\?\.id \?\? ""/, "26: edicao carrega assignment atual");
   assert.match(manager, /\(Inativa\)|\(Indisponivel\)/, "27: historico inativo permanece representavel");
-  assert.match(manager, /hasInstrumentRole\(selectedScheduleMember\)[\s\S]*!selectedScheduleMember\.instrumentAssignment/, "27b: fallback sem assignment vale apenas para legado instrumentista");
+  assert.match(manager, /hasInstrumentRole\(selectedScheduleMember\)[\s\S]*!selectedScheduleMember\.instrumentAssignment/, "27b: fallback sem assignment usa a colecao oficial");
 
   assert.match(manager, /instrument-suggestion\?memberId=/, "28: suggestion 0.2.4 permanece integrada");
   assert.match(manager, /roles: normalizeScheduleMemberRoles\([\s\S]*ScheduleMemberRole\.INSTRUMENT/, "29: suggestion seleciona INSTRUMENT");
@@ -65,9 +65,10 @@ async function main() {
   assert.match(manager, /memberId,[\s\S]*roles: \[\],[\s\S]*instrumentAssignment: undefined/, "33: troca de membro limpa estado anterior");
 
   assert.match(manager, /const payload = \{[\s\S]*roles: form\.roles/, "34: submit envia colecao completa");
-  assert.match(types, /roles\?: ScheduleMemberRole\[\]/, "35: contrato transitorio aceita roles");
-  assert.match(service, /resolveLegacyScheduleMemberRole/, "36: backend projeta role legado");
-  assert.match(validator, /role: z\.enum\(ScheduleMemberRole\)\.optional\(\)/, "36b: create moderno distingue role omitida de role explicita");
+  assert.match(types, /roles: ScheduleMemberRole\[\]/, "35: contrato oficial exige roles");
+  assert.doesNotMatch(service, /resolveLegacyScheduleMemberRole/, "36: backend nao projeta role legado");
+  assert.doesNotMatch(validator, /role: z\.enum\(ScheduleMemberRole\)/, "36b: validator nao aceita role singular");
+  assert.match(validator, /roles: z\.array\(z\.enum\(ScheduleMemberRole\)\)[\s\S]*?\.min\(1, "Informe pelo menos uma funcao\."\)/, "36c: create exige roles");
   assert.match(service, /!hasInstrumentRole\(result\)/, "37: remover INSTRUMENT encerra assignment");
   assert.match(documentation, /Adding `INSTRUMENT` does not create an assignment automatically/, "38: adicionar INSTRUMENT sozinho nao cria assignment");
   assert.match(manager, /if \(isSubmitting\)/, "39: double submit bloqueado");

@@ -50,8 +50,13 @@ const portalMinistrySelect = {
 
 const portalSchedulePreviewSelect = {
   id: true,
-  role: true,
+  roles: { select: { role: true } },
   status: true,
+  instrumentAssignments: {
+    select: { instrumentCategory: { select: { id: true, name: true } } },
+    orderBy: { startedAt: "desc" },
+    take: 1
+  },
   schedule: {
     select: {
       id: true,

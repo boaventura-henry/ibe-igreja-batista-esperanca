@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { getScheduleMemberRoles } from "@/lib/schedule-member-role";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import { memberRepository, type MemberDetail, type MemberListItem } from "@/repositories";
 import type { MemberListResult, MemberSummary } from "@/types";
@@ -40,7 +41,8 @@ function serializeDetail(member: MemberDetail) {
     })),
     schedules: member.scheduleMembers.map((link) => ({
       id: link.id,
-      role: link.role,
+      roles: getScheduleMemberRoles(link),
+      instrumentAssignment: link.instrumentAssignments[0] ?? null,
       status: link.status,
       confirmedAt: serializeDate(link.confirmedAt),
       declinedAt: serializeDate(link.declinedAt),

@@ -1,7 +1,6 @@
 import {
   NotificationType,
   Prisma,
-  ScheduleMemberRole,
   ScheduleMemberStatus,
   ScheduleStatus
 } from "@prisma/client";
@@ -91,8 +90,7 @@ export type ScheduleReminderProcessingResult = {
 type Recipient = {
   userId: string;
   participantId: string;
-  role: ScheduleMemberRole;
-  roles: ScheduleMemberRecord["roles"] | undefined;
+  roles: ScheduleMemberRecord["roles"];
   status: ScheduleMemberStatus;
   instrumentAssignment: ScheduleMemberRecord["instrumentAssignments"][number] | null;
 };
@@ -170,7 +168,6 @@ export function activeScheduleRecipients(
     byUser.set(userId, {
       userId,
       participantId: participant.id,
-      role: participant.role,
       roles: participant.roles,
       status: participant.status,
       instrumentAssignment: participant.instrumentAssignments?.[0] ?? null

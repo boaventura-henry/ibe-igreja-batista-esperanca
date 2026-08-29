@@ -144,6 +144,7 @@ export {
   scheduleListQuerySchema,
   scheduleMemberCreateSchema,
   scheduleMemberUpdateSchema,
+  hasLegacyScheduleMemberRoleField,
   scheduleUpdateSchema
 } from "./schedule.validator";
 export type {

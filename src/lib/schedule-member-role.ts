@@ -8,11 +8,9 @@ type ScheduleMemberRolePresentation = {
 type ScheduleMemberRoleEntry = ScheduleMemberRole | { role: ScheduleMemberRole };
 
 export type ScheduleMemberRoleSource =
-  | ScheduleMemberRole
-  | {
-      role?: ScheduleMemberRole | null;
-      roles?: readonly ScheduleMemberRoleEntry[] | null;
-    };
+  {
+    roles?: readonly ScheduleMemberRoleEntry[] | null;
+  };
 
 const scheduleMemberRoleLabels: Record<ScheduleMemberRole, string> = {
   MINISTER: "Ministro",
@@ -44,15 +42,17 @@ export function normalizeScheduleMemberRoles(roles: readonly ScheduleMemberRole[
   );
 }
 
+export function resolveScheduleMemberRoleProjection(
+  roles: readonly ScheduleMemberRole[]
+) {
+  return normalizeScheduleMemberRoles(roles)[0] ?? null;
+}
+
 export function getScheduleMemberRoles(source: ScheduleMemberRoleSource) {
-  if (typeof source === "string") return [source];
-  if (source.roles !== undefined && source.roles !== null) {
-    const assigned = source.roles.map((entry) =>
-      typeof entry === "string" ? entry : entry.role
-    );
-    return normalizeScheduleMemberRoles(assigned);
-  }
-  return source.role ? [source.role] : [];
+  const assigned = source.roles?.map((entry) =>
+    typeof entry === "string" ? entry : entry.role
+  ) ?? [];
+  return normalizeScheduleMemberRoles(assigned);
 }
 
 export function hasScheduleMemberRole(
@@ -64,15 +64,6 @@ export function hasScheduleMemberRole(
 
 export function hasInstrumentRole(source: ScheduleMemberRoleSource) {
   return hasScheduleMemberRole(source, ScheduleMemberRole.INSTRUMENT);
-}
-
-export function resolveLegacyScheduleMemberRole(
-  currentRole: ScheduleMemberRole | null | undefined,
-  roles: readonly ScheduleMemberRole[]
-) {
-  const normalized = normalizeScheduleMemberRoles(roles);
-  if (!normalized.length) return null;
-  return currentRole && normalized.includes(currentRole) ? currentRole : normalized[0];
 }
 
 export function getScheduleMemberRolePresentation(
@@ -89,19 +80,6 @@ export function getScheduleMemberRolePresentation(
 type ScheduleMemberInstrumentAssignmentDisplay = {
   instrumentCategory?: { name?: string | null } | null;
 } | null | undefined;
-
-export function getScheduleMemberDisplayRole(
-  role: string | null | undefined,
-  instrumentAssignment?: ScheduleMemberInstrumentAssignmentDisplay
-) {
-  const categoryName = instrumentAssignment?.instrumentCategory?.name?.trim();
-
-  if (role === ScheduleMemberRole.INSTRUMENT && categoryName) {
-    return categoryName;
-  }
-
-  return getScheduleMemberRolePresentation(role).label;
-}
 
 export function getScheduleMemberDisplayRoles(
   source: ScheduleMemberRoleSource,
@@ -130,4 +108,30 @@ export function getScheduleMemberDisplayRoles(
         : getScheduleMemberRolePresentation(role).label
     )
     .join(" • ");
+}
+
+export function getScheduleMemberRoleSortPriority(source: ScheduleMemberRoleSource) {
+  const roles = getScheduleMemberRoles(source);
+  return roles.reduce(
+    (priority, role) => Math.min(priority, scheduleMemberRolePriority.get(role) ?? Number.MAX_SAFE_INTEGER),
+    Number.MAX_SAFE_INTEGER
+  );
+}
+
+type ScheduleMemberRoleSortable = ScheduleMemberRoleSource & {
+  id?: string;
+  member?: { name?: string | null } | null;
+};
+
+export function compareScheduleMembersByRolePriority(
+  left: ScheduleMemberRoleSortable,
+  right: ScheduleMemberRoleSortable
+) {
+  const priority = getScheduleMemberRoleSortPriority(left) - getScheduleMemberRoleSortPriority(right);
+  if (priority) return priority;
+
+  const name = (left.member?.name ?? "").localeCompare(right.member?.name ?? "", "pt-BR", {
+    sensitivity: "base"
+  });
+  return name || (left.id ?? "").localeCompare(right.id ?? "");
 }

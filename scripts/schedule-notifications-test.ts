@@ -49,7 +49,7 @@ function member(
 ): ScheduleMemberRecord {
   return {
     id,
-    role: ScheduleMemberRole.VOCAL,
+    roles: [{ role: ScheduleMemberRole.VOCAL }],
     status: ScheduleMemberStatus.PENDING,
     confirmedAt: null,
     declinedAt: null,
@@ -65,6 +65,7 @@ function member(
       user: userId ? { id: userId } : null
     },
     replacedByMember: null,
+    instrumentAssignments: [],
     ...overrides
   } as ScheduleMemberRecord;
 }
@@ -94,7 +95,9 @@ function schedule(
     },
     event: null,
     members: [
-      member("participant-1", "user-1", { role: ScheduleMemberRole.INSTRUMENT })
+      member("participant-1", "user-1", {
+        roles: [{ role: ScheduleMemberRole.INSTRUMENT }]
+      })
     ],
     ...overrides
   };
@@ -172,7 +175,9 @@ async function main() {
   );
 
   try {
-    const primary = member("one", "user-1", { role: ScheduleMemberRole.INSTRUMENT });
+    const primary = member("one", "user-1", {
+      roles: [{ role: ScheduleMemberRole.INSTRUMENT }]
+    });
     const duplicate = member("two", "user-1");
     const withoutUser = member("three", null);
     const replacement = member("four", "old-user", {
@@ -857,7 +862,7 @@ async function main() {
 
     const createMemberInput = {
       memberId: "member-a",
-      role: ScheduleMemberRole.VOCAL,
+      roles: [ScheduleMemberRole.VOCAL],
       status: ScheduleMemberStatus.PENDING,
       allowMinistryException: false
     };

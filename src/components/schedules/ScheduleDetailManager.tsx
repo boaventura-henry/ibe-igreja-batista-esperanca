@@ -31,7 +31,7 @@ type AvailableScheduleMember = { id: string; name: string; nickname: string | nu
 type InstrumentCategoryOption = { id: string; name: string; isActive: boolean };
 type EligibleInstrument = { id: string; name: string; brand: string | null; model: string | null; status: string };
 type InstrumentAssignmentDraft = { instrumentCategoryId: string; source: "" | "REGISTERED" | "OWN"; instrumentId: string };
-type MemberForm = Omit<ScheduleMemberFormValues, "role" | "roles" | "instrumentAssignment"> & {
+type MemberForm = Omit<ScheduleMemberFormValues, "roles" | "instrumentAssignment"> & {
   roles: ScheduleMemberRole[];
   instrumentAssignment?: InstrumentAssignmentDraft;
 };

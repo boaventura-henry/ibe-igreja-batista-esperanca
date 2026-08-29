@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { ScheduleMemberStatusBadge } from "@/components/schedules/ScheduleMemberStatusBadge";
 import { AppError } from "@/lib/errors";
-import { getScheduleMemberRolePresentation } from "@/lib/schedule-member-role";
+import { getScheduleMemberDisplayRoles } from "@/lib/schedule-member-role";
 import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { memberService } from "@/services";
 import { formatCep, formatCpf, formatPhone } from "@/utils";
@@ -268,7 +268,9 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
                             </Link>
                           </td>
                           <td className="py-3 pr-4 text-ink-700">{item.schedule.ministry.name}</td>
-                          <td className="py-3 pr-4 text-ink-700">{getScheduleMemberRolePresentation(item.role).label}</td>
+                          <td className="py-3 pr-4 text-ink-700">
+                            {getScheduleMemberDisplayRoles(item, item.instrumentAssignment)}
+                          </td>
                           <td className="py-3 pr-4"><ScheduleMemberStatusBadge status={item.status} /></td>
                         </tr>
                       ))}

@@ -7,6 +7,7 @@ import { scheduleService } from "../src/services/schedule.service";
 import { scheduleRepository } from "../src/repositories/schedule.repository";
 import { scheduleInstrumentAssignmentRepository } from "../src/repositories/schedule-instrument-assignment.repository";
 import { myScheduleInstrumentChangeSchema } from "../src/validators/my-schedule.validator";
+import { getScheduleMemberRoles } from "../src/lib/schedule-member-role";
 
 const prisma = new PrismaClient();
 const stamp = Date.now().toString();
@@ -14,7 +15,6 @@ const key = (value: string) => `__member_instrument_${stamp}_${value}`;
 const participantData = (scheduleId: string, memberId: string, role: ScheduleMemberRole) => ({
   scheduleId,
   memberId,
-  role,
   roles: { create: { role } }
 });
 let scenarios = 0;
@@ -113,7 +113,7 @@ async function main() {
       const originalLock = scheduleRepository.lockByIdWithinScope.bind(scheduleRepository);
       scheduleRepository.lockByIdWithinScope = async (...args: Parameters<typeof originalLock>) => { const value = await originalLock(...args); acquired.resolve(); await release.promise; return value; };
       try {
-        const adminPromise = scheduleService.updateMember(schedule.id, p.id, { role: ScheduleMemberRole.VOCAL }, adminAuthorization);
+        const adminPromise = scheduleService.updateMember(schedule.id, p.id, { roles: [ScheduleMemberRole.VOCAL] }, adminAuthorization);
         await acquired.promise;
         const memberPromise = myScheduleService.changeInstrument(p.id, own("role", initial.id), session);
         release.resolve();
@@ -121,9 +121,9 @@ async function main() {
         assert.equal(adminResult.status, "fulfilled"); assert.equal(settledCode(memberResult), "SCHEDULE_INSTRUMENT_ROLE_REQUIRED");
         assert.ok(![settledCode(adminResult), settledCode(memberResult)].includes("P2028"));
       } finally { scheduleRepository.lockByIdWithinScope = originalLock; release.resolve(); }
-      const currentParticipant = await prisma.scheduleMember.findUniqueOrThrow({ where: { id: p.id } });
+      const currentParticipant = await prisma.scheduleMember.findUniqueOrThrow({ where: { id: p.id }, include: { roles: true } });
       const history = await prisma.scheduleMemberInstrumentAssignment.findMany({ where: { scheduleMemberId: p.id } });
-      assert.equal(currentParticipant.role, ScheduleMemberRole.VOCAL); assert.equal(history.filter((item) => item.endedAt === null).length, 0);
+      assert.deepEqual(getScheduleMemberRoles(currentParticipant), [ScheduleMemberRole.VOCAL]); assert.equal(history.filter((item) => item.endedAt === null).length, 0);
       assert.equal(history.length, 1); assert.equal(history[0].id, initial.id); assert.ok(history[0].endedAt);
     });
     await test("troca do membro primeiro e encerrada pela mudanca posterior de role", async () => {
@@ -135,25 +135,25 @@ async function main() {
       try {
         const memberPromise = myScheduleService.changeInstrument(p.id, own("role", initial.id), session);
         await acquired.promise;
-        const adminPromise = scheduleService.updateMember(schedule.id, p.id, { role: ScheduleMemberRole.VOCAL }, adminAuthorization);
+        const adminPromise = scheduleService.updateMember(schedule.id, p.id, { roles: [ScheduleMemberRole.VOCAL] }, adminAuthorization);
         release.resolve();
         const [memberResult, adminResult] = await Promise.allSettled([memberPromise, adminPromise]);
         assert.equal(memberResult.status, "fulfilled"); assert.equal(adminResult.status, "fulfilled");
         assert.ok(![settledCode(memberResult), settledCode(adminResult)].includes("P2028"));
       } finally { scheduleRepository.lockById = originalLock; release.resolve(); }
-      const currentParticipant = await prisma.scheduleMember.findUniqueOrThrow({ where: { id: p.id } });
+      const currentParticipant = await prisma.scheduleMember.findUniqueOrThrow({ where: { id: p.id }, include: { roles: true } });
       const history = await prisma.scheduleMemberInstrumentAssignment.findMany({ where: { scheduleMemberId: p.id }, orderBy: { startedAt: "asc" } });
-      assert.equal(currentParticipant.role, ScheduleMemberRole.VOCAL); assert.equal(history.filter((item) => item.endedAt === null).length, 0);
+      assert.deepEqual(getScheduleMemberRoles(currentParticipant), [ScheduleMemberRole.VOCAL]); assert.equal(history.filter((item) => item.endedAt === null).length, 0);
       assert.equal(history.length, 2); assert.ok(history.every((item) => item.endedAt)); assert.ok(history.some((item) => item.source === ScheduleInstrumentSource.OWN));
     });
     await test("concorrencia livre entre troca e role preserva invariant", async () => {
       const p = await prisma.scheduleMember.create({ data: participantData(schedule.id, member.id, ScheduleMemberRole.INSTRUMENT) }); ids.participants.push(p.id);
       const initial = await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: p.id, instrumentCategoryId: bass.id, source: ScheduleInstrumentSource.REGISTERED, instrumentId: tagima.id, createdById: user.id, updatedById: user.id } });
-      const results = await Promise.allSettled([myScheduleService.changeInstrument(p.id, own("role", initial.id), session), scheduleService.updateMember(schedule.id, p.id, { role: ScheduleMemberRole.VOCAL }, adminAuthorization)]);
+      const results = await Promise.allSettled([myScheduleService.changeInstrument(p.id, own("role", initial.id), session), scheduleService.updateMember(schedule.id, p.id, { roles: [ScheduleMemberRole.VOCAL] }, adminAuthorization)]);
       assert.ok(!results.map(settledCode).includes("P2028")); assert.ok(!results.map(settledCode).includes("40P01"));
-      const currentParticipant = await prisma.scheduleMember.findUniqueOrThrow({ where: { id: p.id } });
+      const currentParticipant = await prisma.scheduleMember.findUniqueOrThrow({ where: { id: p.id }, include: { roles: true } });
       const history = await prisma.scheduleMemberInstrumentAssignment.findMany({ where: { scheduleMemberId: p.id } });
-      assert.equal(currentParticipant.role, ScheduleMemberRole.VOCAL); assert.equal(history.filter((item) => item.endedAt === null).length, 0);
+      assert.deepEqual(getScheduleMemberRoles(currentParticipant), [ScheduleMemberRole.VOCAL]); assert.equal(history.filter((item) => item.endedAt === null).length, 0);
       assert.ok(history.some((item) => item.id === initial.id)); assert.ok(history.every((item) => item.endedAt));
     });
     const replacementData = {

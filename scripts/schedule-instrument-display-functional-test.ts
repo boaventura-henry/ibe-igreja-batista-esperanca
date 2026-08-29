@@ -5,7 +5,7 @@ import {
   ScheduleInstrumentSource,
   ScheduleMemberRole
 } from "@prisma/client";
-import { getScheduleMemberDisplayRole } from "@/lib/schedule-member-role";
+import { getScheduleMemberDisplayRoles } from "@/lib/schedule-member-role";
 
 const prisma = new PrismaClient();
 const prefix = `__schedule_instrument_display_${Date.now()}__`;
@@ -50,10 +50,14 @@ async function main() {
       const member = await prisma.member.create({ data: { name: `${prefix}${role}_${ids.memberIds.length}` } });
       ids.memberIds.push(member.id);
       const participant = await prisma.scheduleMember.create({
-        data: { scheduleId: schedule.id, memberId: member.id, role }
+        data: {
+          scheduleId: schedule.id,
+          memberId: member.id,
+          roles: { create: { role } }
+        }
       });
       ids.participantIds.push(participant.id);
-      return participant;
+      return { ...participant, roles: [role] };
     };
 
     const registered = await createParticipant(ScheduleMemberRole.INSTRUMENT);
@@ -91,21 +95,21 @@ async function main() {
       })
     ]);
 
-    assert.equal(getScheduleMemberDisplayRole(registered.role, registeredAssignment), "Baixo");
-    assert.equal(getScheduleMemberDisplayRole(own.role, ownAssignment), "Baixo");
-    assert.equal(getScheduleMemberDisplayRole(historical.role), "Instrumento");
-    assert.equal(getScheduleMemberDisplayRole(vocal.role, registeredAssignment), "Vocal");
+    assert.equal(getScheduleMemberDisplayRoles(registered, registeredAssignment), "Baixo");
+    assert.equal(getScheduleMemberDisplayRoles(own, ownAssignment), "Baixo");
+    assert.equal(getScheduleMemberDisplayRoles(historical), "Instrumento");
+    assert.equal(getScheduleMemberDisplayRoles(vocal, registeredAssignment), "Vocal");
 
     await prisma.instrumentCategory.update({ where: { id: category.id }, data: { isActive: false } });
     await prisma.instrument.update({ where: { id: instrument.id }, data: { status: InstrumentStatus.MAINTENANCE } });
-    assert.equal(getScheduleMemberDisplayRole(registered.role, registeredAssignment), "Baixo");
+    assert.equal(getScheduleMemberDisplayRoles(registered, registeredAssignment), "Baixo");
 
     await prisma.instrument.update({
       where: { id: instrument.id },
       data: { status: InstrumentStatus.INACTIVE, deletedAt: new Date() }
     });
-    assert.equal(getScheduleMemberDisplayRole(registered.role, registeredAssignment), "Baixo");
-    assert.notEqual(getScheduleMemberDisplayRole(registered.role, registeredAssignment), instrument.name);
+    assert.equal(getScheduleMemberDisplayRoles(registered, registeredAssignment), "Baixo");
+    assert.notEqual(getScheduleMemberDisplayRoles(registered, registeredAssignment), instrument.name);
 
     console.log("Schedule instrument display functional: 8 scenarios passed.");
   } finally {

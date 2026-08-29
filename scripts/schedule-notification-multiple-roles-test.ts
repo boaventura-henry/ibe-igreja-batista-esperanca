@@ -52,14 +52,12 @@ function requireDevelopmentDatasource() {
 function participant(
   id: string,
   userId: string,
-  legacyRole: ScheduleMemberRole,
   roles: ScheduleMemberRole[],
   category?: string,
   memberId = `member-${id}`
 ) {
   return {
     id,
-    role: legacyRole,
     roles: roles.map((role) => ({ role })),
     status: ScheduleMemberStatus.PENDING,
     confirmedAt: null,
@@ -120,10 +118,10 @@ async function main() {
   await test("MINISTER mais INSTRUMENT usa Violao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT] }, guitar), "Ministro • Violão"));
   await test("tres roles sao preservadas", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.LEADER, ScheduleMemberRole.INSTRUMENT] }, bass), "Líder • Baixo • Backing"));
   await test("ordem de entrada nao altera apresentacao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.BACKING] }, bass), "Baixo • Backing"));
-  await test("roles vazias nao recorrem ao legado", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.LEADER, roles: [] }), "Função não informada"));
-  await test("fallback legado permanece quando roles nao foi carregado", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.LEADER }), "Líder"));
-  await test("legado BACKING divergente nao prevalece", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.BACKING, roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT] }, bass), "Baixo • Backing"));
-  await test("legado INSTRUMENT divergente nao prevalece", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.INSTRUMENT, roles: [ScheduleMemberRole.BACKING] }, bass), "Backing"));
+  await test("roles vazias permanecem sem funcao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [] }), "Função não informada"));
+  await test("colecao ausente nao possui fallback legado", () => assert.equal(getScheduleMemberDisplayRoles({}), "Função não informada"));
+  await test("BACKING e INSTRUMENT usam somente a colecao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT] }, bass), "Baixo • Backing"));
+  await test("BACKING isolado usa somente a colecao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.BACKING] }, bass), "Backing"));
   await test("INSTRUMENT sem categoria usa fallback", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT] }), "Instrumento"));
   await test("categoria inativa continua legivel", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT] }, { instrumentCategory: { name: "Baixo", isActive: false } } as never), "Baixo"));
   await test("OWN nao aparece na apresentacao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.BACKING] }, { instrumentCategory: { name: "Baixo" }, source: ScheduleInstrumentSource.OWN } as never), "Baixo • Backing"));
@@ -139,9 +137,9 @@ async function main() {
   notificationPublisher.preferences = ((userIds: string[]) => Promise.resolve(userIds.map((userId) => ({ userId, active: true, preference: { type: NotificationType.SCHEDULE_REMINDER, inAppEnabled: true, reminderHoursBefore: 24, isDefault: true } })))) as typeof notificationPublisher.preferences;
 
   try {
-    const joao = participant("joao", "user-joao", ScheduleMemberRole.BACKING, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], "Baixo");
-    const mirian = participant("mirian", "user-mirian", ScheduleMemberRole.LEADER, [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER]);
-    const ana = participant("ana", "user-ana", ScheduleMemberRole.MINISTER, [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT], "Violão");
+    const joao = participant("joao", "user-joao", [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], "Baixo");
+    const mirian = participant("mirian", "user-mirian", [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER]);
+    const ana = participant("ana", "user-ana", [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT], "Violão");
 
     await scheduleNotificationService.publishInitial(schedule([joao, mirian, ana]), "creator", {} as never, new Date("2026-08-25T10:00:00.000Z"));
     const initial = captured.filter((item) => item.type === NotificationType.SCHEDULE_PUBLISHED);
@@ -161,7 +159,7 @@ async function main() {
     await test("inclusao posterior cria uma notificacao imediata", () => assert.equal(added.length, 1));
     await test("deduplication key da inclusao permanece inalterada", () => assert.equal(added[0]?.deduplicationKey, "schedule:participant-added:v8:schedule-multiple-roles:joao"));
 
-    const sameUser = activeScheduleRecipients([joao, participant("duplicate", "user-joao", ScheduleMemberRole.VOCAL, [ScheduleMemberRole.VOCAL])]);
+    const sameUser = activeScheduleRecipients([joao, participant("duplicate", "user-joao", [ScheduleMemberRole.VOCAL])]);
     await test("consolidacao por User permanece unica", () => assert.equal(sameUser.length, 1));
   } finally {
     notificationPublisher.publish = originalPublish;
@@ -181,7 +179,7 @@ async function main() {
     scheduleServiceSource,
     /async publish[\s\S]*?scheduleRepository\.transaction[\s\S]*?\}, \{ maxWait: 5_000, timeout: 15_000 \}\);/
   ));
-  await test("helper singular permanece exportado para compatibilidade", () => assert.match(helperSource, /export function getScheduleMemberDisplayRole\(/));
+  await test("helper singular foi removido", () => assert.doesNotMatch(helperSource, /export function getScheduleMemberDisplayRole\(/));
 
   const ids = {
     ministry: "",
@@ -220,17 +218,17 @@ async function main() {
     const realSchedule = await prisma.schedule.create({ data: { title: key("schedule"), ministryId: ministry.id, date: new Date("2099-08-29T00:00:00.000Z"), startTime: "19:00", status: ScheduleStatus.DRAFT, createdById: author.id } });
     ids.schedules.push(realSchedule.id);
 
-    const createRealParticipant = async (index: number, legacyRole: ScheduleMemberRole, roles: ScheduleMemberRole[], categoryId?: string) => {
-      const created = await prisma.scheduleMember.create({ data: { scheduleId: realSchedule.id, memberId: members[index].id, role: legacyRole, status: ScheduleMemberStatus.PENDING, createdById: author.id, roles: { create: roles.map((role) => ({ role })) } } });
+    const createRealParticipant = async (index: number, roles: ScheduleMemberRole[], categoryId?: string) => {
+      const created = await prisma.scheduleMember.create({ data: { scheduleId: realSchedule.id, memberId: members[index].id, status: ScheduleMemberStatus.PENDING, createdById: author.id, roles: { create: roles.map((role) => ({ role })) } } });
       if (categoryId) {
         await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: created.id, instrumentCategoryId: categoryId, source: ScheduleInstrumentSource.OWN, createdById: author.id } });
       }
       return created;
     };
-    await createRealParticipant(0, ScheduleMemberRole.LEADER, [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER]);
-    await createRealParticipant(1, ScheduleMemberRole.BACKING, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], bassCategory.id);
-    await createRealParticipant(2, ScheduleMemberRole.MINISTER, [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT], guitarCategory.id);
-    await createRealParticipant(3, ScheduleMemberRole.LEADER, [ScheduleMemberRole.LEADER, ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.BACKING], bassCategory.id);
+    await createRealParticipant(0, [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER]);
+    await createRealParticipant(1, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT], bassCategory.id);
+    await createRealParticipant(2, [ScheduleMemberRole.MINISTER, ScheduleMemberRole.INSTRUMENT], guitarCategory.id);
+    await createRealParticipant(3, [ScheduleMemberRole.LEADER, ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.BACKING], bassCategory.id);
 
     await scheduleService.publish(realSchedule.id, authorization);
     const published = await prisma.notification.findMany({ where: { entityId: realSchedule.id, type: NotificationType.SCHEDULE_PUBLISHED, userId: { in: users.map((item) => item.id) } }, orderBy: { userId: "asc" } });

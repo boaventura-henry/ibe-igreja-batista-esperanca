@@ -3,22 +3,20 @@
 ## Transitional model
 
 `ScheduleMemberRoleAssignment` stores the current role collection for a
-`ScheduleMember`. The existing `ScheduleMember.role` column remains required
-until all legacy readers and forms have migrated.
+`ScheduleMember` and is the only functional source of truth. The existing
+`ScheduleMember.role` column and index remain temporarily in the schema for a
+safe expand/contract rollout.
 
-The role collection is the source of truth for migrated domain decisions. The
-legacy column is a compatibility projection:
+The legacy column is now only a write-through compatibility projection:
 
-- when the `roles` relation is loaded, including as an empty collection, its
-  value prevails; fallback to `role` exists only for legacy records/contracts
-  that do not load the relation;
+- all official readers load `roles`; an absent or empty collection is treated
+  as no assigned function and never rebuilt from `ScheduleMember.role`;
 
-- preserve the current legacy role while it remains in the collection;
-- if it is removed, choose the first remaining role using the existing enum/UI
-  order;
-- legacy create/update requests that change only `role` replace the collection
-  with that single role, preserving the current UI behavior;
-- requests that do not change `role` preserve the complete collection.
+- official writes require a non-empty `roles` collection when functions change;
+- the first role in the official order is written to the legacy projection in
+  the same transaction, so rollback to the previous runtime remains possible;
+- requests containing `role`, alone or together with `roles`, are rejected;
+- status-only updates preserve the complete role collection and projection.
 
 The single official presentation/projection order is defined by
 `scheduleMemberRoleOptions`: `MINISTER`, `LEADER`, `VOCAL`, `BACKING`,
@@ -31,8 +29,10 @@ unique constraint.
 
 ## Migration and lifecycle
 
-The migration creates one assignment from every existing
+The foundation migration created one assignment from every existing
 `ScheduleMember.role` and aborts if any participant remains without a role.
+This compatibility cleanup creates no migration and does not remove the legacy
+column or index.
 Roles represent current participation configuration, so they do not use soft
 delete. They are deleted by cascade only when the parent participant is
 physically removed; ordinary schedule lifecycle uses the existing parent soft
@@ -77,10 +77,11 @@ remaining after `MINISTER`. Thus the supported examples are `Lider • Ministro`
 `Baixo • Backing` and `Ministro • Violao`. When no category exists, the helper
 uses `Instrumento`; physical asset names are never included.
 
-The administrative list selects participant names in the same relational query
-as the paginated schedules and keeps the existing participant order (legacy
-projection followed by member name). It exposes names and `memberCount`, but no
-roles, assignments, User data or asset data. Mobile shows up to three complete
+The administrative list selects participant names and role assignments in the
+same relational query as the paginated schedules. The Service sorts each
+already-loaded participant collection by official role priority, member name
+and participant id, without an extra query or N+1. It exposes names and
+`memberCount`, but no legacy role, User data or asset data. Mobile shows up to three complete
 names and desktop up to five before a pluralized `+N membros` summary. One
 `ScheduleMember` always counts once, regardless of its role count. `REPLACED`
 participants remain included because this Story preserves the previous rule of
@@ -102,10 +103,12 @@ instrument category in one pass; physical asset data is not used in the
 message. Reminders remain unchanged because their current wording does not
 mention a role. `ScheduleMember.role` remains a transitional projection.
 
-The singular helper remains exported for compatibility and legacy tests, but
-has no functional consumer in `src` after this migration. Its removal belongs
-to the final legacy-cleanup Story. The administrative Dashboard does not
-display participant roles and is therefore not applicable to this change.
+The singular display helper and every fallback to `ScheduleMember.role` were
+removed. The plural helper is the only presentation source. Administrative
+detail, member history, Portal, My Schedules, Dashboard and notifications load
+the role collection. DTOs and serializers do not expose the legacy field. The
+administrative Dashboard does not display participant roles and is therefore
+not applicable to this change.
 
 The technical gate reproduced `P2028` in a normal publication with Prisma's
 default five-second interactive-transaction timeout. The transaction performs
@@ -115,9 +118,9 @@ transactions; no global Prisma timeout or generic retry was added. Normal
 publication, participant inclusion and two controlled concurrent-publication
 scenarios then completed without `P2028`, deadlock or duplicate notifications.
 
-Future Stories must remove remaining legacy compatibility and finally remove
-the legacy column
-after every reader and writer uses the collection. Removal is allowed only
-after the administrative UI, Portal, My Schedules, notifications, all writes,
-legacy tests and any external consumers no longer depend on
-`ScheduleMember.role`.
+The physical DROP is a separate release stage. Production must first run this
+compatibility code with the legacy column and index still present. Only after
+that deployment is READY, smoke-tested and free of role-related errors may a
+later migration remove the index and column. Until the DROP, rollback to the
+previous runtime remains structurally possible because the write-through
+projection stays synchronized.

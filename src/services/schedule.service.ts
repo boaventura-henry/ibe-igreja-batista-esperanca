@@ -1,10 +1,11 @@
 import { MemberStatus, ScheduleMemberRole, ScheduleMemberStatus, ScheduleScope, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import {
+  compareScheduleMembersByRolePriority,
   getScheduleMemberRoles,
   hasInstrumentRole,
   normalizeScheduleMemberRoles,
-  resolveLegacyScheduleMemberRole
+  resolveScheduleMemberRoleProjection
 } from "@/lib/schedule-member-role";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
@@ -67,7 +68,6 @@ function serializeMember(member: ScheduleMemberRecord): ScheduleMemberSummary {
     : null;
   return {
     id: member.id,
-    role: member.role,
     roles: getScheduleMemberRoles(member),
     status: member.status,
     confirmedAt: serializeDate(member.confirmedAt),
@@ -109,14 +109,14 @@ function serialize(schedule: ScheduleRecord): ScheduleSummary {
           startDate: schedule.event.startDate.toISOString()
         }
       : null,
-    members: schedule.members.map(serializeMember),
+    members: [...schedule.members].sort(compareScheduleMembersByRolePriority).map(serializeMember),
     createdAt: schedule.createdAt.toISOString(),
     updatedAt: schedule.updatedAt.toISOString()
   };
 }
 
 function serializeListItem(schedule: ScheduleListRecord): ScheduleListItem {
-  const members = schedule.members.map((participant) => ({
+  const members = [...schedule.members].sort(compareScheduleMembersByRolePriority).map((participant) => ({
     id: participant.id,
     member: {
       id: participant.member.id,
@@ -189,7 +189,6 @@ function hasRelevantMemberChange(
 ) {
   return (
     (data.memberId !== undefined && data.memberId !== current.member.id) ||
-    (data.role !== undefined && data.role !== current.role) ||
     (data.status !== undefined && data.status !== current.status) ||
     (data.replacedByMemberId !== undefined &&
       data.replacedByMemberId !== (current.replacedByMember?.id ?? null)) ||
@@ -213,20 +212,22 @@ function resolveRequestedRoles(
   const currentRoles = current ? getScheduleMemberRoles(current) : [];
   const requested = data.roles !== undefined
     ? normalizeScheduleMemberRoles(data.roles)
-    : current && (data.role === undefined || data.role === current.role)
-      ? currentRoles
-      : normalizeScheduleMemberRoles([data.role ?? ScheduleMemberRole.OTHER]);
+    : currentRoles;
 
   if (!requested.length) {
     throw new AppError("Informe pelo menos uma funcao.", 400, "SCHEDULE_MEMBER_ROLE_REQUIRED");
   }
 
-  const legacyRole = resolveLegacyScheduleMemberRole(current?.role ?? data.role, requested);
-  if (!legacyRole) {
+  const projectionRole = resolveScheduleMemberRoleProjection(requested);
+  if (!projectionRole) {
     throw new AppError("Informe pelo menos uma funcao.", 400, "SCHEDULE_MEMBER_ROLE_REQUIRED");
   }
 
-  return { roles: requested, legacyRole, changed: !current || !sameRoles(currentRoles, requested) };
+  return {
+    roles: requested,
+    projectionRole,
+    changed: !current || !sameRoles(currentRoles, requested)
+  };
 }
 
 async function ensureActiveMinistry(ministryId: string) {
@@ -808,7 +809,7 @@ export const scheduleService = {
         scheduleId,
         data,
         roleConfiguration.roles,
-        roleConfiguration.legacyRole,
+        roleConfiguration.projectionRole,
         authorization.user.id,
         database
       );
@@ -886,17 +887,14 @@ export const scheduleService = {
         database
       });
       const roleConfiguration = resolveRequestedRoles(data, transactionalCurrent);
-      const changed = hasRelevantMemberChange(transactionalCurrent, {
-        ...data,
-        role: roleConfiguration.legacyRole
-      }) || roleConfiguration.changed;
+      const changed = hasRelevantMemberChange(transactionalCurrent, data) || roleConfiguration.changed;
       if (!changed && !data.instrumentAssignment) return transactionalCurrent;
       let result = changed
         ? await scheduleRepository.updateMember(
             memberScheduleId,
-            { ...data, role: roleConfiguration.legacyRole },
+            data,
             roleConfiguration.changed ? roleConfiguration.roles : undefined,
-            roleConfiguration.legacyRole,
+            roleConfiguration.changed ? roleConfiguration.projectionRole : undefined,
             authorization.user.id,
             database
           )

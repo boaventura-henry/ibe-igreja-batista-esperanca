@@ -80,9 +80,9 @@ async function main() {
   });
   await test("duplicatas defensivas nao repetem labels", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT] }, bass), "Baixo • Backing"));
   await test("INSTRUMENT sem categoria permanece visivel com BACKING", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT] }), "Instrumento • Backing"));
-  await test("roles carregadas prevalecem", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.VOCAL, roles: [ScheduleMemberRole.LEADER] }), "Líder"));
-  await test("roles vazias nao recorrem ao legado", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.VOCAL, roles: [] }), "Função não informada"));
-  await test("fallback legado somente sem colecao", () => assert.equal(getScheduleMemberDisplayRoles({ role: ScheduleMemberRole.VOCAL }), "Vocal"));
+  await test("roles carregadas sao a fonte unica", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.LEADER] }), "Líder"));
+  await test("roles vazias permanecem sem funcao", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [] }), "Função não informada"));
+  await test("colecao ausente nao usa fallback legado", () => assert.equal(getScheduleMemberDisplayRoles({}), "Função não informada"));
   await test("categoria historica inativa permanece legivel", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT] }, { instrumentCategory: { name: "Baixo", isActive: false } } as never), "Baixo"));
   await test("instrumento inativo nao altera categoria", () => assert.equal(getScheduleMemberDisplayRoles({ roles: [ScheduleMemberRole.INSTRUMENT] }, { instrumentCategory: { name: "Baixo" }, instrument: { status: "INACTIVE" } } as never), "Baixo"));
   await test("detalhe usa helper multiplo", () => assert.match(detailSource, /getScheduleMemberDisplayRoles\(item, item\.instrumentAssignment\)/));
@@ -99,9 +99,10 @@ async function main() {
   await test("um participante nao gera resumo restante", () => assert.deepEqual(summarizeScheduleMembers([displayMember("1", "Mírian")], 3), { names: ["Mírian"], remaining: 0, remainingLabel: null }));
   await test("nomes nao sao cortados por caracteres", () => assert.deepEqual(summarizeScheduleMembers([displayMember("1", "Felipe Mateus Gaioto de França")], 3).names, ["Felipe Mateus Gaioto de França"]));
   await test("Member inativo ou removido nao e filtrado no select relacional", () => assert.doesNotMatch(repositorySource.match(/const scheduleListSelect[\s\S]*?satisfies Prisma\.ScheduleSelect/)?.[0] ?? "", /member:\s*\{\s*where:/));
-  await test("ordem dos participantes preserva regra existente", () => assert.match(repositorySource, /orderBy: \[\{ role: "asc" \}, \{ member: \{ name: "asc" \} \}\]/));
+  await test("repository nao ordena pelo legado", () => assert.doesNotMatch(repositorySource, /orderBy:[^\n]*role/));
+  await test("service usa comparador central de roles", () => assert.match(serviceSource, /compareScheduleMembersByRolePriority/));
   await test("REPLACED nao recebe filtro novo", () => assert.doesNotMatch(repositorySource.match(/const scheduleListSelect[\s\S]*?satisfies Prisma\.ScheduleSelect/)?.[0] ?? "", /status:\s*\{\s*not:/));
-  await test("listagem nao duplica membro por role", () => assert.doesNotMatch(repositorySource.match(/const scheduleListSelect[\s\S]*?satisfies Prisma\.ScheduleSelect/)?.[0] ?? "", /roles:/));
+  await test("listagem carrega roles na mesma consulta sem duplicar membro", () => assert.match(repositorySource.match(/const scheduleListSelect[\s\S]*?satisfies Prisma\.ScheduleSelect/)?.[0] ?? "", /roles:\s*\{ select: \{ role: true \} \}/));
   await test("DTO da listagem nao envia dados privados", () => assert.doesNotMatch(serviceSource.match(/function serializeListItem[\s\S]*?\n\}/)?.[0] ?? "", /email|username|user:|instrumentAssignment/));
   await test("paginacao continua por Schedule", () => assert.match(repositorySource, /prisma\.schedule\.findMany\([\s\S]*?skip,[\s\S]*?take: filters\.pageSize/));
   await test("consulta relacional evita N mais 1", () => assert.match(repositorySource, /select: scheduleListSelect/));
@@ -124,7 +125,7 @@ async function main() {
     assert.match(managerSource, /ScheduleMemberNames/);
   });
   await test("helper multiplo e fonte unica no detalhe", () => assert.match(helperSource, /export function getScheduleMemberDisplayRoles/));
-  await test("roles vazias continuam distintas do legado", () => assert.deepEqual(getScheduleMemberRoles({ role: ScheduleMemberRole.LEADER, roles: [] }), []));
+  await test("roles vazias permanecem vazias", () => assert.deepEqual(getScheduleMemberRoles({ roles: [] }), []));
   await test("detalhe permite quebra natural sem largura excessiva", () => assert.match(detailSource, /min-w-32 max-w-56 whitespace-normal break-words/));
   await test("listagem usa tres nomes no mobile e cinco no desktop", async () => {
     assert.match(namesSource, /sm:hidden[\s\S]*limit=\{3\}/);
@@ -153,14 +154,14 @@ async function main() {
     ids.members.push(...members.map((member) => member.id));
     const schedules = await Promise.all(["A", "B", "C"].map((suffix, index) => prisma.schedule.create({ data: { title: `${key("fixture")} ${suffix}`, ministryId: ministry.id, date: new Date(`2099-01-${10 + index}T00:00:00.000Z`), createdById: author.id } })));
     ids.schedules.push(...schedules.map((schedule) => schedule.id));
-    const createParticipant = (scheduleId: string, memberId: string, role: ScheduleMemberRole, roles: ScheduleMemberRole[]) => prisma.scheduleMember.create({ data: { scheduleId, memberId, role, status: ScheduleMemberStatus.PENDING, createdById: author.id, roles: { create: roles.map((assignedRole) => ({ role: assignedRole })) } } });
+    const createParticipant = (scheduleId: string, memberId: string, roles: ScheduleMemberRole[]) => prisma.scheduleMember.create({ data: { scheduleId, memberId, status: ScheduleMemberStatus.PENDING, createdById: author.id, roles: { create: roles.map((assignedRole) => ({ role: assignedRole })) } } });
     const [mirian, joao] = await Promise.all([
-      createParticipant(schedules[0].id, members[0].id, ScheduleMemberRole.LEADER, [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER]),
-      createParticipant(schedules[0].id, members[1].id, ScheduleMemberRole.BACKING, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT]),
-      createParticipant(schedules[0].id, members[2].id, ScheduleMemberRole.VOCAL, [ScheduleMemberRole.VOCAL])
+      createParticipant(schedules[0].id, members[0].id, [ScheduleMemberRole.LEADER, ScheduleMemberRole.MINISTER]),
+      createParticipant(schedules[0].id, members[1].id, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT]),
+      createParticipant(schedules[0].id, members[2].id, [ScheduleMemberRole.VOCAL])
     ]);
     await prisma.scheduleMemberInstrumentAssignment.create({ data: { scheduleMemberId: joao.id, instrumentCategoryId: category.id, source: ScheduleInstrumentSource.OWN, createdById: author.id } });
-    await Promise.all(members.map((member, index) => prisma.scheduleMember.create({ data: { scheduleId: schedules[2].id, memberId: member.id, role: ScheduleMemberRole.OTHER, status: index === 5 ? ScheduleMemberStatus.REPLACED : ScheduleMemberStatus.PENDING, createdById: author.id, roles: { create: { role: ScheduleMemberRole.OTHER } } } })));
+    await Promise.all(members.map((member, index) => prisma.scheduleMember.create({ data: { scheduleId: schedules[2].id, memberId: member.id, status: index === 5 ? ScheduleMemberStatus.REPLACED : ScheduleMemberStatus.PENDING, createdById: author.id, roles: { create: { role: ScheduleMemberRole.OTHER } } } })));
     await prisma.instrumentCategory.update({ where: { id: category.id }, data: { isActive: false } });
 
     const filters = scheduleListQuerySchema.parse({ search: key("fixture"), includeCompleted: "true", pageSize: "10" });
@@ -207,7 +208,7 @@ async function main() {
     await prisma.$disconnect();
   }
 
-  assert.equal(scenarios, 58, "A suite deve manter os cenarios obrigatorios do Gate.");
+  assert.equal(scenarios, 59, "A suite deve manter os cenarios obrigatorios do Gate.");
   console.log(`Schedule multiple roles display: ${scenarios} scenarios passed.`);
 }
 

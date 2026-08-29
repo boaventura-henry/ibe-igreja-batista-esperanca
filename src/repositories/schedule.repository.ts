@@ -13,7 +13,6 @@ import type {
 
 const scheduleMemberSelect = {
   id: true,
-  role: true,
   roles: { select: { role: true } },
   status: true,
   confirmedAt: true,
@@ -79,7 +78,7 @@ const scheduleSelect = {
   members: {
     where: { deletedAt: null },
     select: scheduleMemberSelect,
-    orderBy: [{ role: "asc" }, { member: { name: "asc" } }]
+    orderBy: [{ member: { name: "asc" } }, { id: "asc" }]
   }
 } satisfies Prisma.ScheduleSelect;
 
@@ -106,11 +105,12 @@ const scheduleListSelect = {
     where: { deletedAt: null },
     select: {
       id: true,
+      roles: { select: { role: true } },
       member: {
         select: { id: true, name: true, nickname: true }
       }
     },
-    orderBy: [{ role: "asc" }, { member: { name: "asc" } }]
+    orderBy: [{ member: { name: "asc" } }, { id: "asc" }]
   }
 } satisfies Prisma.ScheduleSelect;
 
@@ -160,12 +160,10 @@ function updateData(data: ScheduleUpdateInput): Prisma.ScheduleUncheckedUpdateIn
 }
 
 function scheduleMemberData(
-  data: ScheduleMemberCreateInput | ScheduleMemberUpdateInput,
-  legacyRole?: ScheduleMemberRole
+  data: ScheduleMemberCreateInput | ScheduleMemberUpdateInput
 ): Prisma.ScheduleMemberUncheckedUpdateInput {
   return {
     memberId: data.memberId,
-    role: legacyRole ?? data.role,
     status: data.status,
     confirmedAt: data.confirmedAt ? new Date(data.confirmedAt) : data.confirmedAt === null ? null : undefined,
     replacedByMemberId: data.replacedByMemberId,
@@ -599,15 +597,16 @@ export const scheduleRepository = {
     scheduleId: string,
     data: ScheduleMemberCreateInput,
     roles: ScheduleMemberRole[],
-    legacyRole: ScheduleMemberRole,
+    projectionRole: ScheduleMemberRole,
     userId: string,
     database: ScheduleDatabase = prisma
   ) {
     return database.scheduleMember.create({
       data: {
-        ...(scheduleMemberData(data, legacyRole) as Prisma.ScheduleMemberUncheckedCreateInput),
+        ...(scheduleMemberData(data) as Prisma.ScheduleMemberUncheckedCreateInput),
         scheduleId,
         memberId: data.memberId,
+        role: projectionRole,
         createdById: userId,
         updatedById: userId,
         roles: { create: roles.map((role) => ({ role })) }
@@ -620,14 +619,15 @@ export const scheduleRepository = {
     id: string,
     data: ScheduleMemberUpdateInput,
     roles: ScheduleMemberRole[] | undefined,
-    legacyRole: ScheduleMemberRole,
+    projectionRole: ScheduleMemberRole | undefined,
     userId: string,
     database: ScheduleDatabase = prisma
   ) {
     return database.scheduleMember.update({
       where: { id },
       data: {
-        ...scheduleMemberData(data, legacyRole),
+        ...scheduleMemberData(data),
+        role: projectionRole,
         updatedById: userId,
         ...(roles
           ? {

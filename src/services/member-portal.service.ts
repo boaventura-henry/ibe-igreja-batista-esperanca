@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { getScheduleMemberRoles } from "@/lib/schedule-member-role";
 import {
   memberPortalRepository,
   type MemberPortalMinistryRecord,
@@ -57,7 +58,8 @@ function serializeSchedule(link: MemberPortalScheduleRecord): MemberPortalSchedu
     startTime: link.schedule.startTime,
     endTime: link.schedule.endTime,
     location: link.schedule.location,
-    role: link.role,
+    roles: getScheduleMemberRoles(link),
+    instrumentAssignment: link.instrumentAssignments[0] ?? null,
     status: link.status,
     ministry: link.schedule.ministry
   };

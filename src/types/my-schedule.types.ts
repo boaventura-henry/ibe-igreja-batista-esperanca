@@ -2,7 +2,6 @@ import type { ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@
 
 export type MyScheduleParticipant = {
   id: string;
-  role: ScheduleMemberRole;
   roles: ScheduleMemberRole[];
   status: ScheduleMemberStatus;
   instrumentAssignment: { instrumentCategory: { id: string; name: string } } | null;
@@ -41,7 +40,6 @@ export type MyScheduleSummary = {
   date: string;
   startTime: string | null;
   endTime: string | null;
-  role: ScheduleMemberRole;
   roles: ScheduleMemberRole[];
   instrumentAssignment: { instrumentCategory: { id: string; name: string } } | null;
   status: ScheduleMemberStatus;

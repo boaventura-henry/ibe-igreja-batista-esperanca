@@ -65,7 +65,7 @@ async function main() {
       scheduleDate: new Date("2099-08-24T00:00:00.000Z"),
       scheduleStartTime: "10:00"
     });
-    assert.equal(where.role, undefined);
+    assert.equal("role" in where, false);
     assert.deepEqual(where.instrumentAssignments, { some: {} });
   });
   await test("participacao substituida e ignorada conservadoramente", () => {
@@ -166,7 +166,9 @@ async function main() {
     return schedule;
   };
   const participate = async (scheduleId: string, memberId: string, role: ScheduleMemberRole) => {
-    const participant = await prisma.scheduleMember.create({ data: { scheduleId, memberId, role, createdById: user.id } });
+    const participant = await prisma.scheduleMember.create({
+      data: { scheduleId, memberId, createdById: user.id, roles: { create: { role } } }
+    });
     ids.participants.push(participant.id);
     return participant;
   };
@@ -309,7 +311,9 @@ async function main() {
     await assign(roleChangedParticipant.id, guitar.id, ScheduleInstrumentSource.OWN, null, "2099-08-10T06:30:00.000Z", "2099-08-10T07:00:00.000Z");
     await prisma.scheduleMember.update({
       where: { id: roleChangedParticipant.id },
-      data: { role: ScheduleMemberRole.VOCAL }
+      data: {
+        roles: { deleteMany: {}, create: { role: ScheduleMemberRole.VOCAL } }
+      }
     });
     await test("role alterada posteriormente nao apaga o fato instrumental preservado pelo assignment", async () => {
       const result = await scheduleInstrumentAssignmentService.getSuggestion(target.id, roleChangedMember.id, authorization);

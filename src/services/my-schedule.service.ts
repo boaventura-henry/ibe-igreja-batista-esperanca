@@ -1,6 +1,6 @@
 import { ScheduleInstrumentSource, ScheduleMemberRole, ScheduleMemberStatus, ScheduleStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
-import { getScheduleMemberRoles, hasInstrumentRole } from "@/lib/schedule-member-role";
+import { compareScheduleMembersByRolePriority, getScheduleMemberRoles, hasInstrumentRole } from "@/lib/schedule-member-role";
 import { myScheduleRepository, scheduleInstrumentAssignmentRepository, scheduleRepository, type MyScheduleRecord } from "@/repositories";
 import type { MyScheduleListResult, MyScheduleSummary } from "@/types";
 import type { MyScheduleDeclineInput, MyScheduleInstrumentChangeInput, MyScheduleListQueryInput } from "@/validators";
@@ -17,7 +17,7 @@ function serializeDate(value: Date | null) {
 }
 
 function serialize(record: MyScheduleRecord): MyScheduleSummary {
-  const participants = record.schedule.members.map((participant) => ({
+  const participants = [...record.schedule.members].sort(compareScheduleMembersByRolePriority).map((participant) => ({
     ...participant,
     roles: getScheduleMemberRoles(participant),
     instrumentAssignment: participant.instrumentAssignments[0] ?? null,
@@ -38,7 +38,6 @@ function serialize(record: MyScheduleRecord): MyScheduleSummary {
     date: record.schedule.date.toISOString(),
     startTime: record.schedule.startTime,
     endTime: record.schedule.endTime,
-    role: record.role,
     roles: getScheduleMemberRoles(record),
     instrumentAssignment: record.instrumentAssignments[0] ?? null,
     status: record.status,
@@ -87,7 +86,6 @@ function ensureCanSelfRespond(scheduleMember: MyScheduleSummary, action: "confir
 }
 
 function ensureCanChangeInstrument(participant: {
-  role: ScheduleMemberRole;
   roles: Array<{ role: ScheduleMemberRole }>;
   status: ScheduleMemberStatus;
   schedule: { status: ScheduleStatus };

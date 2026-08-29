@@ -72,15 +72,13 @@ export const scheduleListQuerySchema = z.object({
 
 const scheduleMemberBaseSchema = z.object({
   memberId: z.string().cuid("Informe um membro valido."),
-  role: z.enum(ScheduleMemberRole),
   roles: z.array(z.enum(ScheduleMemberRole))
     .min(1, "Informe pelo menos uma funcao.")
     .superRefine((roles, context) => {
       if (new Set(roles).size !== roles.length) {
         context.addIssue({ code: "custom", message: "Nao repita a mesma funcao." });
       }
-    })
-    .optional(),
+    }),
   status: z.enum(ScheduleMemberStatus),
   confirmedAt: optionalDateTime,
   replacedByMemberId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
@@ -90,13 +88,20 @@ const scheduleMemberBaseSchema = z.object({
 });
 
 export const scheduleMemberCreateSchema = scheduleMemberBaseSchema.extend({
-  role: z.enum(ScheduleMemberRole).optional(),
   status: z.enum(ScheduleMemberStatus).default(ScheduleMemberStatus.PENDING),
   allowMinistryException: z.boolean().default(false),
   instrumentAssignment: scheduleInstrumentAssignmentSchema.optional()
 });
 
 export const scheduleMemberUpdateSchema = scheduleMemberBaseSchema.partial();
+
+export function hasLegacyScheduleMemberRoleField(payload: unknown) {
+  return Boolean(
+    payload &&
+    typeof payload === "object" &&
+    Object.prototype.hasOwnProperty.call(payload, "role")
+  );
+}
 
 export type ScheduleCreateInput = z.infer<typeof scheduleCreateSchema>;
 export type ScheduleUpdateInput = z.infer<typeof scheduleUpdateSchema>;

@@ -115,7 +115,7 @@ async function main() {
         data: {
           scheduleId: schedule.id,
           memberId,
-          role: ScheduleMemberRole.INSTRUMENT
+          roles: { create: { role: ScheduleMemberRole.INSTRUMENT } }
         }
       });
       ids.participants.push(participant.id);
@@ -151,7 +151,7 @@ async function main() {
       data: {
         scheduleId: changeSchedule.id,
         memberId: joao.id,
-        role: ScheduleMemberRole.INSTRUMENT
+        roles: { create: { role: ScheduleMemberRole.INSTRUMENT } }
       }
     });
     ids.participants.push(changeParticipant.id);
@@ -229,7 +229,7 @@ async function main() {
       data: {
         scheduleId: tieSchedule.id,
         memberId: pedro.id,
-        role: ScheduleMemberRole.INSTRUMENT
+        roles: { create: { role: ScheduleMemberRole.INSTRUMENT } }
       }
     });
     ids.participants.push(tieParticipant.id);
@@ -376,7 +376,9 @@ async function main() {
 
     await prisma.scheduleMember.update({
       where: { id: firstParticipant.id },
-      data: { role: ScheduleMemberRole.VOCAL }
+      data: {
+        roles: { deleteMany: {}, create: { role: ScheduleMemberRole.VOCAL } }
+      }
     });
     check((await instrumentUsageHistoryService.list(tagima.id, filters)).items.some((item) => item.id === first.id), "mudanca posterior de role preserva utilizacao passada");
 
