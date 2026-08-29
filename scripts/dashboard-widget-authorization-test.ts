@@ -98,8 +98,9 @@ assert(/^\d+\.\d+\.\d+/.test(APP_VERSION) && shortCommitHash("ABCDEF123456") ===
 assert(
   appReleases.some((release) => release.version === "0.2.0" && release.status === "PUBLISHED" && release.type === "MINOR") &&
     appReleases.some((release) => release.version === "0.2.4" && release.status === "PUBLISHED" && release.releaseDate === "2026-08-22") &&
-    appReleases.some((release) => release.version === APP_VERSION && release.status === "UNRELEASED" && release.type === "PATCH" && release.releaseDate === null),
-  "18: catalogo preserva as releases publicadas e identifica a entrega patch em desenvolvimento"
+    appReleases.some((release) => release.version === APP_VERSION && release.status === "PUBLISHED" && release.type === "PATCH" && release.releaseDate === "2026-08-29") &&
+    appReleases.every((release) => release.status !== "UNRELEASED"),
+  "18: catalogo preserva as releases publicadas e nao abre a proxima versao automaticamente"
 );
 assert.equal(appFeatures.find((feature) => feature.code === "dashboard.widget-rbac")?.introducedIn, "0.2.0", "19: feature RBAC identifica a versao publicada de origem");
 const nonFinancialPlan = getDashboardQueryPlan(new Set<DashboardWidgetCode>(["members.summary", "events.upcoming"]));

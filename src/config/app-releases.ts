@@ -15,12 +15,25 @@ export type AppRelease = {
 export const appReleases: readonly AppRelease[] = [
   {
     version: "0.2.5",
-    title: "Versao 0.2.5 em desenvolvimento",
-    summary: "Versao em desenvolvimento.",
+    title: "Multiplas funcoes em escalas",
+    summary: "Participantes de escalas agora podem exercer e visualizar multiplas funcoes com consistencia no Administrativo, Portal e notificacoes.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
-    highlights: []
+    status: "PUBLISHED",
+    releaseDate: "2026-08-29",
+    highlights: [
+      "Participantes podem exercer multiplas funcoes na mesma escala",
+      "O Administrativo permite selecionar e editar varias funcoes por participante",
+      "Detalhes, historico, Portal e Minhas Escalas apresentam todas as funcoes atribuidas",
+      "Instrumentos permanecem associados somente a participantes com a funcao Instrumento",
+      "Notificacoes representam corretamente as multiplas funcoes sem duplicar destinatarios",
+      "Ordenacao e sugestoes instrumentais foram adaptadas para a nova fonte de dados"
+    ],
+    technicalNotes: [
+      "ScheduleMemberRoleAssignment passou a ser a fonte unica das funcoes de escala.",
+      "A coluna ScheduleMember.role e seu indice legado foram removidos por rollout expand/contract.",
+      "Confirmacao, recusa, substituicao, instrumentos, reminders e lifecycle foram preservados.",
+      "Rollback deve utilizar runtime compativel com o schema pos-DROP ou uma correcao forward; runtimes que dependem de ScheduleMember.role nao sao seguros."
+    ]
   },
   {
     version: "0.2.4",
