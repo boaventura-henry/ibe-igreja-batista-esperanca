@@ -4,8 +4,7 @@ import {
   compareScheduleMembersByRolePriority,
   getScheduleMemberRoles,
   hasInstrumentRole,
-  normalizeScheduleMemberRoles,
-  resolveScheduleMemberRoleProjection
+  normalizeScheduleMemberRoles
 } from "@/lib/schedule-member-role";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
@@ -218,16 +217,7 @@ function resolveRequestedRoles(
     throw new AppError("Informe pelo menos uma funcao.", 400, "SCHEDULE_MEMBER_ROLE_REQUIRED");
   }
 
-  const projectionRole = resolveScheduleMemberRoleProjection(requested);
-  if (!projectionRole) {
-    throw new AppError("Informe pelo menos uma funcao.", 400, "SCHEDULE_MEMBER_ROLE_REQUIRED");
-  }
-
-  return {
-    roles: requested,
-    projectionRole,
-    changed: !current || !sameRoles(currentRoles, requested)
-  };
+  return { roles: requested, changed: !current || !sameRoles(currentRoles, requested) };
 }
 
 async function ensureActiveMinistry(ministryId: string) {
@@ -809,7 +799,6 @@ export const scheduleService = {
         scheduleId,
         data,
         roleConfiguration.roles,
-        roleConfiguration.projectionRole,
         authorization.user.id,
         database
       );
@@ -894,7 +883,6 @@ export const scheduleService = {
             memberScheduleId,
             data,
             roleConfiguration.changed ? roleConfiguration.roles : undefined,
-            roleConfiguration.changed ? roleConfiguration.projectionRole : undefined,
             authorization.user.id,
             database
           )

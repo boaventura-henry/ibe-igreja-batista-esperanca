@@ -1,22 +1,22 @@
 # Multiple roles per schedule participant
 
-## Transitional model
+## Current model
 
 `ScheduleMemberRoleAssignment` stores the current role collection for a
-`ScheduleMember` and is the only functional source of truth. The existing
-`ScheduleMember.role` column and index remain temporarily in the schema for a
-safe expand/contract rollout.
+`ScheduleMember` and is the only source of truth. The legacy
+`ScheduleMember.role` column and its index were physically removed in the
+0.2.5 final cleanup Story.
 
-The legacy column is now only a write-through compatibility projection:
+The role collection is the source of truth for all domain decisions:
 
 - all official readers load `roles`; an absent or empty collection is treated
   as no assigned function and never rebuilt from `ScheduleMember.role`;
 
-- official writes require a non-empty `roles` collection when functions change;
-- the first role in the official order is written to the legacy projection in
-  the same transaction, so rollback to the previous runtime remains possible;
-- requests containing `role`, alone or together with `roles`, are rejected;
-- status-only updates preserve the complete role collection and projection.
+- official create requests require a non-empty `roles` collection;
+- update requests use `roles` only when changing functions, while status-only
+  self-service updates preserve the complete collection;
+- requests containing the legacy `role` field, alone or together with `roles`,
+  are rejected explicitly to prevent two sources of truth.
 
 The single official presentation/projection order is defined by
 `scheduleMemberRoleOptions`: `MINISTER`, `LEADER`, `VOCAL`, `BACKING`,
@@ -27,12 +27,13 @@ Every participant must have at least one role. Duplicate
 `(scheduleMemberId, role)` values are rejected by validation and by a database
 unique constraint.
 
-## Migration and lifecycle
+## Migrations and lifecycle
 
 The foundation migration created one assignment from every existing
 `ScheduleMember.role` and aborts if any participant remains without a role.
-This compatibility cleanup creates no migration and does not remove the legacy
-column or index.
+The final migration drops only `ScheduleMember_role_idx` and
+`ScheduleMember.role` after aggregate validation confirms complete assignment
+coverage and no duplicates.
 Roles represent current participation configuration, so they do not use soft
 delete. They are deleted by cascade only when the parent participant is
 physically removed; ordinary schedule lifecycle uses the existing parent soft
@@ -79,9 +80,10 @@ uses `Instrumento`; physical asset names are never included.
 
 The administrative list selects participant names and role assignments in the
 same relational query as the paginated schedules. The Service sorts each
-already-loaded participant collection by official role priority, member name
-and participant id, without an extra query or N+1. It exposes names and
-`memberCount`, but no legacy role, User data or asset data. Mobile shows up to three complete
+already-loaded participant collection by the smallest official role priority,
+then member name and participant id. This adds no query and no N+1. The response
+exposes names and `memberCount`, but no legacy role, assignments, User data or
+asset data. Mobile shows up to three complete
 names and desktop up to five before a pluralized `+N membros` summary. One
 `ScheduleMember` always counts once, regardless of its role count. `REPLACED`
 participants remain included because this Story preserves the previous rule of
@@ -101,14 +103,45 @@ post-commit Web Push share the same multiple-role presentation as the screens.
 The relational schedule query already loads role assignments and the friendly
 instrument category in one pass; physical asset data is not used in the
 message. Reminders remain unchanged because their current wording does not
-mention a role. `ScheduleMember.role` remains a transitional projection.
+mention a role.
 
-The singular display helper and every fallback to `ScheduleMember.role` were
-removed. The plural helper is the only presentation source. Administrative
-detail, member history, Portal, My Schedules, Dashboard and notifications load
-the role collection. DTOs and serializers do not expose the legacy field. The
-administrative Dashboard does not display participant roles and is therefore
-not applicable to this change.
+The singular presentation helper and its fallback were removed. The plural
+helper is the only presentation source. Administrative detail, member history,
+Portal, My Schedules, Dashboard and schedule notifications load the role
+collection. Internal DTOs and serializers no longer expose the legacy role.
+The administrative Dashboard does not display participant roles and is
+therefore not applicable to this change.
+
+## Physical-drop guarantees
+
+All official writers create or update `ScheduleMemberRoleAssignment` in the
+same transaction as the parent and reject an empty collection. Permanent test
+fixtures follow the same invariant. `prisma/seed.ts` does not create schedule
+participants, so no seed migration is applicable.
+
+PostgreSQL still cannot express an "at least one child row" invariant with a
+simple foreign key or check constraint. A deferred constraint trigger could
+enforce it, but would add operational complexity without protecting supported
+application paths further. The accepted approach after the DROP is the
+transactional application guarantee. Direct SQL can still create a parent with
+no role assignment; this is a documented residual risk and direct writes are
+not a supported integration contract.
+
+The schema, Prisma Client, repositories, Services, DTOs and permanent fixtures
+no longer read or write the singular field. The `ScheduleMemberRole` enum is
+preserved because it remains the type of `ScheduleMemberRoleAssignment.role`.
+
+## Production rollout
+
+`vercel-build` runs `prisma migrate deploy` before `next build`. A physical
+DROP is incompatible with an older Production runtime that still selects
+`ScheduleMember.role`: during a normal deployment, the previous runtime can
+continue receiving traffic after the migration has already removed the column.
+The safe rollout is explicitly two-phase: first deploy and activate the
+compatibility release that has zero reads or writes of the legacy column while
+the column still exists; only then deploy this DROP release. Rollback after the
+DROP must use a database restore or a forward migration and must not reactivate
+an old runtime that depends on the removed column.
 
 The technical gate reproduced `P2028` in a normal publication with Prisma's
 default five-second interactive-transaction timeout. The transaction performs
@@ -118,9 +151,6 @@ transactions; no global Prisma timeout or generic retry was added. Normal
 publication, participant inclusion and two controlled concurrent-publication
 scenarios then completed without `P2028`, deadlock or duplicate notifications.
 
-The physical DROP is a separate release stage. Production must first run this
-compatibility code with the legacy column and index still present. Only after
-that deployment is READY, smoke-tested and free of role-related errors may a
-later migration remove the index and column. Until the DROP, rollback to the
-previous runtime remains structurally possible because the write-through
-projection stays synchronized.
+No external consumer is known in this repository. The API rejects singular
+request payloads and does not preserve `role` in the migrated responses; any
+unversioned external consumer relying on that field must migrate to `roles`.

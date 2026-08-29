@@ -42,12 +42,6 @@ export function normalizeScheduleMemberRoles(roles: readonly ScheduleMemberRole[
   );
 }
 
-export function resolveScheduleMemberRoleProjection(
-  roles: readonly ScheduleMemberRole[]
-) {
-  return normalizeScheduleMemberRoles(roles)[0] ?? null;
-}
-
 export function getScheduleMemberRoles(source: ScheduleMemberRoleSource) {
   const assigned = source.roles?.map((entry) =>
     typeof entry === "string" ? entry : entry.role

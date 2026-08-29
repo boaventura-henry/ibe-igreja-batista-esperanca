@@ -12,8 +12,7 @@ import {
 import {
   compareScheduleMembersByRolePriority,
   getScheduleMemberDisplayRoles,
-  getScheduleMemberRoles,
-  resolveScheduleMemberRoleProjection
+  getScheduleMemberRoles
 } from "../src/lib/schedule-member-role";
 import type { ScheduleAuthorization } from "../src/lib/schedule-authorization";
 import { memberService } from "../src/services/member.service";
@@ -50,7 +49,7 @@ function requireDevelopmentDatasource() {
 }
 
 async function main() {
-  const [helper, repository, service, validator, createRoute, updateRoute, adminPage, myRepository, portalService, notificationService, schema, seed] = await Promise.all([
+  const [helper, repository, service, validator, createRoute, updateRoute, adminPage, myRepository, portalService, notificationService, schema, seed, migration] = await Promise.all([
     readFile("src/lib/schedule-member-role.ts", "utf8"),
     readFile("src/repositories/schedule.repository.ts", "utf8"),
     readFile("src/services/schedule.service.ts", "utf8"),
@@ -62,7 +61,8 @@ async function main() {
     readFile("src/services/dashboard.service.ts", "utf8"),
     readFile("src/services/schedule-notification.service.ts", "utf8"),
     readFile("prisma/schema.prisma", "utf8"),
-    readFile("prisma/seed.ts", "utf8")
+    readFile("prisma/seed.ts", "utf8"),
+    readFile("prisma/migrations/20260827120000_remove_schedule_member_legacy_role/migration.sql", "utf8")
   ]);
 
   await test("create exige roles", () => assert.equal(scheduleMemberCreateSchema.safeParse({ memberId: "cm0000000000000000000000000" }).success, false));
@@ -86,12 +86,6 @@ async function main() {
     assert.doesNotMatch(helper, /source\.role\b/);
     assert.deepEqual(getScheduleMemberRoles({}), []);
     assert.equal(getScheduleMemberDisplayRoles({ roles: [] }), "Função não informada");
-  });
-  await test("projecao transitoria deriva da prioridade oficial", () => {
-    assert.equal(
-      resolveScheduleMemberRoleProjection([ScheduleMemberRole.INSTRUMENT, ScheduleMemberRole.BACKING]),
-      ScheduleMemberRole.BACKING
-    );
   });
   await test("comparador usa menor prioridade oficial", () => {
     const participants = [
@@ -129,16 +123,17 @@ async function main() {
   });
   await test("writer oficial cria assignments na mesma operacao", () => {
     assert.match(repository, /scheduleMember\.create\([\s\S]*?roles:\s*\{\s*create:/);
-    assert.match(repository, /role:\s*projectionRole/);
+    assert.doesNotMatch(repository, /role:\s*legacyRole/);
   });
-  await test("schema preserva role e indice legados durante compatibilidade", () => {
+  await test("schema remove role e indice legados", () => {
     const model = schema.match(/model ScheduleMember \{[\s\S]*?\n\}/)?.[0] ?? "";
-    assert.match(model, /\n\s*role\s+ScheduleMemberRole/);
-    assert.match(model, /@@index\(\[role\]\)/);
+    assert.doesNotMatch(model, /\n\s*role\s+ScheduleMemberRole/);
+    assert.doesNotMatch(model, /@@index\(\[role\]\)/);
   });
-  await test("service nao usa projecao como fonte funcional", () => {
-    assert.doesNotMatch(service, /current\.role\b/);
-    assert.doesNotMatch(service, /data\.role\b/);
+  await test("migration remove somente indice e coluna legados", () => {
+    assert.match(migration, /DROP INDEX "ScheduleMember_role_idx"/);
+    assert.match(migration, /ALTER TABLE "ScheduleMember" DROP COLUMN "role"/);
+    assert.doesNotMatch(migration, /ScheduleMemberRoleAssignment/);
   });
   await test("seed nao cria ScheduleMember sem assignments", () => assert.doesNotMatch(seed, /scheduleMember\.(?:create|createMany|upsert)/));
   await test("frontend oficial envia roles", async () => {
@@ -202,15 +197,6 @@ async function main() {
       assert.equal(counts.length, 3);
       assert.equal(counts.every((count) => count._count >= 1), true);
     });
-    await test("writer mantem projecao legada sincronizada", async () => {
-      const projections = await prisma.scheduleMember.findMany({
-        where: { id: { in: ids.participants } },
-        select: { id: true, role: true }
-      });
-      assert.equal(projections.find((item) => item.id === mirianParticipant.id)?.role, ScheduleMemberRole.MINISTER);
-      assert.equal(projections.find((item) => item.id === joaoParticipant.id)?.role, ScheduleMemberRole.BACKING);
-      assert.equal(projections.find((item) => item.id === carlosParticipant.id)?.role, ScheduleMemberRole.VOCAL);
-    });
     await test("admin ordena Mírian Carlos João pelas roles", async () => {
       const result = await scheduleService.getById(schedule.id, authorization);
       assert.deepEqual(result.members.map((participant) => participant.member.id), [mirian.id, carlos.id, joao.id]);
@@ -231,16 +217,16 @@ async function main() {
       assert.deepEqual(item.participants.map((participant) => participant.member.id), [mirian.id, carlos.id, joao.id]);
     });
 
-    await test("compatibilidade preserva admin", async () => {
+    await test("remocao fisica preserva admin", async () => {
       const result = await scheduleService.getById(schedule.id, authorization);
       assert.deepEqual(result.members.map((participant) => participant.member.id), [mirian.id, carlos.id, joao.id]);
       assert.deepEqual(result.members.find((participant) => participant.id === mirianParticipant.id)?.roles, [ScheduleMemberRole.MINISTER, ScheduleMemberRole.LEADER]);
     });
-    await test("compatibilidade preserva historico", async () => {
+    await test("remocao fisica preserva historico", async () => {
       const detail = await memberService.getById(joao.id, authorization);
       assert.deepEqual(detail.schedules.find((item) => item.id === joaoParticipant.id)?.roles, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT]);
     });
-    await test("compatibilidade preserva Portal", async () => {
+    await test("remocao fisica preserva Portal", async () => {
       const item = (await myScheduleService.list({ id: author.id, memberId: joao.id }, { includeCompleted: true })).schedules.find((scheduleItem) => scheduleItem.id === joaoParticipant.id);
       assert.deepEqual(item?.roles, [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT]);
     });

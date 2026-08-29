@@ -597,7 +597,6 @@ export const scheduleRepository = {
     scheduleId: string,
     data: ScheduleMemberCreateInput,
     roles: ScheduleMemberRole[],
-    projectionRole: ScheduleMemberRole,
     userId: string,
     database: ScheduleDatabase = prisma
   ) {
@@ -606,7 +605,6 @@ export const scheduleRepository = {
         ...(scheduleMemberData(data) as Prisma.ScheduleMemberUncheckedCreateInput),
         scheduleId,
         memberId: data.memberId,
-        role: projectionRole,
         createdById: userId,
         updatedById: userId,
         roles: { create: roles.map((role) => ({ role })) }
@@ -619,7 +617,6 @@ export const scheduleRepository = {
     id: string,
     data: ScheduleMemberUpdateInput,
     roles: ScheduleMemberRole[] | undefined,
-    projectionRole: ScheduleMemberRole | undefined,
     userId: string,
     database: ScheduleDatabase = prisma
   ) {
@@ -627,7 +624,6 @@ export const scheduleRepository = {
       where: { id },
       data: {
         ...scheduleMemberData(data),
-        role: projectionRole,
         updatedById: userId,
         ...(roles
           ? {

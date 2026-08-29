@@ -818,7 +818,6 @@ model ScheduleMember {
   id                    String                               @id @default(cuid())
   scheduleId            String
   memberId              String
-  role                  ScheduleMemberRole                   @default(OTHER)
   status                ScheduleMemberStatus                 @default(PENDING)
   confirmedAt           DateTime?
   declinedAt            DateTime?
@@ -840,7 +839,6 @@ model ScheduleMember {
 
   @@index([scheduleId])
   @@index([memberId])
-  @@index([role])
   @@index([status])
   @@index([replacedByMemberId])
   @@index([confirmedAt])
