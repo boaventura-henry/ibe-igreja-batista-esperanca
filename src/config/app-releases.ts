@@ -14,6 +14,15 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.6",
+    title: "Correcao da copia para WhatsApp",
+    summary: "Correcao pontual do compartilhamento do repertorio das escalas.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: ["Corrigido o botao de copiar mensagem para WhatsApp nas escalas"]
+  },
+  {
     version: "0.2.5",
     title: "Multiplas funcoes em escalas",
     summary: "Participantes de escalas agora podem exercer e visualizar multiplas funcoes com consistencia no Administrativo, Portal e notificacoes.",
