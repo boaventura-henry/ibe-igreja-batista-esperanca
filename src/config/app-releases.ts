@@ -16,10 +16,10 @@ export const appReleases: readonly AppRelease[] = [
   {
     version: "0.2.6",
     title: "Correcao da copia para WhatsApp",
-    summary: "Correcao pontual do compartilhamento do repertorio das escalas.",
+    summary: "Corrigido o botao de copiar mensagem para WhatsApp nas escalas, incluindo fallback de copia e feedback em situacoes de falha, carregamento e repertorio vazio.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-09-07",
     highlights: ["Corrigido o botao de copiar mensagem para WhatsApp nas escalas"]
   },
   {
