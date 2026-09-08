@@ -1,6 +1,6 @@
 {
   "name": "ibe-igreja-batista-esperanca",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -35,6 +35,7 @@
     "test:schedule-instruments": "tsx scripts/schedule-instrument-assignment-test.ts",
     "test:schedule-instrument-selection": "tsx scripts/schedule-instrument-selection-ui-test.ts",
     "test:schedule-instrument-suggestion": "tsx scripts/schedule-instrument-suggestion-test.ts",
+    "test:schedule-song-quick-create": "tsx scripts/schedule-song-quick-create-test.ts",
     "test:schedule-member-roles": "tsx scripts/schedule-member-roles-test.ts",
     "test:schedule-member-role-compatibility": "tsx scripts/schedule-member-role-compatibility-test.ts",
     "test:schedule-member-role-removal": "tsx scripts/schedule-member-role-removal-test.ts",

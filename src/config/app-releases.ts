@@ -14,6 +14,15 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.7",
+    title: "Cadastro rapido de musicas nas escalas",
+    summary: "Corrigido o cadastro rapido de musicas diretamente pela pesquisa de repertorio das escalas.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: ["Cadastro rapido de novas musicas sem sair da montagem do repertorio"]
+  },
+  {
     version: "0.2.6",
     title: "Correcao da copia para WhatsApp",
     summary: "Corrigido o botao de copiar mensagem para WhatsApp nas escalas, incluindo fallback de copia e feedback em situacoes de falha, carregamento e repertorio vazio.",

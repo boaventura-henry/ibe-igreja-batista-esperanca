@@ -7,6 +7,7 @@ const songSelect = {
   simplifiedResourceUrl: true, notes: true, isActive: true, createdAt: true, updatedAt: true
 } satisfies Prisma.SongSelect;
 export type SongRecord = Prisma.SongGetPayload<{ select: typeof songSelect }>;
+type SongDatabase = Pick<Prisma.TransactionClient, "song">;
 
 function createData(data: SongCreateInput): Prisma.SongUncheckedCreateInput {
   return { title: data.title, artist: data.artist, youtubeUrl: data.youtubeUrl, referenceKey: data.referenceKey, resourceUrl: data.resourceUrl, simplifiedResourceUrl: data.simplifiedResourceUrl, notes: data.notes, isActive: data.isActive ?? true };
@@ -17,6 +18,13 @@ function updateData(data: SongUpdateInput): Prisma.SongUncheckedUpdateInput {
 }
 
 export const songRepository = {
+  transaction<T>(callback: (database: Prisma.TransactionClient) => Promise<T>) {
+    return prisma.$transaction(callback, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 30_000
+    });
+  },
   options(search?: string) {
     const normalizedSearch = search?.trim();
     return prisma.song.findMany({
@@ -59,8 +67,8 @@ export const songRepository = {
     };
   },
   findById(id: string) { return prisma.song.findFirst({ where: { id, deletedAt: null }, select: songSelect }); },
-  findDuplicate(title: string, artist: string | null | undefined, ignoreId?: string) { return prisma.song.findFirst({ where: { title: { equals: title, mode: "insensitive" }, artist: artist ? { equals: artist, mode: "insensitive" } : null, deletedAt: null, ...(ignoreId ? { id: { not: ignoreId } } : {}) }, select: { id: true } }); },
-  create(data: SongCreateInput, userId: string) { return prisma.song.create({ data: { ...createData(data), createdById: userId, updatedById: userId }, select: songSelect }); },
+  findDuplicate(title: string, artist: string | null | undefined, ignoreId?: string, database: SongDatabase = prisma) { return database.song.findFirst({ where: { title: { equals: title, mode: "insensitive" }, artist: artist ? { equals: artist, mode: "insensitive" } : null, deletedAt: null, ...(ignoreId ? { id: { not: ignoreId } } : {}) }, select: { id: true } }); },
+  create(data: SongCreateInput, userId: string, database: SongDatabase = prisma) { return database.song.create({ data: { ...createData(data), createdById: userId, updatedById: userId }, select: songSelect }); },
   update(id: string, data: SongUpdateInput, userId: string) { return prisma.song.update({ where: { id }, data: { ...updateData(data), updatedById: userId }, select: songSelect }); },
   softDelete(id: string, userId: string) { return prisma.song.update({ where: { id }, data: { deletedAt: new Date(), updatedById: userId }, select: { id: true } }); }
 };
