@@ -16,10 +16,10 @@ export const appReleases: readonly AppRelease[] = [
   {
     version: "0.2.7",
     title: "Cadastro rapido de musicas nas escalas",
-    summary: "Corrigido o cadastro rapido de musicas diretamente pela pesquisa de repertorio das escalas.",
+    summary: "Corrigido o cadastro rápido de músicas diretamente pela pesquisa do repertório das escalas.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-09-11",
     highlights: ["Cadastro rapido de novas musicas sem sair da montagem do repertorio"]
   },
   {
