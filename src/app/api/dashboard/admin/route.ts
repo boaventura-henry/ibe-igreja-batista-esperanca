@@ -2,17 +2,20 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
 import { requireScheduleAccess } from "@/lib/schedule-authorization";
 import { dashboardService } from "@/services";
+import { resolveFinancialAccessContext } from "@/lib/financial-authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const authorization = await requireScheduleAccess("dashboard.admin.view");
+    const financialAccessContext = await resolveFinancialAccessContext(authorization.user, "view");
     return apiSuccess(
       await dashboardService.getAdminDashboardForUser({
         permissionCodes: authorization.user.permissionCodes,
         accessRoleId: authorization.user.accessRoleId,
-        scheduleAccessContext: authorization.accessContext
+        scheduleAccessContext: authorization.accessContext,
+        financialAccessContext
       }),
       { headers: { "Cache-Control": "no-store, max-age=0" } }
     );

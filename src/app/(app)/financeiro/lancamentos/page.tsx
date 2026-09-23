@@ -1,9 +1,9 @@
 import { FinancialEntryManager } from "@/components/financial/FinancialEntryManager";
 import { PageHeader } from "@/components/PageHeader";
-import { requirePermission } from "@/lib/session";
+import { requireAnyPermission } from "@/lib/session";
 
 export default async function FinancialEntriesPage() {
-  await requirePermission("financialEntry.view");
+  await requireAnyPermission(["financialEntry.view", "ministryFinance.view"]);
 
   return (
     <>

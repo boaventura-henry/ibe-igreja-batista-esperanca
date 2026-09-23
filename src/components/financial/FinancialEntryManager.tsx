@@ -57,10 +57,16 @@ export function FinancialEntryManager() {
   const [formMessage, setFormMessage] = useState("");
   const [form, setForm] = useState<FinancialEntryFormValues>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingMinistry, setEditingMinistry] = useState<{ id: string; name: string } | null>(null);
   const [viewing, setViewing] = useState<FinancialEntrySummary | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [filters, setFilters] = useState({ search: "", type: "", status: "", page: "1" });
   const permissions = session?.user.permissionCodes ?? [];
+  const canCreate = permissions.includes("financialEntry.create") || permissions.includes("ministryFinance.create");
+  const canUpdate = permissions.includes("financialEntry.update") || permissions.includes("ministryFinance.update");
+  const canCancel = permissions.includes("financialEntry.cancel") || permissions.includes("ministryFinance.cancel");
+  const canDelete = permissions.includes("financialEntry.delete") || permissions.includes("ministryFinance.delete");
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -87,7 +93,8 @@ export function FinancialEntryManager() {
 
   function openCreate() {
     setEditingId(null);
-    setForm(emptyForm);
+    setEditingMinistry(null);
+    setForm({ ...emptyForm, ministryId: data?.scope.allMinistries ? "" : data?.filters.ministries[0]?.id ?? "" });
     setFormMessage("");
     setIsFormOpen(true);
   }
@@ -99,6 +106,7 @@ export function FinancialEntryManager() {
     setFormMessage("");
     const entry = payload.data;
     setEditingId(id);
+    setEditingMinistry(entry.ministry);
     setForm({
       type: entry.type,
       memberId: entry.member?.id ?? "",
@@ -119,17 +127,25 @@ export function FinancialEntryManager() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
     setFormMessage("");
-    const response = await fetch(editingId ? `/api/financial/entries/${editingId}` : "/api/financial/entries", {
-      method: editingId ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(normalize(form))
-    });
-    const payload = (await response.json()) as ApiResponse<FinancialEntrySummary>;
-    if (!payload.success) return setMessage(payload.error.message);
-    setMessage(editingId ? "Lancamento atualizado." : "Lancamento criado.");
-    setIsFormOpen(false);
-    await load();
+    try {
+      const response = await fetch(editingId ? `/api/financial/entries/${editingId}` : "/api/financial/entries", {
+        method: editingId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(normalize(form))
+      });
+      const payload = (await response.json()) as ApiResponse<FinancialEntrySummary>;
+      if (!payload.success) return setFormMessage(payload.error.message);
+      setMessage(editingId ? "Lancamento atualizado." : "Lancamento criado.");
+      setIsFormOpen(false);
+      await load();
+    } catch {
+      setFormMessage("Nao foi possivel salvar o lancamento. Tente novamente.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function action(id: string, path = "", method = "POST") {
@@ -146,7 +162,7 @@ export function FinancialEntryManager() {
         <input value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Pesquisar" className="rounded-md border-hope-100" />
         <select value={filters.type} onChange={(event) => updateFilter("type", event.target.value)} className="rounded-md border-hope-100"><option value="">Tipo</option>{Object.values(FinancialEntryType).map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}</select>
         <select value={filters.status} onChange={(event) => updateFilter("status", event.target.value)} className="rounded-md border-hope-100"><option value="">Status</option>{Object.values(FinancialEntryStatus).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select>
-        {permissions.includes("financialEntry.create") ? <button onClick={openCreate} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">Novo lancamento</button> : null}
+        {canCreate ? <button onClick={openCreate} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">Novo lancamento</button> : null}
       </div>
       <div className="overflow-x-auto rounded-md border border-hope-100 bg-white shadow-sm">
         <table className="w-full min-w-[900px] text-left text-sm">
@@ -154,7 +170,7 @@ export function FinancialEntryManager() {
           <tbody>{data?.entries.map((entry) => (
             <tr key={entry.id} className="border-t border-hope-100">
               <td className="px-4 py-3 font-bold">#{entry.entryNumber}</td><td>{typeLabels[entry.type]}</td><td>{entry.category.name}</td><td>{entry.anonymous ? "Anonimo" : entry.member?.name ?? "-"}</td><td>{currency(entry.amount)}</td><td>{statusLabels[entry.status]}</td><td>{dateForInput(entry.launchDate)}</td>
-              <td className="px-4 text-right"><button onClick={() => setViewing(entry)} className="mr-2 font-bold text-hope-700">Ver</button>{permissions.includes("financialEntry.update") ? <button onClick={() => openEdit(entry.id)} className="mr-2 font-bold text-hope-700">Editar</button> : null}{permissions.includes("financialEntry.cancel") ? <button onClick={() => action(entry.id, "/cancel")} className="mr-2 font-bold text-gold-700">Cancelar</button> : null}{permissions.includes("financialEntry.delete") ? <button onClick={() => action(entry.id, "", "DELETE")} className="font-bold text-red-700">Remover</button> : null}</td>
+              <td className="px-4 text-right"><button onClick={() => setViewing(entry)} className="mr-2 font-bold text-hope-700">Ver</button>{canUpdate ? <button onClick={() => openEdit(entry.id)} className="mr-2 font-bold text-hope-700">Editar</button> : null}{canCancel ? <button onClick={() => action(entry.id, "/cancel")} className="mr-2 font-bold text-gold-700">Cancelar</button> : null}{canDelete ? <button onClick={() => action(entry.id, "", "DELETE")} className="font-bold text-red-700">Remover</button> : null}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -173,12 +189,12 @@ export function FinancialEntryManager() {
             <input required type="date" value={form.launchDate} onChange={(event) => setForm({ ...form, launchDate: event.target.value })} className="rounded-md border-hope-100" />
             <input required type="date" value={form.referenceDate} onChange={(event) => setForm({ ...form, referenceDate: event.target.value })} className="rounded-md border-hope-100" />
             <select value={form.memberId} disabled={form.anonymous} onChange={(event) => setForm({ ...form, memberId: event.target.value })} className="rounded-md border-hope-100"><option value="">Sem membro</option>{data?.filters.members.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}</select>
-            <select value={form.ministryId} onChange={(event) => setForm({ ...form, ministryId: event.target.value })} className="rounded-md border-hope-100"><option value="">Sem ministerio</option>{data?.filters.ministries.map((ministry) => <option key={ministry.id} value={ministry.id}>{ministry.name}</option>)}</select>
+            <select required={!data?.scope.allMinistries} value={form.ministryId} onChange={(event) => setForm({ ...form, ministryId: event.target.value })} className="rounded-md border-hope-100">{data?.scope.allMinistries ? <option value="">Geral da igreja</option> : <option value="">Selecione o ministerio</option>}{editingMinistry && !data?.filters.ministries.some((ministry) => ministry.id === editingMinistry.id) ? <option value={editingMinistry.id}>{editingMinistry.name} (inativo)</option> : null}{data?.filters.ministries.map((ministry) => <option key={ministry.id} value={ministry.id}>{ministry.name}</option>)}</select>
             <select value={form.eventId} onChange={(event) => setForm({ ...form, eventId: event.target.value })} className="rounded-md border-hope-100"><option value="">Sem evento</option>{data?.filters.events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}</select>
             <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as FinancialEntryStatus })} className="rounded-md border-hope-100">{Object.values(FinancialEntryStatus).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select>
             <label className="text-sm font-bold"><input type="checkbox" checked={form.anonymous} onChange={(event) => setForm({ ...form, anonymous: event.target.checked, memberId: event.target.checked ? "" : form.memberId })} /> Anonimo</label>
             <textarea value={form.observation} onChange={(event) => setForm({ ...form, observation: event.target.value })} placeholder="Observacao" className="rounded-md border-hope-100 md:col-span-2" />
-            <button className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white md:col-span-2">Salvar</button>
+            <button disabled={isSaving} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50 md:col-span-2">{isSaving ? "Salvando..." : "Salvar"}</button>
           </form>
         </Modal>
       ) : null}

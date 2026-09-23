@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FinancialEntryStatus } from "@prisma/client";
 
 const exportFormatSchema = z.enum(["view", "pdf", "xlsx", "csv"]).default("view");
 const sortOrderSchema = z.enum(["asc", "desc"]).default("asc");
@@ -54,6 +55,7 @@ export const financialReportSchema = baseReportSchema.extend({
   filters: z.object({
     categoryId: z.string().trim().optional(),
     type: z.string().trim().optional(),
+    status: z.union([z.nativeEnum(FinancialEntryStatus), z.literal("")]).optional(),
     paymentMethod: z.string().trim().optional(),
     startDate: z.string().trim().optional(),
     endDate: z.string().trim().optional(),

@@ -28,7 +28,9 @@ export function ReportCatalog() {
         }
 
         setGroups(payload.data);
-        setSelected(payload.data[0]?.reports[0] ?? null);
+        const initial = payload.data[0]?.reports[0] ?? null;
+        setSelected(initial);
+        setFilters(initial?.key === "financial" ? { status: "CONFIRMED" } : {});
       })
       .catch(() => setMessage("Nao foi possivel carregar o catalogo de relatorios."))
       .finally(() => setIsLoading(false));
@@ -36,7 +38,7 @@ export function ReportCatalog() {
 
   function chooseReport(report: ReportDefinition) {
     setSelected(report);
-    setFilters({});
+    setFilters(report.key === "financial" ? { status: "CONFIRMED" } : {});
     setResult(null);
     setMessage("");
   }
@@ -132,13 +134,13 @@ export function ReportCatalog() {
 
             <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
               {selected.filters.map((field) => (
-                <label key={field.name} className="grid gap-1 text-sm font-semibold text-ink-700">
+                <label key={field.name} className="grid min-w-0 gap-1 text-sm font-semibold text-ink-700">
                   {field.label}
                   {field.type === "select" ? (
                     <select
                       value={filters[field.name] ?? ""}
                       onChange={(event) => setFilters((current) => ({ ...current, [field.name]: event.target.value }))}
-                      className="rounded-md border-hope-100"
+                      className="w-full min-w-0 rounded-md border-hope-100"
                     >
                       <option value="">Todos</option>
                       {field.options?.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
@@ -148,7 +150,7 @@ export function ReportCatalog() {
                       type={field.type}
                       value={filters[field.name] ?? ""}
                       onChange={(event) => setFilters((current) => ({ ...current, [field.name]: event.target.value }))}
-                      className="rounded-md border-hope-100"
+                      className="w-full min-w-0 rounded-md border-hope-100"
                     />
                   )}
                 </label>
@@ -167,12 +169,14 @@ export function ReportCatalog() {
 
         {result ? (
           <section className="mt-6 overflow-hidden rounded-md border border-hope-100 bg-white shadow-sm">
+            {result.totals ? <div className="grid gap-3 border-b border-hope-100 p-4 sm:grid-cols-3"><ReportTotal label="Receitas" value={result.totals.income} className="text-emerald-700" /><ReportTotal label="Despesas" value={result.totals.expense} className="text-red-700" /><ReportTotal label="Saldo" value={result.totals.balance} className="text-hope-700" /></div> : null}
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-hope-100 text-sm">
                 <thead className="bg-hope-50 text-xs uppercase text-ink-500">
                   <tr>{result.columns.map((column) => <th key={column.key} className="px-4 py-3 text-left">{column.label}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-hope-100">
+                  {result.rows.length === 0 ? <tr><td colSpan={result.columns.length} className="px-4 py-6 text-center text-ink-500">Nenhum registro encontrado para os filtros selecionados.</td></tr> : null}
                   {result.rows.map((row, index) => (
                     <tr key={`${row.id ?? "row"}-${index}`}>
                       {result.columns.map((column) => <td key={column.key} className="px-4 py-3">{row[column.key]}</td>)}
@@ -191,4 +195,8 @@ export function ReportCatalog() {
       </main>
     </div>
   );
+}
+
+function ReportTotal({ label, value, className }: { label: string; value: string; className: string }) {
+  return <div className="rounded-md bg-hope-50 px-3 py-3"><p className="text-xs font-bold uppercase text-ink-500">{label}</p><p className={`mt-1 text-lg font-bold ${className}`}>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value))}</p></div>;
 }

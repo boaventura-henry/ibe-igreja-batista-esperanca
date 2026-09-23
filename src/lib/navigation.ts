@@ -3,6 +3,7 @@ export type NavigationItem = {
   label: string;
   icon: string;
   permission?: string;
+  alternatePermissions?: readonly string[];
   administrative?: boolean;
 };
 
@@ -21,7 +22,7 @@ export const navigationItems: readonly NavigationItem[] = [
   { href: "/eventos", label: "Eventos", icon: "Agenda", permission: "event.view" },
   { href: "/comunicados", label: "Comunicados", icon: "Agenda", permission: "announcement.view" },
   { href: "/financeiro/categorias", label: "Financeiro - Categorias", icon: "Dizimos", permission: "financialCategory.view" },
-  { href: "/financeiro/lancamentos", label: "Financeiro - Lançamentos", icon: "Dizimos", permission: "financialEntry.view" },
+  { href: "/financeiro/lancamentos", label: "Financeiro - Lançamentos", icon: "Dizimos", permission: "financialEntry.view", alternatePermissions: ["ministryFinance.view"] },
   { href: "/financeiro/fechamentos", label: "Financeiro - Fechamento", icon: "Dizimos", permission: "financialClosing.view" },
   { href: "/relatorios", label: "Relatórios", icon: "Dizimos", permission: "report.view" },
   { href: "/solicitacoes-acesso", label: "Solicitações de acesso", icon: "Chaves", permission: "accessRequest.view" },
@@ -44,7 +45,7 @@ export const portalNavigationItems = [
 ] as const;
 
 export function getAllowedNavigationItems(permissionCodes: string[]) {
-  return navigationItems.filter((item) => !item.permission || permissionCodes.includes(item.permission));
+  return navigationItems.filter((item) => !item.permission || permissionCodes.includes(item.permission) || item.alternatePermissions?.some((code) => permissionCodes.includes(code)));
 }
 
 export function getAllowedPortalNavigationItems(permissionCodes: string[]) {
@@ -55,6 +56,6 @@ export function getAllowedPortalNavigationItems(permissionCodes: string[]) {
 
 export function getFirstAllowedAdministrativeRoute(permissionCodes: string[]) {
   return navigationItems.find(
-    (item) => item.administrative !== false && item.permission && permissionCodes.includes(item.permission)
+    (item) => item.administrative !== false && item.permission && (permissionCodes.includes(item.permission) || item.alternatePermissions?.some((code) => permissionCodes.includes(code)))
   )?.href ?? null;
 }

@@ -130,7 +130,8 @@ export default withAuth(
 
     if (
       pathname.startsWith("/financeiro/lancamentos") &&
-      !request.nextauth.token?.permissionCodes?.includes("financialEntry.view")
+      !request.nextauth.token?.permissionCodes?.includes("financialEntry.view") &&
+      !request.nextauth.token?.permissionCodes?.includes("ministryFinance.view")
     ) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }

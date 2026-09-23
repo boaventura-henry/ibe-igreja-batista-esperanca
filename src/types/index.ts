@@ -93,6 +93,7 @@ export type {
   MinistryStatusFilter,
   MinistrySummary
 } from "./ministry.types";
+export type { FinancialAccessContext, FinancialAuthorization, MinistryFinancialAccessResult } from "./ministry-finance.types";
 export type {
   MyScheduleListResult,
   MyScheduleParticipant,

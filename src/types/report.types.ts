@@ -46,6 +46,7 @@ export type ReportViewResult = {
   columns: ReportColumn[];
   rows: Array<Record<string, string>>;
   pagination: ReportPagination;
+  totals?: { income: string; expense: string; balance: string };
 };
 
 export type ReportFileResult = {

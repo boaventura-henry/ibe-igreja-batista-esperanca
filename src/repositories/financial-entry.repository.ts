@@ -1,6 +1,7 @@
 import { FinancialEntryStatus, FinancialEntryType, type Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import type { FinancialEntryCreateInput, FinancialEntryListQueryInput, FinancialEntryUpdateInput } from "@/validators";
+import type { FinancialAccessContext } from "@/types";
 
 const financialEntrySelect = {
   id: true,
@@ -41,8 +42,14 @@ function dateOnly(value: Date) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 }
 
-function buildWhere(filters: FinancialEntryListQueryInput): Prisma.FinancialEntryWhereInput {
-  const and: Prisma.FinancialEntryWhereInput[] = [{ deletedAt: null }];
+export function buildFinancialScopeWhere(accessContext: FinancialAccessContext): Prisma.FinancialEntryWhereInput {
+  return accessContext.allMinistries
+    ? {}
+    : { ministryId: { in: [...accessContext.authorizedMinistryIds] } };
+}
+
+function buildWhere(filters: FinancialEntryListQueryInput, accessContext: FinancialAccessContext): Prisma.FinancialEntryWhereInput {
+  const and: Prisma.FinancialEntryWhereInput[] = [{ deletedAt: null }, buildFinancialScopeWhere(accessContext)];
 
   if (filters.search) {
     const number = Number(filters.search);
@@ -72,6 +79,14 @@ function buildWhere(filters: FinancialEntryListQueryInput): Prisma.FinancialEntr
   return { AND: and };
 }
 
+function scopedUniqueWhere(id: string, accessContext: FinancialAccessContext): Prisma.FinancialEntryWhereUniqueInput {
+  return {
+    id,
+    deletedAt: null,
+    ...(accessContext.allMinistries ? {} : { ministryId: { in: [...accessContext.authorizedMinistryIds] } })
+  };
+}
+
 function createData(data: FinancialEntryCreateInput, entryNumber: number, userId: string): Prisma.FinancialEntryUncheckedCreateInput {
   return {
     ...data,
@@ -94,10 +109,13 @@ function updateData(data: FinancialEntryUpdateInput): Prisma.FinancialEntryUnche
 }
 
 export const financialEntryRepository = {
-  async list(filters: FinancialEntryListQueryInput) {
-    const where = buildWhere(filters);
+  async list(filters: FinancialEntryListQueryInput, accessContext: FinancialAccessContext) {
+    const where = buildWhere(filters, accessContext);
     const skip = (filters.page - 1) * filters.pageSize;
-    const orderBy = { [filters.sortBy]: filters.sortDirection } satisfies Prisma.FinancialEntryOrderByWithRelationInput;
+    const orderBy = [
+      { [filters.sortBy]: filters.sortDirection },
+      { id: filters.sortDirection }
+    ] satisfies Prisma.FinancialEntryOrderByWithRelationInput[];
 
     const [entries, total] = await prisma.$transaction([
       prisma.financialEntry.findMany({ where, select: financialEntrySelect, orderBy, skip, take: filters.pageSize }),
@@ -107,8 +125,11 @@ export const financialEntryRepository = {
     return { entries, total };
   },
 
-  findById(id: string) {
-    return prisma.financialEntry.findFirst({ where: { id, deletedAt: null }, select: financialEntrySelect });
+  findByIdWithinScope(id: string, accessContext: FinancialAccessContext) {
+    return prisma.financialEntry.findFirst({
+      where: { AND: [{ id, deletedAt: null }, buildFinancialScopeWhere(accessContext)] },
+      select: financialEntrySelect
+    });
   },
 
   async nextEntryNumber() {
@@ -131,33 +152,33 @@ export const financialEntryRepository = {
     return prisma.event.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
   },
 
-  findMinistryById(id: string) {
-    return prisma.ministry.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
+  findMinistryById(id: string, activeOnly = false) {
+    return prisma.ministry.findFirst({ where: { id, deletedAt: null, ...(activeOnly ? { isActive: true } : {}) }, select: { id: true } });
   },
 
   create(data: FinancialEntryCreateInput, entryNumber: number, userId: string) {
     return prisma.financialEntry.create({ data: createData(data, entryNumber, userId), select: financialEntrySelect });
   },
 
-  update(id: string, data: FinancialEntryUpdateInput, userId: string) {
+  update(id: string, data: FinancialEntryUpdateInput, userId: string, accessContext: FinancialAccessContext) {
     return prisma.financialEntry.update({
-      where: { id },
+      where: scopedUniqueWhere(id, accessContext),
       data: { ...updateData(data), updatedById: userId },
       select: financialEntrySelect
     });
   },
 
-  cancel(id: string, userId: string) {
+  cancel(id: string, userId: string, accessContext: FinancialAccessContext) {
     return prisma.financialEntry.update({
-      where: { id },
+      where: scopedUniqueWhere(id, accessContext),
       data: { status: FinancialEntryStatus.CANCELED, updatedById: userId },
       select: financialEntrySelect
     });
   },
 
-  softDelete(id: string, userId: string) {
+  softDelete(id: string, userId: string, accessContext: FinancialAccessContext) {
     return prisma.financialEntry.update({
-      where: { id },
+      where: scopedUniqueWhere(id, accessContext),
       data: { deletedAt: new Date(), updatedById: userId },
       select: { id: true, deletedAt: true }
     });
@@ -171,8 +192,16 @@ export const financialEntryRepository = {
     return prisma.event.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { startDate: "desc" }, take: 100 });
   },
 
-  listMinistries() {
-    return prisma.ministry.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+  listMinistries(accessContext: FinancialAccessContext) {
+    return prisma.ministry.findMany({
+      where: {
+        deletedAt: null,
+        isActive: true,
+        ...(accessContext.allMinistries ? {} : { id: { in: [...accessContext.authorizedMinistryIds] } })
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" }
+    });
   },
 
   listPortalContributions(memberId: string) {

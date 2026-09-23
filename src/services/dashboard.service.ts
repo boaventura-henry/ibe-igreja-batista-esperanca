@@ -1,5 +1,5 @@
 import { dashboardWidgetByCode, isDashboardWidgetCode, type DashboardWidgetCode } from "@/config/dashboard-widgets";
-import type { ScheduleMemberRole, ScheduleMemberStatus } from "@prisma/client";
+import { Prisma, type ScheduleMemberRole, type ScheduleMemberStatus } from "@prisma/client";
 import { dashboardWidgetCategoryByCode } from "@/config/dashboard-widget-categories";
 import { defaultDashboardLayout, type DashboardLayoutConfiguration, type DashboardWidgetPriority } from "@/config/dashboard-widget-enums";
 import { APP_VERSION } from "@/lib/app-version";
@@ -18,6 +18,7 @@ import type {
   PortalDashboardWidgetCode,
   ScheduleAccessContext
 } from "@/types";
+import type { FinancialAccessContext } from "@/types";
 import { getMemberDisplayName } from "@/utils";
 
 type WidgetConfigurationRecord = Awaited<ReturnType<typeof dashboardRepository.listWidgetConfiguration>>[number];
@@ -36,14 +37,16 @@ function isPortalDashboardWidgetCode(code: DashboardWidgetCode): code is PortalD
 }
 
 export function getDashboardQueryPlan(codes: ReadonlySet<DashboardWidgetCode>) {
-  const needsFinanceSummary = codes.has("finance.balance") || codes.has("finance.summary");
+  const needsFinanceSummary = codes.has("finance.summary");
   return {
     members: codes.has("members.summary"),
     birthdays: codes.has("members.birthdays"),
     events: codes.has("events.upcoming"),
     schedules: codes.has("scales.upcoming"),
     financeSummary: needsFinanceSummary,
-    incomeOnly: codes.has("finance.revenue") && !needsFinanceSummary,
+    incomeOnly: false,
+    totalFinanceBalance: codes.has("finance.balance"),
+    ministryFinanceBalances: codes.has("finance.ministryBalances"),
     contributions: codes.has("contributions.recent"),
     announcements: codes.has("announcements.summary"),
     notifications: codes.has("notifications.health")
@@ -135,13 +138,19 @@ export const dashboardService = {
     permissionCodes: readonly string[];
     accessRoleId?: string | null;
     scheduleAccessContext: ScheduleAccessContext;
+    financialAccessContext: FinancialAccessContext;
   }): Promise<AdminDashboardResponse> {
     const [configurations, storedLayout] = await Promise.all([
       dashboardRepository.listWidgetConfiguration(input.accessRoleId),
       dashboardRepository.findRoleDashboardLayout(input.accessRoleId)
     ]);
     const layout = resolveDashboardLayout(storedLayout);
-    const authorized = resolveAuthorizedWidgetConfigurations(configurations, input.permissionCodes);
+    const hasFinancialAccess = input.financialAccessContext.allMinistries || input.financialAccessContext.authorizedMinistryIds.length > 0;
+    const authorized = resolveAuthorizedWidgetConfigurations(configurations, input.permissionCodes).filter((item) => {
+      if (item.definition.code.startsWith("finance.")) return hasFinancialAccess;
+      if (item.definition.code === "contributions.recent") return input.financialAccessContext.allMinistries;
+      return true;
+    });
     const codes = new Set(authorized.map((item) => item.definition.code));
     const queryPlan = getDashboardQueryPlan(codes);
 
@@ -151,8 +160,9 @@ export const dashboardService = {
     const schedules = queryPlan.schedules
       ? dashboardRepository.getUpcomingSchedules(input.scheduleAccessContext)
       : null;
-    const financeSummary = queryPlan.financeSummary ? dashboardRepository.getMonthlyFinanceSummary() : null;
-    const incomeOnly = queryPlan.incomeOnly ? dashboardRepository.getMonthlyIncome() : null;
+    const financeSummary = queryPlan.financeSummary ? dashboardRepository.getMonthlyFinanceSummary(input.financialAccessContext) : null;
+    const totalFinanceBalance = queryPlan.totalFinanceBalance ? dashboardRepository.getTotalFinanceBalance(input.financialAccessContext) : null;
+    const ministryFinanceBalances = queryPlan.ministryFinanceBalances ? dashboardRepository.getMinistryFinanceBalances(input.financialAccessContext) : null;
     const contributions = queryPlan.contributions ? dashboardRepository.getLatestContributions() : null;
     const announcements = queryPlan.announcements ? dashboardRepository.getAnnouncementSummary() : null;
     const notifications = queryPlan.notifications ? pushNotificationLogRepository.getDashboardMetrics() : null;
@@ -173,19 +183,24 @@ export const dashboardService = {
         case "scales.upcoming":
           widgets.push({ ...base, code: "scales.upcoming", componentKey: "SCALES_UPCOMING", data: { schedules: (await schedules!).map(serializeSchedule) } });
           break;
-        case "finance.revenue": {
-          const monthlyIncome = financeSummary ? (await financeSummary).monthlyIncome : (await incomeOnly!)._sum.amount;
-          widgets.push({ ...base, code: "finance.revenue", componentKey: "FINANCE_REVENUE", data: { monthlyIncome: decimalToString(monthlyIncome) } });
+        case "finance.revenue":
+          break;
+        case "finance.balance": {
+          const data = await totalFinanceBalance!;
+          const balance = new Prisma.Decimal(decimalToString(data.income)).minus(decimalToString(data.expense));
+          widgets.push({ ...base, code: "finance.balance", componentKey: "FINANCE_BALANCE", data: { totalBalance: balance.toFixed(2) } });
           break;
         }
-        case "finance.balance":
         case "finance.summary": {
           const data = await financeSummary!;
-          const income = Number(decimalToString(data.monthlyIncome));
-          const expense = Number(decimalToString(data.monthlyExpense));
-          const financialData = { monthlyIncome: income.toFixed(2), monthlyExpense: expense.toFixed(2), monthlyBalance: (income - expense).toFixed(2) };
-          if (item.definition.code === "finance.balance") widgets.push({ ...base, code: "finance.balance", componentKey: "FINANCE_BALANCE", data: { monthlyBalance: financialData.monthlyBalance } });
-          else widgets.push({ ...base, code: "finance.summary", componentKey: "FINANCE_SUMMARY", data: financialData });
+          const income = new Prisma.Decimal(decimalToString(data.monthlyIncome));
+          const expense = new Prisma.Decimal(decimalToString(data.monthlyExpense));
+          const financialData = { monthlyIncome: income.toFixed(2), monthlyExpense: expense.toFixed(2), monthlyBalance: income.minus(expense).toFixed(2) };
+          widgets.push({ ...base, code: "finance.summary", componentKey: "FINANCE_SUMMARY", data: financialData });
+          break;
+        }
+        case "finance.ministryBalances": {
+          widgets.push({ ...base, code: "finance.ministryBalances", componentKey: "FINANCE_MINISTRY_BALANCES", data: { balances: await ministryFinanceBalances! } });
           break;
         }
         case "contributions.recent":

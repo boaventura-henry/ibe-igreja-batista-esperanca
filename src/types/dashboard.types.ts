@@ -95,8 +95,9 @@ export type AuthorizedDashboardWidget =
   | AuthorizedWidgetBase<"events.upcoming", "EVENTS_UPCOMING", { events: AdminDashboardEvent[] }>
   | AuthorizedWidgetBase<"scales.upcoming", "SCALES_UPCOMING", { schedules: AdminDashboardSchedule[] }>
   | AuthorizedWidgetBase<"finance.revenue", "FINANCE_REVENUE", { monthlyIncome: string }>
-  | AuthorizedWidgetBase<"finance.balance", "FINANCE_BALANCE", { monthlyBalance: string }>
+  | AuthorizedWidgetBase<"finance.balance", "FINANCE_BALANCE", { totalBalance: string }>
   | AuthorizedWidgetBase<"finance.summary", "FINANCE_SUMMARY", { monthlyIncome: string; monthlyExpense: string; monthlyBalance: string }>
+  | AuthorizedWidgetBase<"finance.ministryBalances", "FINANCE_MINISTRY_BALANCES", { balances: Array<{ ministryId: string; ministryName: string; balance: string }> }>
   | AuthorizedWidgetBase<"contributions.recent", "CONTRIBUTIONS_RECENT", { contributions: AdminDashboardContribution[] }>
   | AuthorizedWidgetBase<"announcements.summary", "ANNOUNCEMENTS_SUMMARY", { publishedAnnouncements: number; activeAnnouncements: number; pinnedAnnouncements: number }>
   | AuthorizedWidgetBase<"notifications.health", "NOTIFICATIONS_HEALTH", { pushNotificationsSentToday: number; pushNotificationSuccessRate: number; activePushDevices: number; expiredPushDevices: number; pushFailuresLast24h: number; pushRetriesExecuted: number; pushRecoveredDevices: number; pushFinalSuccessRate: number }>;

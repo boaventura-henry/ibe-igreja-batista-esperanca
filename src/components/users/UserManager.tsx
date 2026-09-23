@@ -4,7 +4,7 @@ import { UserRole } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { PasswordInput } from "@/components/PasswordInput";
 import { FormMessage } from "@/components/ui/FormMessage";
-import type { UserFormValues, UserListResult, UserSummary } from "@/types";
+import type { MinistryFinancialAccessResult, UserFormValues, UserListResult, UserSummary } from "@/types";
 import { getMemberOptionLabel } from "@/utils";
 
 type ApiResponse<T> =
@@ -73,7 +73,7 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-export function UserManager() {
+export function UserManager({ canManageMinistryFinance = false }: { canManageMinistryFinance?: boolean }) {
   const [data, setData] = useState<UserListResult | null>(null);
   const [message, setMessage] = useState("");
   const [formMessage, setFormMessage] = useState("");
@@ -87,6 +87,10 @@ export function UserManager() {
   const [assignableMembers, setAssignableMembers] = useState<UserListResult["filters"]["members"]>([]);
   const [resetUser, setResetUser] = useState<UserSummary | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [financeAccess, setFinanceAccess] = useState<MinistryFinancialAccessResult | null>(null);
+  const [selectedFinanceMinistries, setSelectedFinanceMinistries] = useState<string[]>([]);
+  const [isFinanceAccessSaving, setIsFinanceAccessSaving] = useState(false);
+  const [financeAccessMessage, setFinanceAccessMessage] = useState("");
   const [filters, setFilters] = useState({
     search: "",
     status: "",
@@ -184,6 +188,42 @@ export function UserManager() {
       setIsFormOpen(true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Nao foi possivel abrir o usuario.");
+    }
+  }
+
+  async function openFinanceAccess(userId: string) {
+    setMessage("");
+    setFinanceAccessMessage("");
+    try {
+      const response = await fetch(`/api/users/${userId}/ministry-financial-access`, { cache: "no-store" });
+      const payload = (await response.json()) as ApiResponse<MinistryFinancialAccessResult>;
+      if (!payload.success) return setMessage(payload.error.message);
+      setFinanceAccess(payload.data);
+      setSelectedFinanceMinistries(payload.data.ministries.filter((item) => item.selected).map((item) => item.id));
+    } catch {
+      setMessage("Nao foi possivel carregar os acessos financeiros.");
+    }
+  }
+
+  async function saveFinanceAccess(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!financeAccess || isFinanceAccessSaving) return;
+    setIsFinanceAccessSaving(true);
+    setFinanceAccessMessage("");
+    try {
+      const response = await fetch(`/api/users/${financeAccess.user.id}/ministry-financial-access`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ministryIds: selectedFinanceMinistries })
+      });
+      const payload = (await response.json()) as ApiResponse<MinistryFinancialAccessResult>;
+      if (!payload.success) return setFinanceAccessMessage(payload.error.message);
+      setFinanceAccess(null);
+      setMessage("Acessos financeiros ministeriais atualizados com sucesso.");
+    } catch {
+      setFinanceAccessMessage("Nao foi possivel salvar os acessos financeiros.");
+    } finally {
+      setIsFinanceAccessSaving(false);
     }
   }
 
@@ -394,6 +434,7 @@ export function UserManager() {
                     <td className="px-4 py-4 text-right">
                       <div className="flex flex-wrap justify-end gap-2">
                         <ActionButton onClick={() => openEditForm(user.id)}>Editar</ActionButton>
+                        {canManageMinistryFinance ? <ActionButton onClick={() => openFinanceAccess(user.id)}>Financeiro ministerial</ActionButton> : null}
                         <ActionButton onClick={() => setResetUser(user)}>Resetar senha</ActionButton>
                         <ActionButton
                           onClick={() =>
@@ -568,6 +609,35 @@ export function UserManager() {
               </div>
             </form>
           </div>
+        </div>
+      ) : null}
+
+      {financeAccess ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/45 px-4">
+          <form onSubmit={saveFinanceAccess} className="w-full max-w-lg rounded-md bg-white shadow-soft">
+            <div className="border-b border-hope-100 px-5 py-4">
+              <h2 className="text-lg font-bold text-ink-900">Acesso financeiro por ministerio</h2>
+              <p className="text-sm text-ink-500">{financeAccess.user.name}</p>
+            </div>
+            <div className="max-h-80 space-y-2 overflow-y-auto p-5">
+              <FormMessage id="ministry-finance-access-message">{financeAccessMessage}</FormMessage>
+              {financeAccess.ministries.map((ministry) => (
+                <label key={ministry.id} className={`flex items-center gap-3 rounded-md border px-3 py-3 text-sm font-semibold ${ministry.isActive ? "border-hope-100" : "border-ink-100 bg-ink-50 text-ink-400"}`}>
+                  <input
+                    type="checkbox"
+                    disabled={!ministry.isActive && !ministry.selected}
+                    checked={selectedFinanceMinistries.includes(ministry.id)}
+                    onChange={(event) => setSelectedFinanceMinistries((current) => event.target.checked ? [...current, ministry.id] : current.filter((id) => id !== ministry.id))}
+                  />
+                  {ministry.name} {!ministry.isActive ? "(inativo)" : ""}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 border-t border-hope-100 px-5 py-4">
+              <button type="button" onClick={() => setFinanceAccess(null)} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">Cancelar</button>
+              <button type="submit" disabled={isFinanceAccessSaving} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{isFinanceAccessSaving ? "Salvando..." : "Salvar acessos"}</button>
+            </div>
+          </form>
         </div>
       ) : null}
     </div>

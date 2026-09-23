@@ -373,6 +373,8 @@ model User {
   updatedInstrumentHistories           InstrumentHistory[]                  @relation("InstrumentHistoryUpdatedBy")
   createdScheduleInstrumentAssignments ScheduleMemberInstrumentAssignment[] @relation("ScheduleInstrumentAssignmentCreatedBy")
   updatedScheduleInstrumentAssignments ScheduleMemberInstrumentAssignment[] @relation("ScheduleInstrumentAssignmentUpdatedBy")
+  ministryFinancialAccesses            MinistryFinancialAccess[]            @relation("MinistryFinancialAccessUser")
+  createdMinistryFinancialAccesses     MinistryFinancialAccess[]            @relation("MinistryFinancialAccessCreatedBy")
   createdAt                            DateTime                             @default(now())
   updatedAt                            DateTime                             @updatedAt
 
@@ -708,39 +710,40 @@ model Member {
 }
 
 model Ministry {
-  id                 String           @id @default(cuid())
-  name               String           @unique
-  slug               String           @unique
+  id                 String                    @id @default(cuid())
+  name               String                    @unique
+  slug               String                    @unique
   description        String?
-  color              String           @default("#2563eb")
-  icon               MinistryIcon     @default(USERS)
+  color              String                    @default("#2563eb")
+  icon               MinistryIcon              @default(USERS)
   imageUrl           String?
-  displayOrder       Int              @default(0)
+  displayOrder       Int                       @default(0)
   email              String?
   phone              String?
   meetingDay         WeekDay?
   meetingTime        String?
   location           String?
   notes              String?
-  isActive           Boolean          @default(true)
-  isSystem           Boolean          @default(false)
+  isActive           Boolean                   @default(true)
+  isSystem           Boolean                   @default(false)
   leaderMemberId     String?
   viceLeaderMemberId String?
   createdById        String?
   updatedById        String?
   deletedAt          DateTime?
-  leaderMember       Member?          @relation("MinistryLeader", fields: [leaderMemberId], references: [id], onDelete: SetNull)
-  viceLeaderMember   Member?          @relation("MinistryViceLeader", fields: [viceLeaderMemberId], references: [id], onDelete: SetNull)
-  createdBy          User?            @relation("MinistryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy          User?            @relation("MinistryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  leaderMember       Member?                   @relation("MinistryLeader", fields: [leaderMemberId], references: [id], onDelete: SetNull)
+  viceLeaderMember   Member?                   @relation("MinistryViceLeader", fields: [viceLeaderMemberId], references: [id], onDelete: SetNull)
+  createdBy          User?                     @relation("MinistryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy          User?                     @relation("MinistryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   memberMinistries   MemberMinistry[]
   schedules          Schedule[]
   events             Event[]
   instruments        Instrument[]
   announcements      Announcement[]
   financialEntries   FinancialEntry[]
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  financialAccesses  MinistryFinancialAccess[]
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
 
   @@index([name])
   @@index([displayOrder])
@@ -748,6 +751,23 @@ model Ministry {
   @@index([deletedAt])
   @@index([leaderMemberId])
   @@index([viceLeaderMemberId])
+}
+
+model MinistryFinancialAccess {
+  id          String   @id @default(cuid())
+  userId      String
+  ministryId  String
+  createdById String?
+  user        User     @relation("MinistryFinancialAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+  ministry    Ministry @relation(fields: [ministryId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation("MinistryFinancialAccessCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, ministryId])
+  @@index([userId])
+  @@index([ministryId])
+  @@index([createdById])
 }
 
 model MemberMinistry {

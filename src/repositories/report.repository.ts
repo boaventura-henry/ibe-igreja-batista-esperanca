@@ -1,5 +1,6 @@
 import {
   EventStatus,
+  FinancialEntryStatus,
   FinancialEntryType,
   MemberStatus,
   Prisma,
@@ -10,6 +11,8 @@ import { endOfDate, parseDate } from "@/lib/report";
 import { prisma } from "@/prisma/client";
 import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
 import type { ScheduleAccessContext } from "@/types";
+import type { FinancialAccessContext } from "@/types";
+import { buildFinancialScopeWhere } from "@/repositories/financial-entry.repository";
 import type {
   EventReportInput,
   FinancialReportInput,
@@ -232,9 +235,10 @@ export const reportRepository = {
     return { rows, total };
   },
 
-  async financial(input: FinancialReportInput) {
-    const where: Prisma.FinancialEntryWhereInput = {
+  async financial(input: FinancialReportInput, accessContext: FinancialAccessContext) {
+    const filters: Prisma.FinancialEntryWhereInput = {
       deletedAt: null,
+      ...(input.filters.status === "" ? {} : { status: input.filters.status ?? FinancialEntryStatus.CONFIRMED }),
       ...(input.filters.categoryId ? { categoryId: input.filters.categoryId } : {}),
       ...(input.filters.type ? { type: input.filters.type as FinancialEntryType } : {}),
       ...(input.filters.paymentMethod ? { paymentMethod: input.filters.paymentMethod as never } : {}),
@@ -250,11 +254,14 @@ export const reportRepository = {
           }
         : {})
     };
-    const orderBy = {
-      [sortBy(input.sortBy, ["entryNumber", "type", "launchDate", "amount", "paymentMethod", "status"], "launchDate")]: input.sortOrder
-    } satisfies Prisma.FinancialEntryOrderByWithRelationInput;
+    const where: Prisma.FinancialEntryWhereInput = { AND: [buildFinancialScopeWhere(accessContext), filters] };
+    const orderBy = [
+      { [sortBy(input.sortBy, ["entryNumber", "type", "launchDate", "amount", "paymentMethod", "status"], "launchDate")]: input.sortOrder },
+      { createdAt: "desc" },
+      { id: "desc" }
+    ] satisfies Prisma.FinancialEntryOrderByWithRelationInput[];
 
-    const [rows, total] = await prisma.$transaction([
+    const [rows, total, income, expense] = await prisma.$transaction([
       prisma.financialEntry.findMany({
         where,
         select: {
@@ -268,15 +275,27 @@ export const reportRepository = {
           status: true,
           member: { select: { name: true } },
           ministry: { select: { name: true } },
-          event: { select: { title: true } }
+          event: { select: { title: true } },
+          createdBy: { select: { name: true } },
+          observation: true
         },
         orderBy,
         ...paginate(input)
       }),
-      prisma.financialEntry.count({ where })
+      prisma.financialEntry.count({ where }),
+      prisma.financialEntry.aggregate({ where: { AND: [where, { type: FinancialEntryType.INCOME }] }, _sum: { amount: true } }),
+      prisma.financialEntry.aggregate({ where: { AND: [where, { type: FinancialEntryType.EXPENSE }] }, _sum: { amount: true } })
     ]);
 
-    return { rows, total };
+    return { rows, total, income: income._sum.amount, expense: expense._sum.amount };
+  },
+
+  listFinancialMinistryOptions(accessContext: FinancialAccessContext) {
+    return prisma.ministry.findMany({
+      where: { deletedAt: null, ...(accessContext.allMinistries ? {} : { id: { in: [...accessContext.authorizedMinistryIds] } }) },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" }
+    });
   },
 
   portalContributions(memberId: string) {

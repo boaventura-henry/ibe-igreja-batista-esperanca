@@ -23,6 +23,7 @@ export { memberMinistryService } from "./member-ministry.service";
 export { memberPortalService } from "./member-portal.service";
 export { memberService } from "./member.service";
 export { ministryService } from "./ministry.service";
+export { ministryFinanceService } from "./ministry-finance.service";
 export { myScheduleService } from "./my-schedule.service";
 export { notificationService } from "./notification.service";
 export { notificationPublisher } from "./notification-publisher.service";

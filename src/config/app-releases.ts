@@ -14,6 +14,20 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.8",
+    title: "Financeiro consolidado por ministerio",
+    summary: "Evolucao do financeiro com saldo total, movimentacoes e relatorios autorizados por ministerio.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: [
+      "Saldo financeiro total e resumo mensal consolidados",
+      "Movimentacoes financeiras vinculadas a ministerios",
+      "Autorizacao financeira parametrizavel por usuario e ministerio",
+      "Saldo e relatorio analitico respeitando o escopo autorizado"
+    ]
+  },
+  {
     version: "0.2.7",
     title: "Cadastro rapido de musicas nas escalas",
     summary: "Corrigido o cadastro rápido de músicas diretamente pela pesquisa do repertório das escalas.",

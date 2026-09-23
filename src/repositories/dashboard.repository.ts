@@ -4,13 +4,15 @@ import {
   FinancialEntryStatus,
   FinancialEntryType,
   MemberStatus,
+  Prisma,
   ScheduleStatus,
-  type Prisma
 } from "@prisma/client";
 import { prisma } from "@/prisma/client";
-import { applicationDateOnlyCutoff, applicationDayStart } from "@/lib/application-time";
+import { applicationDateOnlyCutoff, applicationDayStart, applicationToday } from "@/lib/application-time";
 import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
 import type { ScheduleAccessContext } from "@/types";
+import type { FinancialAccessContext } from "@/types";
+import { buildFinancialScopeWhere } from "@/repositories/financial-entry.repository";
 
 const upcomingEventSelect = { id: true, title: true, startDate: true, startTime: true, location: true } satisfies Prisma.EventSelect;
 const upcomingScheduleSelect = {
@@ -62,6 +64,14 @@ function currentMonthRange(value = new Date()) {
   return {
     start: new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1)),
     end: new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + 1, 1))
+  };
+}
+
+export function currentFinancialMonthRange(value = new Date()) {
+  const today = applicationToday(value);
+  return {
+    start: new Date(Date.UTC(today.year, today.month - 1, 1)),
+    end: new Date(Date.UTC(today.year, today.month, 1))
   };
 }
 
@@ -129,27 +139,57 @@ export const dashboardRepository = {
     });
   },
 
-  getMonthlyIncome() {
-    const month = currentMonthRange();
+  getMonthlyIncome(accessContext: FinancialAccessContext) {
+    const month = currentFinancialMonthRange();
     return prisma.financialEntry.aggregate({
-      where: {
+      where: { AND: [{
         deletedAt: null,
         status: FinancialEntryStatus.CONFIRMED,
         type: FinancialEntryType.INCOME,
         launchDate: { gte: month.start, lt: month.end }
-      },
+      }, buildFinancialScopeWhere(accessContext)] },
       _sum: { amount: true }
     });
   },
 
-  async getMonthlyFinanceSummary() {
-    const month = currentMonthRange();
-    const where = { deletedAt: null, status: FinancialEntryStatus.CONFIRMED, launchDate: { gte: month.start, lt: month.end } };
+  async getMonthlyFinanceSummary(accessContext: FinancialAccessContext) {
+    const month = currentFinancialMonthRange();
+    const where: Prisma.FinancialEntryWhereInput = { AND: [{ deletedAt: null, status: FinancialEntryStatus.CONFIRMED, launchDate: { gte: month.start, lt: month.end } }, buildFinancialScopeWhere(accessContext)] };
     const [income, expense] = await prisma.$transaction([
       prisma.financialEntry.aggregate({ where: { ...where, type: FinancialEntryType.INCOME }, _sum: { amount: true } }),
       prisma.financialEntry.aggregate({ where: { ...where, type: FinancialEntryType.EXPENSE }, _sum: { amount: true } })
     ]);
     return { monthlyIncome: income._sum.amount, monthlyExpense: expense._sum.amount };
+  },
+
+  async getTotalFinanceBalance(accessContext: FinancialAccessContext) {
+    const base: Prisma.FinancialEntryWhereInput = { AND: [{ deletedAt: null, status: FinancialEntryStatus.CONFIRMED, launchDate: { lte: applicationDateOnlyCutoff() } }, buildFinancialScopeWhere(accessContext)] };
+    const [income, expense] = await prisma.$transaction([
+      prisma.financialEntry.aggregate({ where: { AND: [base, { type: FinancialEntryType.INCOME }] }, _sum: { amount: true } }),
+      prisma.financialEntry.aggregate({ where: { AND: [base, { type: FinancialEntryType.EXPENSE }] }, _sum: { amount: true } })
+    ]);
+    return { income: income._sum.amount, expense: expense._sum.amount };
+  },
+
+  async getMinistryFinanceBalances(accessContext: FinancialAccessContext) {
+    const rows = await prisma.financialEntry.groupBy({
+      by: ["ministryId", "type"],
+      where: { AND: [{ deletedAt: null, status: FinancialEntryStatus.CONFIRMED, launchDate: { lte: applicationDateOnlyCutoff() }, ministryId: { not: null } }, buildFinancialScopeWhere(accessContext)] },
+      _sum: { amount: true }
+    });
+    const ministries = await prisma.ministry.findMany({
+      where: { deletedAt: null, ...(accessContext.allMinistries ? {} : { id: { in: [...accessContext.authorizedMinistryIds] } }) },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" }
+    });
+    const values = new Map<string, Prisma.Decimal>();
+    for (const row of rows) {
+      if (!row.ministryId) continue;
+      const amount = row._sum.amount ?? new Prisma.Decimal(0);
+      const current = values.get(row.ministryId) ?? new Prisma.Decimal(0);
+      values.set(row.ministryId, row.type === FinancialEntryType.INCOME ? current.plus(amount) : current.minus(amount));
+    }
+    return ministries.map((ministry) => ({ ministryId: ministry.id, ministryName: ministry.name, balance: (values.get(ministry.id) ?? new Prisma.Decimal(0)).toFixed(2) }));
   },
 
   getLatestContributions() {

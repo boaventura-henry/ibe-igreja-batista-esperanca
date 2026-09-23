@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
-import { requirePermission } from "@/lib/session";
+import { requireFinancialAccess } from "@/lib/financial-authorization";
 import { financialEntryService } from "@/services";
 import { financialEntryUpdateSchema } from "@/validators";
 
@@ -16,9 +16,9 @@ function validationMessage(error: ZodError) {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    await requirePermission("financialEntry.view");
+    const authorization = await requireFinancialAccess("view");
     const { id } = await context.params;
-    return apiSuccess(await financialEntryService.getById(id));
+    return apiSuccess(await financialEntryService.getById(id, authorization));
   } catch (error) {
     if (error instanceof AppError) return apiError(error.message, error.statusCode, error.code);
     const appError = toAppError(error);
@@ -28,10 +28,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    const user = await requirePermission("financialEntry.update");
+    const authorization = await requireFinancialAccess("update");
     const { id } = await context.params;
     const payload = financialEntryUpdateSchema.parse(await request.json());
-    return apiSuccess(await financialEntryService.update(id, payload, user.id));
+    return apiSuccess(await financialEntryService.update(id, payload, authorization));
   } catch (error) {
     if (error instanceof ZodError) return apiError(validationMessage(error), 400, "VALIDATION_ERROR");
     if (error instanceof AppError) return apiError(error.message, error.statusCode, error.code);
@@ -42,9 +42,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
-    const user = await requirePermission("financialEntry.delete");
+    const authorization = await requireFinancialAccess("delete");
     const { id } = await context.params;
-    return apiSuccess(await financialEntryService.remove(id, user.id));
+    return apiSuccess(await financialEntryService.remove(id, authorization));
   } catch (error) {
     if (error instanceof AppError) return apiError(error.message, error.statusCode, error.code);
     const appError = toAppError(error);

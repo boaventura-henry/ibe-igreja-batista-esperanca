@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import { apiError } from "@/lib/api-response";
 import { AppError, toAppError } from "@/lib/errors";
 import { requirePermission } from "@/lib/session";
+import { requireFinancialAccess } from "@/lib/financial-authorization";
 import { reportService } from "@/services";
 import { financialReportSchema } from "@/validators";
 import { reportResponse } from "../response";
@@ -12,8 +13,9 @@ export async function POST(request: Request) {
   try {
     const payload = financialReportSchema.parse(await request.json());
     await requirePermission(payload.exportFormat === "view" ? "report.view" : "report.export");
+    const authorization = await requireFinancialAccess("report");
 
-    return reportResponse(await reportService.financial(payload));
+    return reportResponse(await reportService.financial(payload, authorization));
   } catch (error) {
     if (error instanceof ZodError) return apiError(error.issues[0]?.message ?? "Dados invalidos.", 400, "VALIDATION_ERROR");
     if (error instanceof AppError) return apiError(error.message, error.statusCode, error.code);

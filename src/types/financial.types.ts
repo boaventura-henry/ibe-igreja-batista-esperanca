@@ -83,6 +83,7 @@ export type FinancialEntryListResult = {
     events: FinancialEventSummary[];
     ministries: FinancialRelationSummary[];
   };
+  scope: { allMinistries: boolean };
 };
 
 export type FinancialEntryFormValues = {

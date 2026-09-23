@@ -641,6 +641,21 @@ export const helpArticles: HelpArticle[] = [
     notes: ["Os relatórios e telas mostram somente os dados permitidos pelo seu perfil."]
   },
   {
+    id: "financeiro-ministerial",
+    title: "Como usar o financeiro por ministerio",
+    description: "Registre e consulte movimentacoes somente nos ministerios autorizados para seu usuario.",
+    category: "Financeiro e contribuições",
+    audience: "ADMIN",
+    permissionCodes: ["ministryFinance.view"],
+    keywords: ["financeiro", "ministerio", "saldo", "receita", "despesa", "relatorio"],
+    steps: [
+      { description: "Abra Financeiro - Lançamentos para consultar os ministerios autorizados." },
+      { description: "Ao criar uma movimentacao, escolha um dos ministerios disponiveis para seu usuario." },
+      { description: "Use o relatorio financeiro para filtrar por periodo, tipo, categoria e ministerio." }
+    ],
+    notes: ["Saldos, movimentacoes e relatorios sao filtrados no servidor conforme os acessos configurados para o usuario."]
+  },
+  {
     id: "relatorios-admin",
     title: "Como consultar relatórios",
     description: "Consulte relatórios administrativos conforme sua permissão.",

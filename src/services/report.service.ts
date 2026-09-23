@@ -1,14 +1,17 @@
 import {
   EventStatus,
   EventType,
+  FinancialEntryStatus,
   FinancialEntryType,
   FinancialPaymentMethod,
   MemberStatus,
+  Prisma,
   ScheduleStatus,
   WeekDay
 } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
+import type { FinancialAuthorization } from "@/types";
 import {
   createReportFilename,
   generateCsv,
@@ -44,6 +47,7 @@ const scheduleStatusOptions = Object.values(ScheduleStatus).map((value) => optio
 const eventTypeOptions = Object.values(EventType).map((value) => option(value, value));
 const eventStatusOptions = Object.values(EventStatus).map((value) => option(value, value));
 const financialTypeOptions = Object.values(FinancialEntryType).map((value) => option(value, value));
+const financialStatusOptions = Object.values(FinancialEntryStatus).map((value) => option(value, value));
 const paymentMethodOptions = Object.values(FinancialPaymentMethod).map((value) => option(value, value));
 const weekDayOptions = Object.values(WeekDay).map((value) => option(value, value));
 
@@ -94,6 +98,8 @@ const reportColumns = {
     { key: "member", label: "Membro" },
     { key: "ministry", label: "Ministerio" },
     { key: "event", label: "Evento" }
+    ,{ key: "description", label: "Historico" }
+    ,{ key: "createdBy", label: "Responsavel" }
   ],
   portalContributions: [
     { key: "launchDate", label: "Data" },
@@ -144,7 +150,8 @@ function result(
   columns: ReportColumn[],
   rows: Array<Record<string, string>>,
   total: number,
-  input: { page: number; pageSize: number; exportFormat: ReportExportFormat }
+  input: { page: number; pageSize: number; exportFormat: ReportExportFormat },
+  totals?: { income: string; expense: string; balance: string }
 ): ReportViewResult | ReportFileResult {
   if (input.exportFormat !== "view") {
     return createFile(title, input.exportFormat, columns, rows);
@@ -154,16 +161,20 @@ function result(
     title,
     columns,
     rows,
-    pagination: getPagination(input.page, input.pageSize, total)
+    pagination: getPagination(input.page, input.pageSize, total),
+    ...(totals ? { totals } : {})
   };
 }
 
-async function catalog(): Promise<ReportCatalogGroup[]> {
+async function catalog(financialAuthorization?: FinancialAuthorization): Promise<ReportCatalogGroup[]> {
   const [ministries, members, categories, events] = await reportRepository.listFilterOptions();
   const ministryOptions = ministries.map((ministry) => option(ministry.name, ministry.id));
   const memberOptions = members.map((member) => option(member.name, member.id));
   const categoryOptions = categories.map((category) => option(`${category.name} (${category.type})`, category.id));
   const eventOptions = events.map((event) => option(event.title, event.id));
+  const financialMinistryOptions = financialAuthorization
+    ? (await reportRepository.listFinancialMinistryOptions(financialAuthorization.accessContext)).map((ministry) => option(ministry.name, ministry.id))
+    : [];
   const memberFilters: ReportFilterField[] = [
     { name: "name", label: "Nome", type: "text" },
     { name: "status", label: "Situacao", type: "select", options: statusOptions },
@@ -235,10 +246,11 @@ async function catalog(): Promise<ReportCatalogGroup[]> {
       filters: [
         { name: "categoryId", label: "Categoria", type: "select", options: categoryOptions },
         { name: "type", label: "Tipo", type: "select", options: financialTypeOptions },
+        { name: "status", label: "Status", type: "select", options: financialStatusOptions },
         { name: "paymentMethod", label: "Forma pagamento", type: "select", options: paymentMethodOptions },
         { name: "startDate", label: "Data inicial", type: "date" },
         { name: "endDate", label: "Data final", type: "date" },
-        { name: "ministryId", label: "Ministerio", type: "select", options: ministryOptions },
+        { name: "ministryId", label: "Ministerio", type: "select", options: financialMinistryOptions },
         { name: "eventId", label: "Evento", type: "select", options: eventOptions },
         { name: "memberId", label: "Membro", type: "select", options: memberOptions }
       ]
@@ -246,7 +258,7 @@ async function catalog(): Promise<ReportCatalogGroup[]> {
   ];
 
   return Object.values(
-    definitions.reduce<Record<string, ReportCatalogGroup>>((groups, definition) => {
+    definitions.filter((definition) => definition.key !== "financial" || financialAuthorization).reduce<Record<string, ReportCatalogGroup>>((groups, definition) => {
       groups[definition.module] ??= { module: definition.module, reports: [] };
       groups[definition.module].reports.push(definition);
       return groups;
@@ -316,8 +328,11 @@ export const reportService = {
     return result("Eventos", reportColumns.events, rows, data.total, input);
   },
 
-  async financial(input: FinancialReportInput) {
-    const data = await reportRepository.financial(input);
+  async financial(input: FinancialReportInput, authorization: FinancialAuthorization) {
+    if (input.filters.ministryId && !authorization.accessContext.allMinistries && !authorization.accessContext.authorizedMinistryIds.includes(input.filters.ministryId)) {
+      throw new AppError("Voce nao tem permissao para este financeiro ministerial.", 403, "FINANCIAL_MINISTRY_FORBIDDEN");
+    }
+    const data = await reportRepository.financial(input, authorization.accessContext);
     const rows = data.rows.map((entry) => ({
       entryNumber: String(entry.entryNumber),
       type: entry.type,
@@ -328,10 +343,18 @@ export const reportService = {
       status: entry.status,
       member: entry.member?.name ?? "",
       ministry: entry.ministry?.name ?? "",
-      event: entry.event?.title ?? ""
+      event: entry.event?.title ?? "",
+      description: entry.observation ?? "",
+      createdBy: entry.createdBy?.name ?? ""
     }));
 
-    return result("Fluxo financeiro", reportColumns.financial, rows, data.total, input);
+    const income = new Prisma.Decimal(data.income?.toString() ?? "0");
+    const expense = new Prisma.Decimal(data.expense?.toString() ?? "0");
+    return result("Movimentacoes financeiras por ministerio", reportColumns.financial, rows, data.total, input, {
+      income: income.toFixed(2),
+      expense: expense.toFixed(2),
+      balance: income.minus(expense).toFixed(2)
+    });
   },
 
   async portalContributions(memberId: string | null | undefined, input: PortalContributionReportInput) {

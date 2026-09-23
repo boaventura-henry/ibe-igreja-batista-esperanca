@@ -92,6 +92,8 @@ export {
   ministryListQuerySchema,
   ministryUpdateSchema
 } from "./ministry.validator";
+export { ministryFinancialAccessUpdateSchema } from "./ministry-finance.validator";
+export type { MinistryFinancialAccessUpdateInput } from "./ministry-finance.validator";
 export type {
   MinistryCreateInput,
   MinistryListQueryInput,

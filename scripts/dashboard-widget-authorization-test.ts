@@ -61,7 +61,7 @@ const financeCodes = dashboardWidgets.filter((widget) => widget.sensitivity === 
 const louvorPermissions = ["dashboard.members.birthdays", "dashboard.members.summary", "dashboard.events.upcoming", "dashboard.scales.upcoming"];
 const treasuryPermissions = ["dashboard.finance.revenue", "dashboard.finance.balance", "dashboard.finance.summary", "dashboard.contributions.recent"];
 
-assert.deepEqual(resolvedCodes(allPermissions), dashboardWidgets.slice().sort((a, b) => a.defaultOrder - b.defaultOrder).map((widget) => widget.code), "1: administrador recebe todos os widgets");
+assert.deepEqual(resolvedCodes(allPermissions), dashboardWidgets.filter((widget) => widget.enabled).slice().sort((a, b) => a.defaultOrder - b.defaultOrder).map((widget) => widget.code), "1: administrador recebe todos os widgets ativos");
 const louvor = resolvedCodes(louvorPermissions);
 assert(louvor.includes("events.upcoming") && louvor.includes("scales.upcoming") && louvor.includes("members.birthdays") && financeCodes.every((code) => !louvor.includes(code)), "2: louvor nao recebe dados restritos");
 const treasury = resolvedCodes(treasuryPermissions);

@@ -3,6 +3,7 @@ import { AppError } from "@/lib/errors";
 import { financialCategoryService } from "@/services/financial-category.service";
 import { financialEntryRepository, type FinancialEntryRecord } from "@/repositories/financial-entry.repository";
 import type { FinancialEntryListResult, FinancialEntrySummary } from "@/types";
+import type { FinancialAuthorization } from "@/types";
 import type { FinancialEntryCreateInput, FinancialEntryListQueryInput, FinancialEntryUpdateInput } from "@/validators";
 import { getMemberDisplayName } from "@/utils";
 
@@ -57,8 +58,31 @@ async function ensureReferences(data: FinancialEntryCreateInput | FinancialEntry
     throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
   }
 
-  if (data.ministryId && !(await financialEntryRepository.findMinistryById(data.ministryId))) {
+  const ministryChanged = data.ministryId !== undefined && data.ministryId !== current?.ministry?.id;
+  if (data.ministryId && !(await financialEntryRepository.findMinistryById(data.ministryId, !current || ministryChanged))) {
     throw new AppError("Ministerio nao encontrado.", 404, "MINISTRY_NOT_FOUND");
+  }
+}
+
+function isRecordNotFoundError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025";
+}
+
+async function runScopedMutation<T>(mutation: () => Promise<T>): Promise<T> {
+  try {
+    return await mutation();
+  } catch (error) {
+    if (isRecordNotFoundError(error)) {
+      throw new AppError("Lancamento financeiro nao encontrado.", 404, "FINANCIAL_ENTRY_NOT_FOUND");
+    }
+    throw error;
+  }
+}
+
+function ensureDestinationAccess(ministryId: string | null | undefined, authorization: FinancialAuthorization) {
+  if (authorization.accessContext.allMinistries) return;
+  if (!ministryId || !authorization.accessContext.authorizedMinistryIds.includes(ministryId)) {
+    throw new AppError("Voce nao tem permissao para este financeiro ministerial.", 403, "FINANCIAL_MINISTRY_FORBIDDEN");
   }
 }
 
@@ -72,13 +96,14 @@ function ensureAnonymousRule(data: FinancialEntryCreateInput | FinancialEntryUpd
 }
 
 export const financialEntryService = {
-  async list(filters: FinancialEntryListQueryInput): Promise<FinancialEntryListResult> {
+  async list(filters: FinancialEntryListQueryInput, authorization: FinancialAuthorization): Promise<FinancialEntryListResult> {
+    if (filters.ministryId) ensureDestinationAccess(filters.ministryId, authorization);
     const [result, categories, members, events, ministries] = await Promise.all([
-      financialEntryRepository.list(filters),
+      financialEntryRepository.list(filters, authorization.accessContext),
       financialCategoryService.listActive(),
       financialEntryRepository.listMembers(),
       financialEntryRepository.listEvents(),
-      financialEntryRepository.listMinistries()
+      financialEntryRepository.listMinistries(authorization.accessContext)
     ]);
 
     return {
@@ -89,12 +114,13 @@ export const financialEntryService = {
         total: result.total,
         totalPages: Math.max(1, Math.ceil(result.total / filters.pageSize))
       },
-      filters: { categories, members, events, ministries }
+      filters: { categories, members, events, ministries },
+      scope: { allMinistries: authorization.accessContext.allMinistries }
     };
   },
 
-  async getById(id: string) {
-    const entry = await financialEntryRepository.findById(id);
+  async getById(id: string, authorization: FinancialAuthorization) {
+    const entry = await financialEntryRepository.findByIdWithinScope(id, authorization.accessContext);
 
     if (!entry) {
       throw new AppError("Lancamento financeiro nao encontrado.", 404, "FINANCIAL_ENTRY_NOT_FOUND");
@@ -103,7 +129,8 @@ export const financialEntryService = {
     return serialize(entry);
   },
 
-  async create(data: FinancialEntryCreateInput, userId: string) {
+  async create(data: FinancialEntryCreateInput, authorization: FinancialAuthorization) {
+    ensureDestinationAccess(data.ministryId, authorization);
     ensureAnonymousRule(data);
     await ensureReferences(data);
 
@@ -111,7 +138,7 @@ export const financialEntryService = {
       const entryNumber = await financialEntryRepository.nextEntryNumber();
 
       try {
-        return serialize(await financialEntryRepository.create(data, entryNumber, userId));
+        return serialize(await financialEntryRepository.create(data, entryNumber, authorization.userId));
       } catch (error) {
         if (!isUniqueConstraintError(error)) {
           throw error;
@@ -126,27 +153,28 @@ export const financialEntryService = {
     throw new AppError("Nao foi possivel criar o lancamento.", 409, "FINANCIAL_ENTRY_CREATE_CONFLICT");
   },
 
-  async update(id: string, data: FinancialEntryUpdateInput, userId: string) {
-    const current = await this.getById(id);
+  async update(id: string, data: FinancialEntryUpdateInput, authorization: FinancialAuthorization) {
+    const current = await this.getById(id, authorization);
+    ensureDestinationAccess(data.ministryId === undefined ? current.ministry?.id : data.ministryId, authorization);
     ensureAnonymousRule(data, current);
     await ensureReferences(data, current);
 
-    return serialize(await financialEntryRepository.update(id, data, userId));
+    return serialize(await runScopedMutation(() => financialEntryRepository.update(id, data, authorization.userId, authorization.accessContext)));
   },
 
-  async cancel(id: string, userId: string) {
-    const current = await this.getById(id);
+  async cancel(id: string, authorization: FinancialAuthorization) {
+    const current = await this.getById(id, authorization);
 
     if (current.status === FinancialEntryStatus.CANCELED) {
       throw new AppError("Lancamento ja cancelado.", 409, "FINANCIAL_ENTRY_ALREADY_CANCELED");
     }
 
-    return serialize(await financialEntryRepository.cancel(id, userId));
+    return serialize(await runScopedMutation(() => financialEntryRepository.cancel(id, authorization.userId, authorization.accessContext)));
   },
 
-  async remove(id: string, userId: string) {
-    await this.getById(id);
+  async remove(id: string, authorization: FinancialAuthorization) {
+    await this.getById(id, authorization);
 
-    return financialEntryRepository.softDelete(id, userId);
+    return runScopedMutation(() => financialEntryRepository.softDelete(id, authorization.userId, authorization.accessContext));
   }
 };

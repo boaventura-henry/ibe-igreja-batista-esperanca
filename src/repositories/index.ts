@@ -47,6 +47,7 @@ export type {
   MemberPortalScheduleRecord
 } from "./member-portal.repository";
 export { ministryRepository } from "./ministry.repository";
+export { ministryFinanceRepository } from "./ministry-finance.repository";
 export type { MinistryRecord } from "./ministry.repository";
 export { myScheduleRepository } from "./my-schedule.repository";
 export {
