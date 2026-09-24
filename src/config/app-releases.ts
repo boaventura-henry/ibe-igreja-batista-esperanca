@@ -14,6 +14,19 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.9",
+    title: "Correcao visual do Financeiro",
+    summary: "Labels acessiveis, modais responsivos e saldo geral consolidado no dashboard financeiro.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: [
+      "Formulario de lancamentos com labels visiveis e associados aos controles",
+      "Modais financeiros adaptados para viewport mobile",
+      "Saldo geral do dashboard representa todo o historico financeiro confirmado"
+    ]
+  },
+  {
     version: "0.2.8",
     title: "Financeiro consolidado por ministerio",
     summary: "Evolucao do financeiro com saldo total, movimentacoes e relatorios autorizados por ministerio.",

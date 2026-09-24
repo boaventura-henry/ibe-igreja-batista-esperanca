@@ -152,8 +152,8 @@ export const dashboardRepository = {
     });
   },
 
-  async getMonthlyFinanceSummary(accessContext: FinancialAccessContext) {
-    const month = currentFinancialMonthRange();
+  async getMonthlyFinanceSummary(accessContext: FinancialAccessContext, value = new Date()) {
+    const month = currentFinancialMonthRange(value);
     const where: Prisma.FinancialEntryWhereInput = { AND: [{ deletedAt: null, status: FinancialEntryStatus.CONFIRMED, launchDate: { gte: month.start, lt: month.end } }, buildFinancialScopeWhere(accessContext)] };
     const [income, expense] = await prisma.$transaction([
       prisma.financialEntry.aggregate({ where: { ...where, type: FinancialEntryType.INCOME }, _sum: { amount: true } }),
@@ -162,8 +162,8 @@ export const dashboardRepository = {
     return { monthlyIncome: income._sum.amount, monthlyExpense: expense._sum.amount };
   },
 
-  async getTotalFinanceBalance(accessContext: FinancialAccessContext) {
-    const base: Prisma.FinancialEntryWhereInput = { AND: [{ deletedAt: null, status: FinancialEntryStatus.CONFIRMED, launchDate: { lte: applicationDateOnlyCutoff() } }, buildFinancialScopeWhere(accessContext)] };
+  async getTotalFinanceBalance(accessContext: FinancialAccessContext, value = new Date()) {
+    const base: Prisma.FinancialEntryWhereInput = { AND: [{ deletedAt: null, status: FinancialEntryStatus.CONFIRMED, launchDate: { lte: applicationDateOnlyCutoff(value) } }, buildFinancialScopeWhere(accessContext)] };
     const [income, expense] = await prisma.$transaction([
       prisma.financialEntry.aggregate({ where: { AND: [base, { type: FinancialEntryType.INCOME }] }, _sum: { amount: true } }),
       prisma.financialEntry.aggregate({ where: { AND: [base, { type: FinancialEntryType.EXPENSE }] }, _sum: { amount: true } })

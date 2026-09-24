@@ -71,8 +71,9 @@ async function main() {
     const louvorAuth: FinancialAuthorization = { userId: userA.id, accessContext: { allMinistries: false, authorizedMinistryIds: [louvor.id] } };
     const infantilAuth: FinancialAuthorization = { userId: userB.id, accessContext: { allMinistries: false, authorizedMinistryIds: [infantil.id] } };
     const globalAuth: FinancialAuthorization = { userId: admin.id, accessContext: { allMinistries: true, authorizedMinistryIds: [] } };
-    const baselineTotal = await dashboardRepository.getTotalFinanceBalance(globalAuth.accessContext);
-    const baselineMonth = await dashboardRepository.getMonthlyFinanceSummary(globalAuth.accessContext);
+    const dashboardReferenceDate = new Date("2026-09-30T12:00:00.000Z");
+    const baselineTotal = await dashboardRepository.getTotalFinanceBalance(globalAuth.accessContext, dashboardReferenceDate);
+    const baselineMonth = await dashboardRepository.getMonthlyFinanceSummary(globalAuth.accessContext, dashboardReferenceDate);
     for (const [payload, authorization] of [
       [input(FinancialEntryType.INCOME, incomeCategory.id, louvor.id, 1000), louvorAuth],
       [input(FinancialEntryType.EXPENSE, expenseCategory.id, louvor.id, 250), louvorAuth],
@@ -82,10 +83,25 @@ async function main() {
       const entry = await financialEntryService.create(payload, authorization);
       created.entries.push(entry.id);
     }
+    const baselineAfterStandardTotal = await dashboardRepository.getTotalFinanceBalance(globalAuth.accessContext, dashboardReferenceDate);
+    const baselineAfterStandardMonth = await dashboardRepository.getMonthlyFinanceSummary(globalAuth.accessContext, dashboardReferenceDate);
+
+    for (const payload of [
+      { ...input(FinancialEntryType.INCOME, incomeCategory.id, louvor.id, 800), launchDate: new Date("2026-08-31T00:00:00.000Z"), referenceDate: new Date("2026-08-31T00:00:00.000Z") },
+      { ...input(FinancialEntryType.INCOME, incomeCategory.id, infantil.id, 100), launchDate: new Date("2026-09-01T00:00:00.000Z"), referenceDate: new Date("2026-09-01T00:00:00.000Z") },
+      { ...input(FinancialEntryType.EXPENSE, expenseCategory.id, infantil.id, 45), launchDate: new Date("2026-09-01T00:00:00.000Z"), referenceDate: new Date("2026-09-01T00:00:00.000Z") }
+    ]) {
+      created.entries.push((await financialEntryService.create(payload, globalAuth)).id);
+    }
+    const historicalTotal = await dashboardRepository.getTotalFinanceBalance(globalAuth.accessContext, dashboardReferenceDate);
+    const historicalMonthly = await dashboardRepository.getMonthlyFinanceSummary(globalAuth.accessContext, dashboardReferenceDate);
+    const historicalDelta = decimal(historicalTotal.income).minus(decimal(historicalTotal.expense)).minus(decimal(baselineAfterStandardTotal.income).minus(decimal(baselineAfterStandardTotal.expense)));
+    assert.equal(historicalDelta.toFixed(2), "855.00", "saldo geral inclui historico entre meses e movimentacoes ministeriais");
+    assert.equal(decimal(historicalMonthly.monthlyIncome).minus(decimal(historicalMonthly.monthlyExpense)).minus(decimal(baselineAfterStandardMonth.monthlyIncome).minus(decimal(baselineAfterStandardMonth.monthlyExpense))).toFixed(2), "55.00", "resumo mensal permanece limitado ao mes de referencia");
 
     const listInput = { sortBy: "launchDate", sortDirection: "desc", page: 1, pageSize: 10 } as const;
     const louvorEntries = await financialEntryService.list(listInput, louvorAuth);
-    assert.equal(louvorEntries.entries.length, 2, "usuario Louvor ve somente suas duas movimentacoes");
+    assert.equal(louvorEntries.entries.length, 3, "usuario Louvor ve todas as tres movimentacoes autorizadas, incluindo historico");
     await assert.rejects(() => financialEntryService.list({ ...listInput, ministryId: infantil.id }, louvorAuth), /permissao/i);
     await assert.rejects(() => financialEntryService.getById(created.entries[2], louvorAuth), /nao encontrado/i);
     await assert.rejects(() => financialEntryService.update(created.entries[2], { observation: fixture }, louvorAuth), /nao encontrado/i);
@@ -96,20 +112,20 @@ async function main() {
     await assert.rejects(() => financialEntryService.update(created.entries[0], { ministryId: infantil.id }, louvorAuth), /permissao/i);
 
     const louvorBalance = await dashboardRepository.getMinistryFinanceBalances(louvorAuth.accessContext);
-    assert.deepEqual(louvorBalance.map((item) => [item.ministryId, item.balance]), [[louvor.id, "750.00"]]);
+    assert.deepEqual(louvorBalance.map((item) => [item.ministryId, item.balance]), [[louvor.id, "1550.00"]]);
     const allBalances = await dashboardRepository.getMinistryFinanceBalances(globalAuth.accessContext);
     const fixtures = allBalances.filter((item) => [louvor.id, infantil.id].includes(item.ministryId));
-    assert.deepEqual(fixtures.map((item) => item.balance).sort(), ["400.00", "750.00"]);
-    const total = await dashboardRepository.getTotalFinanceBalance(globalAuth.accessContext);
+    assert.deepEqual(fixtures.map((item) => item.balance).sort(), ["1550.00", "455.00"]);
+    const total = await dashboardRepository.getTotalFinanceBalance(globalAuth.accessContext, dashboardReferenceDate);
     const totalDelta = decimal(total.income).minus(decimal(total.expense)).minus(decimal(baselineTotal.income).minus(decimal(baselineTotal.expense)));
-    assert.equal(totalDelta.toFixed(2), "1150.00", "movimentacoes ministeriais impactam saldo geral em 1150.00 exatos");
-    const monthly = await dashboardRepository.getMonthlyFinanceSummary(globalAuth.accessContext);
-    assert.equal(decimal(monthly.monthlyIncome).minus(decimal(baselineMonth.monthlyIncome)).toFixed(2), "1500.00", "resumo mensal soma receitas das fixtures");
-    assert.equal(decimal(monthly.monthlyExpense).minus(decimal(baselineMonth.monthlyExpense)).toFixed(2), "350.00", "resumo mensal soma despesas das fixtures");
+    assert.equal(totalDelta.toFixed(2), "2005.00", "movimentacoes ministeriais e historicas impactam saldo geral em 2005.00 exatos");
+    const monthly = await dashboardRepository.getMonthlyFinanceSummary(globalAuth.accessContext, dashboardReferenceDate);
+    assert.equal(decimal(monthly.monthlyIncome).minus(decimal(baselineMonth.monthlyIncome)).toFixed(2), "1600.00", "resumo mensal soma receitas das fixtures do mes de referencia");
+    assert.equal(decimal(monthly.monthlyExpense).minus(decimal(baselineMonth.monthlyExpense)).toFixed(2), "395.00", "resumo mensal soma despesas das fixtures do mes de referencia");
 
     const report = await reportRepository.financial({ exportFormat: "view", page: 1, pageSize: 25, sortOrder: "desc", filters: { ministryId: louvor.id } }, louvorAuth.accessContext);
-    assert.equal(report.total, 2);
-    assert.equal(Number(report.income?.toString()) - Number(report.expense?.toString()), 750);
+    assert.equal(report.total, 3);
+    assert.equal(Number(report.income?.toString()) - Number(report.expense?.toString()), 1550);
     const expenseOnly = await reportRepository.financial({ exportFormat: "view", page: 1, pageSize: 1, sortOrder: "desc", filters: { ministryId: louvor.id, type: FinancialEntryType.EXPENSE, categoryId: expenseCategory.id, startDate: "2026-09-01", endDate: "2026-09-01" } }, louvorAuth.accessContext);
     assert.equal(expenseOnly.total, 1, "relatorio aplica filtros combinados antes da paginacao");
     assert.equal(expenseOnly.rows.length, 1);
@@ -117,35 +133,35 @@ async function main() {
     assert.equal(expenseOnly.expense?.toString(), "250");
     const paged = await reportRepository.financial({ exportFormat: "view", page: 1, pageSize: 1, sortOrder: "desc", filters: { ministryId: louvor.id } }, louvorAuth.accessContext);
     assert.equal(paged.rows.length, 1);
-    assert.equal(paged.total, 2);
-    assert.equal(Number(paged.income?.toString()) - Number(paged.expense?.toString()), 750, "totais cobrem todo o filtro, nao somente a pagina");
+    assert.equal(paged.total, 3);
+    assert.equal(Number(paged.income?.toString()) - Number(paged.expense?.toString()), 1550, "totais cobrem todo o filtro, nao somente a pagina");
     const unauthorizedReport = await reportRepository.financial({ exportFormat: "view", page: 1, pageSize: 25, sortOrder: "desc", filters: { ministryId: infantil.id } }, louvorAuth.accessContext);
     assert.equal(unauthorizedReport.total, 0, "filtro ministerial nao amplia o escopo do relatorio");
 
     const future = await financialEntryService.create({ ...input(FinancialEntryType.INCOME, incomeCategory.id, louvor.id, 999), launchDate: new Date("2099-01-10T00:00:00.000Z") }, louvorAuth);
     created.entries.push(future.id);
     const currentBalance = await dashboardRepository.getMinistryFinanceBalances(louvorAuth.accessContext);
-    assert.equal(currentBalance.find((item) => item.ministryId === louvor.id)?.balance, "750.00", "lancamento futuro nao entra no saldo atual");
+    assert.equal(currentBalance.find((item) => item.ministryId === louvor.id)?.balance, "1550.00", "lancamento futuro nao entra no saldo atual");
     const zeroBalance = await dashboardRepository.getMinistryFinanceBalances({ allMinistries: false, authorizedMinistryIds: [louvor.id, infantil.id, apoio.id] });
     assert.equal(zeroBalance.find((item) => item.ministryId === apoio.id)?.balance, "0.00", "ministerio sem movimentacao aparece com saldo zero");
     const cancelled = await financialEntryService.cancel(created.entries[0], louvorAuth);
     assert.equal(cancelled.status, FinancialEntryStatus.CANCELED);
-    assert.equal((await dashboardRepository.getMinistryFinanceBalances(louvorAuth.accessContext))[0].balance, "-250.00", "cancelado nao soma no saldo");
+    assert.equal((await dashboardRepository.getMinistryFinanceBalances(louvorAuth.accessContext))[0].balance, "550.00", "cancelado nao soma no saldo");
     const negativeReport = await reportRepository.financial({ exportFormat: "view", page: 1, pageSize: 25, sortOrder: "desc", filters: { ministryId: louvor.id, endDate: "2026-09-15" } }, louvorAuth.accessContext);
-    assert.equal(negativeReport.total, 1);
-    assert.equal(Number(negativeReport.income?.toString() ?? "0") - Number(negativeReport.expense?.toString() ?? "0"), -250, "relatorio apresenta saldo negativo");
+    assert.equal(negativeReport.total, 2);
+    assert.equal(Number(negativeReport.income?.toString() ?? "0") - Number(negativeReport.expense?.toString() ?? "0"), 550, "relatorio considera o historico confirmado junto ao status atual");
     const historicalStatuses = await reportRepository.financial({ exportFormat: "view", page: 1, pageSize: 25, sortOrder: "desc", filters: { ministryId: louvor.id, endDate: "2026-09-15", status: "" } }, louvorAuth.accessContext);
-    assert.equal(historicalStatuses.total, 2, "filtro Todos preserva lancamentos cancelados no relatorio historico");
-    assert.equal(Number(historicalStatuses.income?.toString() ?? "0") - Number(historicalStatuses.expense?.toString() ?? "0"), 750, "totais usam o mesmo conjunto do filtro Todos");
+    assert.equal(historicalStatuses.total, 3, "filtro Todos preserva lancamentos cancelados no relatorio historico");
+    assert.equal(Number(historicalStatuses.income?.toString() ?? "0") - Number(historicalStatuses.expense?.toString() ?? "0"), 1550, "totais usam o mesmo conjunto do filtro Todos");
     await financialEntryService.remove(created.entries[1], louvorAuth);
-    assert.equal((await dashboardRepository.getMinistryFinanceBalances(louvorAuth.accessContext))[0].balance, "0.00", "soft deleted nao soma no saldo");
+    assert.equal((await dashboardRepository.getMinistryFinanceBalances(louvorAuth.accessContext))[0].balance, "800.00", "soft deleted nao soma no saldo");
 
     await ministryFinanceRepository.replaceAccesses(userA.id, [], admin.id);
     const revoked = await financialEntryService.list(listInput, { userId: userA.id, accessContext: { allMinistries: false, authorizedMinistryIds: [] } });
     assert.equal(revoked.entries.length, 0, "revogacao remove acesso imediatamente");
     await ministryFinanceRepository.replaceAccesses(userA.id, [louvor.id, infantil.id], admin.id);
     const multiple = await financialEntryService.list(listInput, { userId: userA.id, accessContext: { allMinistries: false, authorizedMinistryIds: [louvor.id, infantil.id] } });
-    assert.equal(multiple.entries.length, 4, "usuario com dois ministerios acessa apenas registros nao removidos de ambos");
+    assert.equal(multiple.entries.length, 7, "usuario com dois ministerios acessa apenas registros nao removidos de ambos");
     await prisma.ministry.update({ where: { id: louvor.id }, data: { isActive: false } });
     assert(!(await financialEntryRepository.listMinistries(louvorAuth.accessContext)).some((ministry) => ministry.id === louvor.id), "ministerio inativo nao aparece em novo lancamento");
     await assert.rejects(() => financialEntryService.create(input(FinancialEntryType.INCOME, incomeCategory.id, louvor.id, 1), louvorAuth), /nao encontrado/i);
@@ -167,10 +183,10 @@ async function main() {
     await assert.rejects(() => financialEntryService.update(generalIncome.id, { ministryId: apoio.id }, louvorAuth), /nao encontrado/i);
     await assert.rejects(() => financialEntryService.cancel(generalIncome.id, louvorAuth), /nao encontrado/i);
     await assert.rejects(() => financialEntryService.remove(generalIncome.id, louvorAuth), /nao encontrado/i);
-    const totalWithGeneral = await dashboardRepository.getTotalFinanceBalance(globalAuth.accessContext);
+    const totalWithGeneral = await dashboardRepository.getTotalFinanceBalance(globalAuth.accessContext, dashboardReferenceDate);
     const generalDelta = decimal(totalWithGeneral.income).minus(decimal(totalWithGeneral.expense))
       .minus(decimal(baselineTotal.income).minus(decimal(baselineTotal.expense)));
-    assert.equal(generalDelta.toFixed(2), "1902.00", "geral e ministerial compartilham ledger canonico");
+    assert.equal(generalDelta.toFixed(2), "2757.00", "geral, ministerial e historico compartilham ledger canonico");
     assert.equal((await dashboardRepository.getMinistryFinanceBalances({ allMinistries: false, authorizedMinistryIds: [apoio.id] }))[0].balance, "2.00", "geral nao e alocado ao ministerio");
     const generalUpdated = await financialEntryService.update(generalIncome.id, { amount: 2100 }, globalAuth);
     assert.equal(new Prisma.Decimal(generalUpdated.amount).toFixed(2), "2100.00", "lancamento geral editado pelo fluxo oficial");

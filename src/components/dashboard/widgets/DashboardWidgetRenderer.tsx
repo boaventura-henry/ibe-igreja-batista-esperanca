@@ -25,7 +25,7 @@ export function DashboardWidgetRenderer({ widget }: { widget: AuthorizedDashboar
     case "FINANCE_REVENUE":
       return <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><StatCard label="Entradas do mes" value={formatCurrency(widget.data.monthlyIncome)} detail="Lancamentos confirmados" /></section>;
     case "FINANCE_BALANCE":
-      return <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><StatCard label="Saldo total" value={formatCurrency(widget.data.totalBalance)} detail="Historico de entradas menos saidas confirmadas" /></section>;
+      return <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><StatCard label="Saldo geral" value={formatCurrency(widget.data.totalBalance)} detail="Historico de entradas menos saidas confirmadas" /></section>;
     case "ANNOUNCEMENTS_SUMMARY":
       return <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><StatCard label="Comunicados publicados" value={String(widget.data.publishedAnnouncements)} detail="Publicados e nao deletados" /><StatCard label="Comunicados ativos" value={String(widget.data.activeAnnouncements)} detail="Visiveis no portal agora" /><StatCard label="Comunicados fixados" value={String(widget.data.pinnedAnnouncements)} detail="Destaques ativos no portal" /></section>;
     case "NOTIFICATIONS_HEALTH":

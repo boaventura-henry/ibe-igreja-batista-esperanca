@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { Modal } from "@/components/ui/Modal";
 import type { FinancialClosingFormValues, FinancialClosingListResult, FinancialClosingSummary } from "@/types";
 
 type ApiResponse<T> = ({ success: true; data: T } & T) | { success: false; error: { code: string; message: string } };
@@ -115,8 +116,4 @@ export function FinancialClosingManager() {
       {viewing ? <Modal title={`Fechamento ${dateForInput(viewing.date)}`} onClose={() => setViewing(null)}><p>{currency(viewing.openingBalance)} para {currency(viewing.closingBalance)}</p></Modal> : null}
     </div>
   );
-}
-
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/30 p-4"><div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-md bg-white p-5 shadow-xl"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{title}</h2><button onClick={onClose} className="font-bold text-ink-600">Fechar</button></div>{children}</div></div>;
 }
