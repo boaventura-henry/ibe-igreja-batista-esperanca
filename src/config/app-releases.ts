@@ -18,8 +18,8 @@ export const appReleases: readonly AppRelease[] = [
     title: "Financeiro consolidado por ministerio",
     summary: "Evolucao do financeiro com saldo total, movimentacoes e relatorios autorizados por ministerio.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-09-24",
     highlights: [
       "Saldo financeiro total e resumo mensal consolidados",
       "Movimentacoes financeiras vinculadas a ministerios",
