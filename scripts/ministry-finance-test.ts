@@ -29,8 +29,9 @@ const report = readFileSync("src/repositories/report.repository.ts", "utf8");
 const dashboard = readFileSync("src/repositories/dashboard.repository.ts", "utf8");
 const ui = readFileSync("src/components/financial/FinancialEntryManager.tsx", "utf8");
 const userUi = readFileSync("src/components/users/UserManager.tsx", "utf8");
-const middleware = readFileSync("src/middleware.ts", "utf8");
+const middleware = readFileSync("src/middleware.ts", "utf8").replace(/\r\n/g, "\n");
 const schema = readFileSync("prisma/schema.prisma", "utf8");
+const widgetMigration = readFileSync("prisma/migrations/20260923120000_provision_ministry_balance_dashboard_widget/migration.sql", "utf8");
 
 check(repository.includes("buildFinancialScopeWhere(accessContext)"), "listagem aplica scope no repository");
 check(repository.includes("findByIdWithinScope"), "acesso por ID usa mecanismo escopado");
@@ -62,5 +63,9 @@ check(routes.includes('requireFinancialAccess("create")'), "create exige autoriz
 check(routes.includes('requireFinancialAccess("update")'), "update exige autorizacao funcional e scope");
 check(routes.includes('requireFinancialAccess("delete")'), "delete exige autorizacao funcional e scope");
 check(routes.includes('requireFinancialAccess("cancel")'), "cancel exige autorizacao funcional e scope");
+check(widgetMigration.includes("'finance.ministryBalances'"), "migration versionada provisiona o widget ministerial");
+check(widgetMigration.includes("FROM \"Permission\"") && widgetMigration.includes("'dashboard.finance.ministryBalances'"), "migration vincula a permissao estrutural existente");
+check(widgetMigration.includes('ON CONFLICT ("code") DO NOTHING'), "provisionamento e idempotente e preserva configuracao existente");
+check(!/\b(?:UPDATE|DELETE)\b/.test(widgetMigration), "migration nao sobrescreve nem remove configuracao existente");
 
 console.log(`Ministry finance authorization and UI: ${scenarios} scenarios passed.`);
