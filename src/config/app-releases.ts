@@ -18,8 +18,8 @@ export const appReleases: readonly AppRelease[] = [
     title: "Correcao transversal de data civil",
     summary: "Padronizacao da virada de dia e das janelas de negocio no timezone America/Sao_Paulo.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-09-25",
     highlights: [
       "Datas padrao de formularios respeitam o dia civil de Sao Paulo",
       "Aniversarios independem do timezone da sessao do banco",
