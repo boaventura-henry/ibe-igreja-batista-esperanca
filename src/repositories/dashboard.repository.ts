@@ -8,7 +8,7 @@ import {
   ScheduleStatus,
 } from "@prisma/client";
 import { prisma } from "@/prisma/client";
-import { applicationDateOnlyCutoff, applicationDayStart, applicationToday } from "@/lib/application-time";
+import { applicationDateOnlyCutoff, applicationDayStart, applicationMonthRange, applicationToday } from "@/lib/application-time";
 import { buildScheduleScopeWhere } from "@/repositories/schedule-access.repository";
 import type { ScheduleAccessContext } from "@/types";
 import type { FinancialAccessContext } from "@/types";
@@ -60,13 +60,6 @@ function startOfUtcDay(value = new Date()) {
   return applicationDateOnlyCutoff(value);
 }
 
-function currentMonthRange(value = new Date()) {
-  return {
-    start: new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1)),
-    end: new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + 1, 1))
-  };
-}
-
 export function currentFinancialMonthRange(value = new Date()) {
   const today = applicationToday(value);
   return {
@@ -112,8 +105,8 @@ export const dashboardRepository = {
     });
   },
 
-  async getMembersSummary() {
-    const month = currentMonthRange();
+  async getMembersSummary(value = new Date()) {
+    const month = applicationMonthRange(value);
     const [activeMembers, newMembersThisMonth] = await prisma.$transaction([
       prisma.member.count({ where: { deletedAt: null, status: MemberStatus.ACTIVE } }),
       prisma.member.count({ where: { deletedAt: null, createdAt: { gte: month.start, lt: month.end } } })

@@ -1,5 +1,6 @@
 import { PushNotificationLogDeviceStatus, PushNotificationLogStatus } from "@prisma/client";
 import { prisma } from "@/prisma/client";
+import { applicationDayRange } from "@/lib/application-time";
 import { hashPushEndpoint } from "@/repositories/push-notification-log.repository";
 
 function parsePlatform(source: string | null | undefined) {
@@ -26,15 +27,9 @@ function parseBrowser(source: string | null | undefined) {
 function groupCount(group: { _count?: true | { id?: number | null } }): number {
   return typeof group._count === "object" ? group._count.id ?? 0 : 0;
 }
-function startOfTodayUtc() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
-
 export const pushNotificationHealthRepository = {
-  async getHealthData(thresholdDays: number) {
-    const now = new Date();
-    const todayStart = startOfTodayUtc();
+  async getHealthData(thresholdDays: number, now = new Date()) {
+    const today = applicationDayRange(now);
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -63,7 +58,7 @@ export const pushNotificationHealthRepository = {
     ] = await prisma.$transaction([
       prisma.pushSubscription.count({ where: { isActive: true, revokedAt: null } }),
       prisma.pushSubscription.count({ where: { OR: [{ isActive: false }, { revokedAt: { not: null } }] } }),
-      prisma.pushSubscription.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.pushSubscription.count({ where: { createdAt: { gte: today.start, lt: today.end } } }),
       prisma.pushSubscription.count({ where: { isActive: true, revokedAt: null, OR: [{ lastSuccessAt: { lt: staleDate } }, { lastSuccessAt: null, createdAt: { lt: staleDate } }] } }),
       prisma.user.count({ where: { isActive: true, pushSubscriptions: { none: { isActive: true, revokedAt: null } } } }),
       prisma.pushNotificationLogDevice.count({ where: { status: PushNotificationLogDeviceStatus.EXPIRED } }),

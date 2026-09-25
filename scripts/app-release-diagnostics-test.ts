@@ -22,7 +22,7 @@ const unreleasedReleases: AppRelease[] = [
 
 async function main() {
 
-assert.equal(APP_VERSION, "0.2.9", "0: versao ativa aponta para a release 0.2.9");
+assert.equal(APP_VERSION, "0.2.10", "0: versao ativa aponta para a release 0.2.10");
 assert.equal(appReleases.filter((release) => release.version === APP_VERSION).length, 1, "0: existe uma unica release configurada como versao ativa");
 assert.equal(appReleases.find((release) => release.version === "0.2.7")?.type, "PATCH", "0: 0.2.7 e uma release PATCH");
 assert.equal(appReleases.find((release) => release.version === "0.2.7")?.status, "PUBLISHED", "0: 0.2.7 esta publicada");
@@ -33,6 +33,9 @@ assert.equal(appReleases.find((release) => release.version === "0.2.8")?.release
 assert.equal(appReleases.find((release) => release.version === "0.2.9")?.type, "PATCH", "0: 0.2.9 e uma release PATCH");
 assert.equal(appReleases.find((release) => release.version === "0.2.9")?.status, "PUBLISHED", "0: 0.2.9 esta publicada");
 assert.equal(appReleases.find((release) => release.version === "0.2.9")?.releaseDate, "2026-09-24", "0: 0.2.9 possui a data real de publicacao");
+assert.equal(appReleases.find((release) => release.version === "0.2.10")?.type, "PATCH", "0: 0.2.10 e uma release PATCH");
+assert.equal(appReleases.find((release) => release.version === "0.2.10")?.status, "UNRELEASED", "0: 0.2.10 permanece em desenvolvimento");
+assert.equal(appReleases.find((release) => release.version === "0.2.10")?.releaseDate, null, "0: 0.2.10 nao possui data de publicacao");
 assert.equal(appReleases.find((release) => release.version === "0.2.6")?.type, "PATCH", "0: 0.2.6 e uma release PATCH");
 assert.equal(appReleases.find((release) => release.version === "0.2.6")?.status, "PUBLISHED", "0: 0.2.6 esta publicada");
 assert.equal(appReleases.find((release) => release.version === "0.2.6")?.releaseDate, "2026-09-07", "0: 0.2.6 possui a data real de publicacao");
@@ -47,8 +50,8 @@ assert.equal(appReleases.find((release) => release.version === "0.2.2")?.status,
 assert.equal(appReleases.find((release) => release.version === "0.2.2")?.releaseDate, "2026-08-21", "0: 0.2.2 possui a data oficial de publicacao");
 assert.equal(appReleases.find((release) => release.version === "0.2.1")?.status, "PUBLISHED", "0: 0.2.1 preserva seu estado historico publicado");
 assert.equal(appReleases.find((release) => release.version === "0.2.1")?.releaseDate, "2026-07-26", "0: 0.2.1 preserva a data comprovada da tag v0.2.1");
-assert.deepEqual(appReleases.filter((release) => release.status === "UNRELEASED").map((release) => release.version), [], "0: nenhuma versao futura foi aberta");
-assert.deepEqual(appReleases.slice(0, 10).map((release) => release.version), ["0.2.9", "0.2.8", "0.2.7", "0.2.6", "0.2.5", "0.2.4", "0.2.3", "0.2.2", "0.2.1", "0.2.0"], "0: catalogo mantem a versao ativa antes do historico");
+assert.deepEqual(appReleases.filter((release) => release.status === "UNRELEASED").map((release) => release.version), ["0.2.10"], "0: 0.2.10 e a unica versao em desenvolvimento");
+assert.deepEqual(appReleases.slice(0, 11).map((release) => release.version), ["0.2.10", "0.2.9", "0.2.8", "0.2.7", "0.2.6", "0.2.5", "0.2.4", "0.2.3", "0.2.2", "0.2.1", "0.2.0"], "0: catalogo mantem a versao ativa antes do historico");
 
 
 assert.equal(appReleases.find((release) => release.version === "0.2.0")?.status, "PUBLISHED", "1: 0.2.0 permanece publicada");

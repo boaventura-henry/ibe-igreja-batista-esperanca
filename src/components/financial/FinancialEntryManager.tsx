@@ -5,14 +5,15 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { Modal } from "@/components/ui/Modal";
+import { applicationDateInputValue } from "@/lib/application-time";
 import type { FinancialEntryFormValues, FinancialEntryListResult, FinancialEntrySummary } from "@/types";
 import { getMemberOptionLabel } from "@/utils";
 
 type ApiResponse<T> = ({ success: true; data: T } & T) | { success: false; error: { code: string; message: string } };
 
-const today = () => new Date().toISOString().slice(0, 10);
-
-const emptyForm: FinancialEntryFormValues = {
+export function createFinancialEntryForm(now = new Date()): FinancialEntryFormValues {
+  const today = applicationDateInputValue(now);
+  return {
   type: FinancialEntryType.INCOME,
   memberId: "",
   categoryId: "",
@@ -23,10 +24,11 @@ const emptyForm: FinancialEntryFormValues = {
   status: FinancialEntryStatus.CONFIRMED,
   origin: FinancialEntryOrigin.MANUAL,
   anonymous: false,
-  launchDate: today(),
-  referenceDate: today(),
+  launchDate: today,
+  referenceDate: today,
   observation: ""
-};
+  };
+}
 
 const typeLabels = { INCOME: "Entrada", EXPENSE: "Saida" } as const;
 const statusLabels = { PENDING: "Pendente", CONFIRMED: "Confirmado", CANCELED: "Cancelado", REFUNDED: "Reembolsado" } as const;
@@ -56,7 +58,7 @@ export function FinancialEntryManager() {
   const [data, setData] = useState<FinancialEntryListResult | null>(null);
   const [message, setMessage] = useState("");
   const [formMessage, setFormMessage] = useState("");
-  const [form, setForm] = useState<FinancialEntryFormValues>(emptyForm);
+  const [form, setForm] = useState<FinancialEntryFormValues>(() => createFinancialEntryForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingMinistry, setEditingMinistry] = useState<{ id: string; name: string } | null>(null);
   const [viewing, setViewing] = useState<FinancialEntrySummary | null>(null);
@@ -95,7 +97,7 @@ export function FinancialEntryManager() {
   function openCreate() {
     setEditingId(null);
     setEditingMinistry(null);
-    setForm({ ...emptyForm, ministryId: data?.scope.allMinistries ? "" : data?.filters.ministries[0]?.id ?? "" });
+    setForm({ ...createFinancialEntryForm(), ministryId: data?.scope.allMinistries ? "" : data?.filters.ministries[0]?.id ?? "" });
     setFormMessage("");
     setIsFormOpen(true);
   }

@@ -14,6 +14,19 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.10",
+    title: "Correcao transversal de data civil",
+    summary: "Padronizacao da virada de dia e das janelas de negocio no timezone America/Sao_Paulo.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: [
+      "Datas padrao de formularios respeitam o dia civil de Sao Paulo",
+      "Aniversarios independem do timezone da sessao do banco",
+      "Metricas diarias e mensais utilizam janelas do calendario da aplicacao"
+    ]
+  },
+  {
     version: "0.2.9",
     title: "Correcao visual do Financeiro",
     summary: "Labels acessiveis, modais responsivos e saldo geral consolidado no dashboard financeiro.",

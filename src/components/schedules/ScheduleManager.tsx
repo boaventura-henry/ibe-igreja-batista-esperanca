@@ -6,6 +6,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleMemberNames } from "@/components/schedules/ScheduleMemberNames";
+import { applicationDateInputValue } from "@/lib/application-time";
 import type { ScheduleFormValues, ScheduleListItem, ScheduleListResult, ScheduleSummary } from "@/types";
 import { formatDateForInput } from "@/utils";
 
@@ -27,17 +28,19 @@ const sortOptions = [
   { value: "updatedAt", label: "Atualizacao" }
 ];
 
-const emptyForm: ScheduleFormValues = {
+export function createScheduleForm(now = new Date()): ScheduleFormValues {
+  return {
   title: "",
   description: "",
   ministryId: "",
   eventId: "",
-  date: new Date().toISOString().slice(0, 10),
+  date: applicationDateInputValue(now),
   startTime: "",
   endTime: "",
   location: "",
   observations: ""
-};
+  };
+}
 
 function statusLabel(status: ScheduleStatus) {
   return statusOptions.find((option) => option.value === status)?.label ?? status;
@@ -73,7 +76,7 @@ export function ScheduleManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<ScheduleFormValues>(emptyForm);
+  const [form, setForm] = useState<ScheduleFormValues>(() => createScheduleForm());
   const [filters, setFilters] = useState({
     search: "",
     ministryId: "",
@@ -147,7 +150,7 @@ export function ScheduleManager() {
 
   function openCreateForm() {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm(createScheduleForm());
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);

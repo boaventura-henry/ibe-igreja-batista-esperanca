@@ -4,6 +4,7 @@ import { MemberMinistryRole, MemberMinistryStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { applicationDateInputValue } from "@/lib/application-time";
 import type {
   MemberMinistryFormValues,
   MemberMinistryListResult,
@@ -41,15 +42,17 @@ const sortOptions = [
   { value: "updatedAt", label: "Atualizacao" }
 ];
 
-const emptyForm: MemberMinistryFormValues = {
+export function createMemberMinistryForm(now = new Date()): MemberMinistryFormValues {
+  return {
   memberId: "",
   ministryId: "",
   role: MemberMinistryRole.MEMBER,
   status: MemberMinistryStatus.ACTIVE,
-  entryDate: new Date().toISOString().slice(0, 10),
+  entryDate: applicationDateInputValue(now),
   exitDate: "",
   observations: ""
-};
+  };
+}
 
 function roleLabel(role: MemberMinistryRole) {
   return roleOptions.find((option) => option.value === role)?.label ?? role;
@@ -87,7 +90,7 @@ export function MemberMinistryManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<MemberMinistryFormValues>(emptyForm);
+  const [form, setForm] = useState<MemberMinistryFormValues>(() => createMemberMinistryForm());
   const [filters, setFilters] = useState({
     search: "",
     memberId: "",
@@ -176,7 +179,7 @@ export function MemberMinistryManager() {
 
   function openCreateForm() {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm(createMemberMinistryForm());
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
@@ -202,7 +205,7 @@ export function MemberMinistryManager() {
         role: link.role,
         status: closing ? MemberMinistryStatus.LEFT : link.status,
         entryDate: formatDateForInput(link.entryDate),
-        exitDate: closing ? new Date().toISOString().slice(0, 10) : formatDateForInput(link.exitDate),
+        exitDate: closing ? applicationDateInputValue() : formatDateForInput(link.exitDate),
         observations: link.observations ?? ""
       });
       setIsFormOpen(true);

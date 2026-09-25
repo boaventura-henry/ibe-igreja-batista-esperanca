@@ -4,20 +4,22 @@ import { EventStatus, EventType } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { applicationDateInputValue } from "@/lib/application-time";
 import type { EventFormValues, EventListResult, EventSummary } from "@/types";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
   | { success: false; error: { code: string; message: string } };
 
-const emptyForm: EventFormValues = {
+export function createEventForm(now = new Date()): EventFormValues {
+  return {
   title: "",
   description: "",
   type: EventType.OTHER,
   status: EventStatus.DRAFT,
   ministryId: "",
   responsibleMemberId: "",
-  startDate: new Date().toISOString().slice(0, 10),
+  startDate: applicationDateInputValue(now),
   endDate: "",
   startTime: "",
   endTime: "",
@@ -28,7 +30,8 @@ const emptyForm: EventFormValues = {
   isPublic: false,
   imageUrl: "",
   observations: ""
-};
+  };
+}
 
 const typeLabels: Record<EventType, string> = {
   SERVICE: "Culto",
@@ -104,7 +107,7 @@ export function EventManager() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingEvent, setViewingEvent] = useState<EventSummary | null>(null);
-  const [form, setForm] = useState<EventFormValues>(emptyForm);
+  const [form, setForm] = useState<EventFormValues>(() => createEventForm());
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
@@ -184,7 +187,7 @@ export function EventManager() {
 
   function openCreateForm() {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm(createEventForm());
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);

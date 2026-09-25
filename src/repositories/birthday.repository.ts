@@ -17,13 +17,13 @@ export type BirthdayRecord = {
 };
 
 export const birthdayRepository = {
-  list() {
+  list(today: string) {
     return prisma.$queryRaw<BirthdayRecord[]>(Prisma.sql`
       WITH params AS (
-        SELECT CURRENT_DATE::date AS today,
-          date_trunc('week', CURRENT_DATE)::date AS week_start,
-          (date_trunc('week', CURRENT_DATE) + INTERVAL '6 days')::date AS week_end,
-          EXTRACT(YEAR FROM CURRENT_DATE)::int AS current_year
+        SELECT ${today}::date AS today,
+          date_trunc('week', ${today}::date)::date AS week_start,
+          (date_trunc('week', ${today}::date) + INTERVAL '6 days')::date AS week_end,
+          EXTRACT(YEAR FROM ${today}::date)::int AS current_year
       ), eligible AS (
         SELECT m.id, m.name, m.nickname, m."photoUrl" AS "photoUrl",
           principal.id AS "ministryId",

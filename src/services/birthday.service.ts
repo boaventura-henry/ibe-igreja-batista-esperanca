@@ -1,4 +1,5 @@
 import { birthdayRepository, type BirthdayRecord } from "@/repositories";
+import { applicationDateInputValue, applicationDateOnlyCutoff } from "@/lib/application-time";
 import type { BirthdayDashboardData, BirthdayPerson } from "@/types";
 import { getMemberDisplayName } from "@/utils";
 
@@ -19,8 +20,9 @@ function serialize(record: BirthdayRecord): BirthdayPerson {
 }
 
 export const birthdayService = {
-  async getDashboard(): Promise<BirthdayDashboardData> {
-    const records = await birthdayRepository.list();
+  async getDashboard(now = new Date()): Promise<BirthdayDashboardData> {
+    const todayDate = applicationDateOnlyCutoff(now);
+    const records = await birthdayRepository.list(applicationDateInputValue(now));
     const monthRecords = records
       .filter((record) => record.birthdayThisYear.getUTCMonth() === record.today.getUTCMonth())
       .sort((left, right) => {
@@ -36,7 +38,7 @@ export const birthdayService = {
       .sort((left, right) => left.weeklyBirthday.getTime() - right.weeklyBirthday.getTime() || left.name.localeCompare(right.name, "pt-BR"))
       .map(serialize);
     const month = monthRecords.map(serialize);
-    const monthDate = records[0]?.today ?? new Date();
+    const monthDate = records[0]?.today ?? todayDate;
 
     return {
       today,

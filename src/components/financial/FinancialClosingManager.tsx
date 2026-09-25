@@ -4,12 +4,14 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { Modal } from "@/components/ui/Modal";
+import { applicationDateInputValue } from "@/lib/application-time";
 import type { FinancialClosingFormValues, FinancialClosingListResult, FinancialClosingSummary } from "@/types";
 
 type ApiResponse<T> = ({ success: true; data: T } & T) | { success: false; error: { code: string; message: string } };
 
-const today = () => new Date().toISOString().slice(0, 10);
-const emptyForm: FinancialClosingFormValues = { date: today(), openingBalance: 0, closingBalance: 0, observation: "" };
+export function createFinancialClosingForm(now = new Date()): FinancialClosingFormValues {
+  return { date: applicationDateInputValue(now), openingBalance: 0, closingBalance: 0, observation: "" };
+}
 
 function currency(value: string | number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
@@ -24,7 +26,7 @@ export function FinancialClosingManager() {
   const [data, setData] = useState<FinancialClosingListResult | null>(null);
   const [message, setMessage] = useState("");
   const [formMessage, setFormMessage] = useState("");
-  const [form, setForm] = useState<FinancialClosingFormValues>(emptyForm);
+  const [form, setForm] = useState<FinancialClosingFormValues>(() => createFinancialClosingForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<FinancialClosingSummary | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -52,7 +54,7 @@ export function FinancialClosingManager() {
 
   function openCreate() {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm(createFinancialClosingForm());
     setFormMessage("");
     setIsFormOpen(true);
   }

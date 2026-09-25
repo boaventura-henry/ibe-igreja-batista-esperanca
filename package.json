@@ -1,6 +1,6 @@
 {
   "name": "ibe-igreja-batista-esperanca",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -48,7 +48,8 @@
     "test:instrument-usage-history": "tsx scripts/instrument-usage-history-test.ts",
     "test:permission-sync": "tsx scripts/permission-sync-test.ts",
     "test:ministry-finance": "tsx scripts/ministry-finance-test.ts",
-    "test:ministry-finance:functional": "tsx scripts/ministry-finance-functional-test.ts"
+    "test:ministry-finance:functional": "tsx scripts/ministry-finance-functional-test.ts",
+    "test:timezone-civil-date": "tsx scripts/timezone-civil-date-test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,6 +1,7 @@
 import { PushNotificationLogDeviceStatus, PushNotificationLogStatus, PushNotificationSkipReason, type Prisma } from "@prisma/client";
 import { createHash } from "crypto";
 import { prisma } from "@/prisma/client";
+import { applicationDayRange } from "@/lib/application-time";
 import type { PushNotificationLogListQuery } from "@/validators/push-notification-log.validator";
 
 const userMiniSelect = { id: true, name: true, username: true } as const;
@@ -302,13 +303,12 @@ export const pushNotificationLogRepository = {
     });
   },
 
-  async getDashboardMetrics() {
-    const now = new Date();
-    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  async getDashboardMetrics(now = new Date()) {
+    const today = applicationDayRange(now);
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const [sentToday, successTotals, activeDevices, expiredDevices, failuresLast24h, retriesExecuted, recoveredDevices] = await prisma.$transaction([
-      prisma.pushNotificationLog.count({ where: { createdAt: { gte: todayStart }, status: { in: [PushNotificationLogStatus.SUCCESS, PushNotificationLogStatus.PARTIAL_SUCCESS] } } }),
-      prisma.pushNotificationLog.aggregate({ _sum: { devicesAttempted: true, devicesSucceeded: true }, where: { createdAt: { gte: todayStart } } }),
+      prisma.pushNotificationLog.count({ where: { createdAt: { gte: today.start, lt: today.end }, status: { in: [PushNotificationLogStatus.SUCCESS, PushNotificationLogStatus.PARTIAL_SUCCESS] } } }),
+      prisma.pushNotificationLog.aggregate({ _sum: { devicesAttempted: true, devicesSucceeded: true }, where: { createdAt: { gte: today.start, lt: today.end } } }),
       prisma.pushSubscription.count({ where: { isActive: true, revokedAt: null } }),
       prisma.pushNotificationLogDevice.count({ where: { status: { in: [PushNotificationLogDeviceStatus.EXPIRED, PushNotificationLogDeviceStatus.REMOVED] } } }),
       prisma.pushNotificationLogDevice.count({ where: { sentAt: { gte: last24h }, status: { not: PushNotificationLogDeviceStatus.SUCCESS } } }),
