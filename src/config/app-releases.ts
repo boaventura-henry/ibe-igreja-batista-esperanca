@@ -18,8 +18,8 @@ export const appReleases: readonly AppRelease[] = [
     title: "Correcao visual do Financeiro",
     summary: "Labels acessiveis, modais responsivos e saldo geral consolidado no dashboard financeiro.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-09-24",
     highlights: [
       "Formulario de lancamentos com labels visiveis e associados aos controles",
       "Modais financeiros adaptados para viewport mobile",
