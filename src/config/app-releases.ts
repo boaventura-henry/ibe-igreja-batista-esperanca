@@ -18,8 +18,8 @@ export const appReleases: readonly AppRelease[] = [
     title: "Rotulos de forma de pagamento",
     summary: "Padronizacao dos rotulos de formas de pagamento e recebimento em portugues.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-09-26",
     highlights: ["Formas de pagamento exibidas em portugues no Financeiro, Portal e relatorios"]
   },
   {
