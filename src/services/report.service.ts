@@ -10,6 +10,7 @@ import {
   WeekDay
 } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { formatFinancialPaymentMethod } from "@/lib/financial-payment-method";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import type { FinancialAuthorization } from "@/types";
 import {
@@ -48,7 +49,7 @@ const eventTypeOptions = Object.values(EventType).map((value) => option(value, v
 const eventStatusOptions = Object.values(EventStatus).map((value) => option(value, value));
 const financialTypeOptions = Object.values(FinancialEntryType).map((value) => option(value, value));
 const financialStatusOptions = Object.values(FinancialEntryStatus).map((value) => option(value, value));
-const paymentMethodOptions = Object.values(FinancialPaymentMethod).map((value) => option(value, value));
+const paymentMethodOptions = Object.values(FinancialPaymentMethod).map((value) => option(formatFinancialPaymentMethod(value), value));
 const weekDayOptions = Object.values(WeekDay).map((value) => option(value, value));
 
 const reportColumns = {
@@ -339,7 +340,7 @@ export const reportService = {
       launchDate: date(entry.launchDate),
       category: entry.category.name,
       amount: money(entry.amount),
-      paymentMethod: entry.paymentMethod,
+      paymentMethod: formatFinancialPaymentMethod(entry.paymentMethod),
       status: entry.status,
       member: entry.member?.name ?? "",
       ministry: entry.ministry?.name ?? "",
@@ -366,7 +367,7 @@ export const reportService = {
       launchDate: date(entry.launchDate),
       category: entry.category.name,
       amount: money(entry.amount),
-      paymentMethod: entry.paymentMethod,
+      paymentMethod: formatFinancialPaymentMethod(entry.paymentMethod),
       status: entry.status
     }));
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatFinancialPaymentMethod } from "@/lib/financial-payment-method";
 import type { MemberContributionListResult, ReportExportFormat } from "@/types";
 
 type ApiResponse<T> = ({ success: true; data: T } & T) | { success: false; error: { code: string; message: string } };
@@ -93,7 +94,7 @@ export function MemberContributionManager() {
                 <td className="px-4 py-3">{date(contribution.launchDate)}</td>
                 <td>{contribution.category}</td>
                 <td className="font-bold text-hope-700">{currency(contribution.amount)}</td>
-                <td>{contribution.paymentMethod}</td>
+                <td>{formatFinancialPaymentMethod(contribution.paymentMethod)}</td>
                 <td>{contribution.status}</td>
               </tr>
             ))}

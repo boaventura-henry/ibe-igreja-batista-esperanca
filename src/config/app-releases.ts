@@ -14,6 +14,15 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.11",
+    title: "Rotulos de forma de pagamento",
+    summary: "Padronizacao dos rotulos de formas de pagamento e recebimento em portugues.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: ["Formas de pagamento exibidas em portugues no Financeiro, Portal e relatorios"]
+  },
+  {
     version: "0.2.10",
     title: "Correcao transversal de data civil",
     summary: "Padronizacao da virada de dia e das janelas de negocio no timezone America/Sao_Paulo.",
