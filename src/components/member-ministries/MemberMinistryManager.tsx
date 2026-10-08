@@ -4,13 +4,14 @@ import { MemberMinistryRole, MemberMinistryStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { MemberCombobox } from "@/components/members/MemberCombobox";
 import { applicationDateInputValue } from "@/lib/application-time";
 import type {
   MemberMinistryFormValues,
   MemberMinistryListResult,
   MemberMinistrySummary
 } from "@/types";
-import { formatCpf, formatDateForInput, getMemberOptionLabel } from "@/utils";
+import { formatCpf, formatDateForInput } from "@/utils";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -268,12 +269,7 @@ export function MemberMinistryManager() {
         <FilterInput label="Pesquisa" value={filters.search} onChange={(value) => updateFilter("search", value)} className="lg:col-span-2" />
         <label className={filterLabelClass}>
           Membro
-          <select value={filters.memberId} onChange={(event) => updateFilter("memberId", event.target.value)} className={filterInputClass}>
-            <option value="">Todos</option>
-            {data?.filters.members.map((member) => (
-              <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>
-            ))}
-          </select>
+          <MemberCombobox value={filters.memberId} onChange={(memberId) => updateFilter("memberId", memberId)} members={data?.filters.members ?? []} emptyLabel="Todos" ariaLabel="Filtrar por membro" />
         </label>
         <label className={filterLabelClass}>
           Ministerio
@@ -435,10 +431,7 @@ export function MemberMinistryManager() {
                   <FormMessage id="member-ministry-form-message">{formMessage}</FormMessage>
                 </div>
                 <Field label="Membro">
-                  <select required value={form.memberId} onChange={(event) => updateForm("memberId", event.target.value)} className={inputClass}>
-                    <option value="">Selecione</option>
-                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
-                  </select>
+                  <MemberCombobox required value={form.memberId} onChange={(memberId) => updateForm("memberId", memberId)} members={data?.filters.members ?? []} allowEmpty={false} ariaLabel="Membro do vínculo" />
                 </Field>
                 <Field label="Ministerio">
                   <select required value={form.ministryId} onChange={(event) => updateForm("ministryId", event.target.value)} className={inputClass}>

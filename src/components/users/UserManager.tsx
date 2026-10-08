@@ -4,6 +4,7 @@ import { UserRole } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { PasswordInput } from "@/components/PasswordInput";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { MemberCombobox } from "@/components/members/MemberCombobox";
 import type { MinistryFinancialAccessResult, UserFormValues, UserListResult, UserSummary } from "@/types";
 import { getMemberOptionLabel } from "@/utils";
 
@@ -553,14 +554,7 @@ export function UserManager({ canManageMinistryFinance = false }: { canManageMin
                   </select>
                 </Field>
                 <Field label="Membro vinculado">
-                  <select value={form.memberId} onChange={(event) => setForm((current) => ({ ...current, memberId: event.target.value }))} className={inputClass}>
-                    <option value="">Sem membro</option>
-                    {assignableMembers.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {getMemberOptionLabel(member)} {member.email ? `- ${member.email}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <MemberCombobox value={form.memberId ?? ""} onChange={(memberId) => setForm((current) => ({ ...current, memberId }))} members={assignableMembers.map((member) => ({ ...member, label: `${getMemberOptionLabel(member)}${member.email ? ` - ${member.email}` : ""}`, searchText: member.email }))} emptyLabel="Sem membro" ariaLabel="Membro vinculado" />
                 </Field>
                 <label className="flex items-center gap-2 text-sm font-bold text-ink-700">
                   <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />

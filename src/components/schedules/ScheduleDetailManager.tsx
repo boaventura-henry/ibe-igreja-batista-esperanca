@@ -10,7 +10,7 @@ import {
   normalizeScheduleMemberRoles,
   scheduleMemberRoleOptions
 } from "@/lib/schedule-member-role";
-import { getMemberOptionLabel } from "@/utils";
+import { MemberCombobox } from "@/components/members/MemberCombobox";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleRepertoireManager } from "@/components/schedules/ScheduleRepertoireManager";
 import {
@@ -688,16 +688,15 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                   <FormMessage id="schedule-member-form-message">{formMessage}</FormMessage>
                 </div>
                 <Field label="Membro">
-                  <select
+                  <MemberCombobox
                     required
                     value={memberForm.memberId}
-                    onChange={(event) => updateMemberId(event.target.value)}
-                    className={inputClass}
-                    aria-busy={isSuggestionLoading}
-                  >
-                    <option value="">Selecione</option>
-                    {selectableMembers.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
-                  </select>
+                    onChange={updateMemberId}
+                    members={selectableMembers}
+                    allowEmpty={false}
+                    loading={isSuggestionLoading}
+                    ariaLabel="Membro escalado"
+                  />
                   {!memberForm.allowMinistryException && availableMembers.length === 0 ? (
                     <span className="text-xs font-semibold normal-case tracking-normal text-ink-500">Nao ha membros ativos vinculados a este ministerio.</span>
                   ) : null}
@@ -798,10 +797,13 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                   </select>
                 </Field>
                 <Field label="Substituto">
-                  <select value={memberForm.replacedByMemberId ?? ""} onChange={(event) => updateForm("replacedByMemberId", event.target.value)} className={inputClass}>
-                    <option value="">Nenhum</option>
-                    {selectableMembers.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
-                  </select>
+                  <MemberCombobox
+                    value={memberForm.replacedByMemberId ?? ""}
+                    onChange={(replacedByMemberId) => updateForm("replacedByMemberId", replacedByMemberId)}
+                    members={selectableMembers}
+                    emptyLabel="Nenhum"
+                    ariaLabel="Membro substituto"
+                  />
                 </Field>
                 <Field label="Confirmado em" className="md:col-span-2">
                   <input type="datetime-local" value={memberForm.confirmedAt?.slice(0, 16) ?? ""} onChange={(event) => updateForm("confirmedAt", event.target.value ? new Date(event.target.value).toISOString() : "")} className={inputClass} />

@@ -4,6 +4,7 @@ import { EventStatus, EventType } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { MemberCombobox } from "@/components/members/MemberCombobox";
 import { applicationDateInputValue } from "@/lib/application-time";
 import type { EventFormValues, EventListResult, EventSummary } from "@/types";
 
@@ -515,7 +516,7 @@ function EventForm({
             <Field label="Status"><select value={form.status} onChange={(event) => updateForm("status", event.target.value as EventStatus)} className={inputClass}>{Object.values(EventStatus).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></Field>
             <Field label="Descricao" className="md:col-span-4"><textarea value={form.description} onChange={(event) => updateForm("description", event.target.value)} className={`${inputClass} min-h-20`} /></Field>
             <Field label="Ministerio" className="md:col-span-2"><select value={form.ministryId} onChange={(event) => updateForm("ministryId", event.target.value)} className={inputClass}><option value="">Sem ministerio</option>{data?.filters.ministries.map((ministry) => <option key={ministry.id} value={ministry.id}>{ministry.name}</option>)}</select></Field>
-          <Field label="Responsavel" className="md:col-span-2"><select value={form.responsibleMemberId} onChange={(event) => updateForm("responsibleMemberId", event.target.value)} className={inputClass}><option value="">Sem responsavel</option>{data?.filters.members.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}</select></Field>
+          <Field label="Responsavel" className="md:col-span-2"><MemberCombobox value={form.responsibleMemberId ?? ""} onChange={(responsibleMemberId) => updateForm("responsibleMemberId", responsibleMemberId)} members={(data?.filters.members ?? []).map((member) => ({ ...member, label: member.displayName }))} emptyLabel="Sem responsavel" ariaLabel="Responsável pelo evento" /></Field>
             <Field label="Data inicial"><input required type="date" value={form.startDate} onChange={(event) => updateForm("startDate", event.target.value)} className={inputClass} /></Field>
             <Field label="Data final"><input type="date" value={form.endDate} onChange={(event) => updateForm("endDate", event.target.value)} className={inputClass} /></Field>
             <Field label="Inicio"><input type="time" value={form.startTime} onChange={(event) => updateForm("startTime", event.target.value)} className={inputClass} /></Field>

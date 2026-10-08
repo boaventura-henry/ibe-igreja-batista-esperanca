@@ -3,9 +3,10 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { MemberCombobox } from "@/components/members/MemberCombobox";
 import { MinistryIcon, WeekDay } from "@prisma/client";
 import type { MinistryFormValues, MinistryListResult, MinistrySummary } from "@/types";
-import { formatPhone, getMemberOptionLabel, onlyDigits } from "@/utils";
+import { formatPhone, onlyDigits } from "@/utils";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
@@ -371,12 +372,7 @@ export function MinistryManager() {
         </label>
         <label className={filterLabelClass}>
           Lideranca
-          <select value={filters.leaderMemberId} onChange={(event) => updateFilter("leaderMemberId", event.target.value)} className={filterInputClass}>
-            <option value="">Todos</option>
-            {data?.filters.members.map((member) => (
-              <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>
-            ))}
-          </select>
+          <MemberCombobox value={filters.leaderMemberId} onChange={(leaderMemberId) => updateFilter("leaderMemberId", leaderMemberId)} members={data?.filters.members ?? []} emptyLabel="Todos" ariaLabel="Filtrar por liderança" />
         </label>
         <label className={filterLabelClass}>
           Ordenar por
@@ -614,16 +610,10 @@ export function MinistryManager() {
                   <input value={form.location} onChange={(event) => updateForm("location", event.target.value)} className={inputClass} />
                 </Field>
                 <Field label="Lider" className="md:col-span-2">
-                  <select value={form.leaderMemberId} onChange={(event) => updateForm("leaderMemberId", event.target.value)} className={inputClass}>
-                    <option value="">Sem lider</option>
-                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
-                  </select>
+                  <MemberCombobox value={form.leaderMemberId ?? ""} onChange={(leaderMemberId) => updateForm("leaderMemberId", leaderMemberId)} members={data?.filters.members ?? []} emptyLabel="Sem lider" ariaLabel="Líder do ministério" />
                 </Field>
                 <Field label="Vice-lider" className="md:col-span-2">
-                  <select value={form.viceLeaderMemberId} onChange={(event) => updateForm("viceLeaderMemberId", event.target.value)} className={inputClass}>
-                    <option value="">Sem vice-lider</option>
-                    {data?.filters.members.map((member) => <option key={member.id} value={member.id}>{getMemberOptionLabel(member)}</option>)}
-                  </select>
+                  <MemberCombobox value={form.viceLeaderMemberId ?? ""} onChange={(viceLeaderMemberId) => updateForm("viceLeaderMemberId", viceLeaderMemberId)} members={data?.filters.members ?? []} emptyLabel="Sem vice-lider" ariaLabel="Vice-líder do ministério" />
                 </Field>
                 <Field label="Observacoes" className="md:col-span-4">
                   <textarea value={form.notes} onChange={(event) => updateForm("notes", event.target.value)} className={`${inputClass} min-h-24`} />

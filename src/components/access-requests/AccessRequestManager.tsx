@@ -3,6 +3,7 @@
 import { UserAccessRequestStatus } from "@prisma/client";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { MemberCombobox } from "@/components/members/MemberCombobox";
 import type { AccessRequestDetailResult, AccessRequestListResult, AccessRequestSummary } from "@/types";
 import { getMemberOptionLabel } from "@/utils";
 
@@ -391,14 +392,7 @@ export function AccessRequestManager({ canApprove, canReject }: { canApprove: bo
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Membro aprovado">
-                    <select required value={approveMemberId} onChange={(event) => setApproveMemberId(event.target.value)} className={filterInputClass}>
-                      <option value="">Selecione</option>
-                      {selected.members.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {getMemberOptionLabel(member)} {member.email ? `- ${member.email}` : ""}
-                        </option>
-                      ))}
-                    </select>
+                    <MemberCombobox required value={approveMemberId} onChange={setApproveMemberId} members={selected.members.map((member) => ({ ...member, label: `${getMemberOptionLabel(member)}${member.email ? ` - ${member.email}` : ""}`, searchText: member.email }))} allowEmpty={false} ariaLabel="Membro aprovado" />
                   </Field>
                   <label className="flex items-center gap-2 text-sm font-bold text-ink-700">
                     <input type="checkbox" checked={mustChangePassword} onChange={(event) => setMustChangePassword(event.target.checked)} />

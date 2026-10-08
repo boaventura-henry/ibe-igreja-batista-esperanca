@@ -14,6 +14,15 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.12",
+    title: "Selecao pesquisavel de membros",
+    summary: "Combobox pesquisavel compartilhado para selecao de membros nos fluxos administrativos.",
+    type: "MINOR",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: ["Pesquisa de membros por nome, apelido e texto relevante sem diferenciar acentos"]
+  },
+  {
     version: "0.2.11",
     title: "Rotulos de forma de pagamento",
     summary: "Padronizacao dos rotulos de formas de pagamento e recebimento em portugues.",
