@@ -18,8 +18,8 @@ export const appReleases: readonly AppRelease[] = [
     title: "Selecao pesquisavel de membros",
     summary: "Combobox pesquisavel compartilhado para selecao de membros nos fluxos administrativos.",
     type: "MINOR",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-10-08",
     highlights: ["Pesquisa de membros por nome, apelido e texto relevante sem diferenciar acentos"]
   },
   {
