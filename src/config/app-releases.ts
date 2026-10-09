@@ -14,12 +14,21 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.14",
+    title: "Correcao de exibicao das escalas em celulares",
+    summary: "Correcao da exibicao da pagina de Escalas em celulares, evitando desalinhamento horizontal apos o carregamento da listagem.",
+    type: "PATCH",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: ["Listagem de Escalas preserva o alinhamento horizontal em celulares"]
+  },
+  {
     version: "0.2.13",
     title: "Equipe inicial na criacao da escala",
     summary: "Montagem opcional e atomica da equipe durante a criacao de uma nova escala.",
     type: "MINOR",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-10-09",
     highlights: [
       "Equipe inicial opcional com multiplas funcoes e instrumentos",
       "Criacao atomica da escala, participantes, funcoes e instrumentos",

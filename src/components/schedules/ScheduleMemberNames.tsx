@@ -30,7 +30,7 @@ export function ScheduleMemberNames({ members, memberCount }: ScheduleMemberName
   }
 
   return (
-    <div className="min-w-44 max-w-xs">
+    <div className="relative min-w-44 max-w-xs">
       <p className="mb-1 text-xs font-bold text-ink-500">Membros ({memberCount})</p>
       <div className="sm:hidden">
         <MemberSummary members={members} limit={3} />
