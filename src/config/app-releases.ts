@@ -14,6 +14,19 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.13",
+    title: "Equipe inicial na criacao da escala",
+    summary: "Montagem opcional e atomica da equipe durante a criacao de uma nova escala.",
+    type: "MINOR",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: [
+      "Equipe inicial opcional com multiplas funcoes e instrumentos",
+      "Criacao atomica da escala, participantes, funcoes e instrumentos",
+      "Preservacao das permissoes e do escopo ministerial"
+    ]
+  },
+  {
     version: "0.2.12",
     title: "Selecao pesquisavel de membros",
     summary: "Combobox pesquisavel compartilhado para selecao de membros nos fluxos administrativos.",

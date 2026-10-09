@@ -255,15 +255,15 @@ export const scheduleRepository = {
     });
   },
 
-  findMinistryById(id: string) {
-    return prisma.ministry.findFirst({
+  findMinistryById(id: string, database: ScheduleDatabase = prisma) {
+    return database.ministry.findFirst({
       where: { id, deletedAt: null },
       select: { id: true, name: true, isActive: true }
     });
   },
 
-  findEventById(id: string) {
-    return prisma.event.findFirst({
+  findEventById(id: string, database: ScheduleDatabase = prisma) {
+    return database.event.findFirst({
       where: { id, deletedAt: null },
       select: { id: true, title: true, ministryId: true }
     });
@@ -430,8 +430,8 @@ export const scheduleRepository = {
     });
   },
 
-  create(data: ScheduleCreateInput, userId: string) {
-    return prisma.schedule.create({
+  create(data: ScheduleCreateInput, userId: string, database: ScheduleDatabase = prisma) {
+    return database.schedule.create({
       data: { ...createData(data), createdById: userId, updatedById: userId },
       select: scheduleSelect
     });
@@ -742,8 +742,12 @@ export const scheduleRepository = {
     });
   },
 
-  listAvailableMembers(ministryId: string, allowMinistryException: boolean) {
-    return prisma.member.findMany({
+  listAvailableMembers(
+    ministryId: string,
+    allowMinistryException: boolean,
+    database: ScheduleDatabase = prisma
+  ) {
+    return database.member.findMany({
       where: {
         deletedAt: null,
         status: MemberStatus.ACTIVE,

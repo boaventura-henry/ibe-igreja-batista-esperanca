@@ -7,10 +7,15 @@ import {
   getScheduleMemberRoles,
   getScheduleMemberDisplayRoles,
   hasInstrumentRole,
-  normalizeScheduleMemberRoles,
-  scheduleMemberRoleOptions
+  normalizeScheduleMemberRoles
 } from "@/lib/schedule-member-role";
 import { MemberCombobox } from "@/components/members/MemberCombobox";
+import {
+  ScheduleMemberBasicEditor,
+  type ScheduleEligibleInstrumentOption,
+  type ScheduleInstrumentCategoryOption,
+  type ScheduleInstrumentDraft
+} from "@/components/schedules/ScheduleMemberBasicEditor";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleRepertoireManager } from "@/components/schedules/ScheduleRepertoireManager";
 import {
@@ -28,12 +33,9 @@ type ApiResponse<T> =
   | { success: false; error: { code: string; message: string } };
 
 type AvailableScheduleMember = { id: string; name: string; nickname: string | null; displayName: string; status: string };
-type InstrumentCategoryOption = { id: string; name: string; isActive: boolean };
-type EligibleInstrument = { id: string; name: string; brand: string | null; model: string | null; status: string };
-type InstrumentAssignmentDraft = { instrumentCategoryId: string; source: "" | "REGISTERED" | "OWN"; instrumentId: string };
 type MemberForm = Omit<ScheduleMemberFormValues, "roles" | "instrumentAssignment"> & {
   roles: ScheduleMemberRole[];
-  instrumentAssignment?: InstrumentAssignmentDraft;
+  instrumentAssignment?: ScheduleInstrumentDraft;
 };
 
 const statusOptions = [
@@ -70,10 +72,6 @@ function formatDate(value: string | null | undefined) {
   }
 
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value));
-}
-
-function instrumentLabel(instrument: EligibleInstrument, historical = false) {
-  return instrument.name + (historical && instrument.status !== "ACTIVE" ? " (Indisponivel)" : "");
 }
 
 function normalizeMemberForm(form: MemberForm, allowMissingHistoricalAssignment = false) {
@@ -147,8 +145,8 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   const [editingId, setEditingId] = useState<string | null>(null);
   const [memberForm, setMemberForm] = useState<MemberForm>(emptyMemberForm);
   const [availableMembers, setAvailableMembers] = useState<AvailableScheduleMember[]>([]);
-  const [instrumentCategories, setInstrumentCategories] = useState<InstrumentCategoryOption[]>([]);
-  const [eligibleInstruments, setEligibleInstruments] = useState<EligibleInstrument[]>([]);
+  const [instrumentCategories, setInstrumentCategories] = useState<ScheduleInstrumentCategoryOption[]>([]);
+  const [eligibleInstruments, setEligibleInstruments] = useState<ScheduleEligibleInstrumentOption[]>([]);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
   const [isInstrumentsLoading, setIsInstrumentsLoading] = useState(false);
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
@@ -166,9 +164,6 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
 
   const selectedScheduleMember = editingId ? schedule.members.find((member) => member.id === editingId) : null;
   const historicalAssignment = selectedScheduleMember?.instrumentAssignment ?? null;
-  const showInstrumentFields =
-    hasInstrumentRole({ roles: memberForm.roles }) &&
-    memberForm.status !== ScheduleMemberStatus.REPLACED;
   const categoryOptions = useMemo(() => {
     const current = historicalAssignment?.instrumentCategory;
 
@@ -229,7 +224,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
 
     try {
       const response = await fetch("/api/instrument-categories?isActive=true&pageSize=100", { cache: "no-store" });
-      const payload = (await response.json()) as ApiResponse<{ categories: InstrumentCategoryOption[] }>;
+      const payload = (await response.json()) as ApiResponse<{ categories: ScheduleInstrumentCategoryOption[] }>;
 
       if (!payload.success) {
         throw new Error(payload.error.message);
@@ -259,7 +254,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
         "/api/schedules/" + schedule.id + "/eligible-instruments?categoryId=" + encodeURIComponent(categoryId),
         { cache: "no-store" }
       );
-      const payload = (await response.json()) as ApiResponse<{ instruments: EligibleInstrument[] }>;
+      const payload = (await response.json()) as ApiResponse<{ instruments: ScheduleEligibleInstrumentOption[] }>;
 
       if (!payload.success) {
         throw new Error(payload.error.message);
@@ -438,7 +433,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
     }
   }
 
-  function updateInstrumentSource(source: InstrumentAssignmentDraft["source"]) {
+  function updateInstrumentSource(source: ScheduleInstrumentDraft["source"]) {
     const instrumentCategoryId = memberForm.instrumentAssignment?.instrumentCategoryId ?? "";
 
     setMemberForm((form) => ({
@@ -687,110 +682,43 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
                 <div className="md:col-span-2">
                   <FormMessage id="schedule-member-form-message">{formMessage}</FormMessage>
                 </div>
-                <Field label="Membro">
-                  <MemberCombobox
-                    required
-                    value={memberForm.memberId}
-                    onChange={updateMemberId}
+                <div className="md:col-span-2">
+                  <ScheduleMemberBasicEditor
+                    value={memberForm}
                     members={selectableMembers}
-                    allowEmpty={false}
-                    loading={isSuggestionLoading}
-                    ariaLabel="Membro escalado"
+                    categories={categoryOptions}
+                    instruments={instrumentOptions.map((instrument) => ({
+                      ...instrument,
+                      label:
+                        instrument.id === historicalAssignment?.instrument?.id && instrument.status !== "ACTIVE"
+                          ? `${instrument.name} (Indisponivel)`
+                          : instrument.name
+                    }))}
+                    onMemberChange={updateMemberId}
+                    onRoleChange={updateRole}
+                    onInstrumentCategoryChange={updateInstrumentCategory}
+                    onInstrumentSourceChange={updateInstrumentSource}
+                    onInstrumentChange={updateInstrumentId}
+                    memberLoading={isSuggestionLoading}
+                    categoriesLoading={isCategoriesLoading}
+                    instrumentsLoading={isInstrumentsLoading}
+                    instrumentSourceName="schedule-member-instrument-source"
+                    instrumentEnabled={memberForm.status !== ScheduleMemberStatus.REPLACED}
+                    memberHelp={(
+                      <>
+                        {!memberForm.allowMinistryException && availableMembers.length === 0 ? (
+                          <span className="text-xs font-semibold normal-case tracking-normal text-ink-500">Nao ha membros ativos vinculados a este ministerio.</span>
+                        ) : null}
+                        {isSuggestionLoading ? (
+                          <span className="text-xs font-semibold normal-case tracking-normal text-ink-500" role="status">Consultando ultima configuracao instrumental...</span>
+                        ) : null}
+                        {suggestionMessage ? (
+                          <span className="text-xs font-semibold normal-case tracking-normal text-hope-700" role="status">{suggestionMessage}</span>
+                        ) : null}
+                      </>
+                    )}
                   />
-                  {!memberForm.allowMinistryException && availableMembers.length === 0 ? (
-                    <span className="text-xs font-semibold normal-case tracking-normal text-ink-500">Nao ha membros ativos vinculados a este ministerio.</span>
-                  ) : null}
-                  {isSuggestionLoading ? (
-                    <span className="text-xs font-semibold normal-case tracking-normal text-ink-500" role="status">
-                      Consultando ultima configuracao instrumental...
-                    </span>
-                  ) : null}
-                  {suggestionMessage ? (
-                    <span className="text-xs font-semibold normal-case tracking-normal text-hope-700" role="status">
-                      {suggestionMessage}
-                    </span>
-                  ) : null}
-                </Field>
-                <fieldset className="grid gap-2 md:col-span-2">
-                  <legend className="text-xs font-bold uppercase tracking-wide text-ink-500">Funções</legend>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {scheduleMemberRoleOptions.map((role) => (
-                      <label key={role.value} className="flex min-h-10 items-center gap-2 rounded-md border border-hope-100 px-3 py-2 text-sm font-semibold text-ink-700">
-                        <input
-                          type="checkbox"
-                          name="schedule-member-roles"
-                          value={role.value}
-                          checked={memberForm.roles.includes(role.value)}
-                          onChange={(event) => updateRole(role.value, event.target.checked)}
-                        />
-                        {role.label}
-                      </label>
-                    ))}
-                  </div>
-                  {memberForm.roles.length === 0 ? (
-                    <span className="text-xs font-semibold text-red-700">Selecione pelo menos uma função.</span>
-                  ) : null}
-                </fieldset>
-                {showInstrumentFields ? (
-                  <>
-                    <Field label="Categoria musical">
-                      <select
-                        value={memberForm.instrumentAssignment?.instrumentCategoryId ?? ""}
-                        onChange={(event) => updateInstrumentCategory(event.target.value)}
-                        disabled={isCategoriesLoading}
-                        className={inputClass}
-                        aria-busy={isCategoriesLoading}
-                      >
-                        <option value="">{isCategoriesLoading ? "Carregando categorias..." : "Categoria nao informada"}</option>
-                        {categoryOptions.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}{!category.isActive ? " (Inativa)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <fieldset className="grid gap-2 text-xs font-bold uppercase tracking-wide text-ink-500">
-                      <legend>Origem do instrumento</legend>
-                      <label className="flex items-center gap-2 text-sm font-semibold normal-case tracking-normal text-ink-700">
-                        <input type="radio" name="instrument-source" value="REGISTERED" checked={memberForm.instrumentAssignment?.source === "REGISTERED"} onChange={() => updateInstrumentSource("REGISTERED")} />
-                        Instrumento da igreja
-                      </label>
-                      <label className="flex items-center gap-2 text-sm font-semibold normal-case tracking-normal text-ink-700">
-                        <input type="radio" name="instrument-source" value="OWN" checked={memberForm.instrumentAssignment?.source === "OWN"} onChange={() => updateInstrumentSource("OWN")} />
-                        Instrumento próprio
-                      </label>
-                    </fieldset>
-                    {memberForm.instrumentAssignment?.source === "REGISTERED" ? (
-                      <Field label="Instrumento" className="md:col-span-2">
-                        <select
-                          value={memberForm.instrumentAssignment.instrumentId}
-                          onChange={(event) => updateInstrumentId(event.target.value)}
-                          disabled={!memberForm.instrumentAssignment.instrumentCategoryId || isInstrumentsLoading}
-                          className={inputClass}
-                          aria-busy={isInstrumentsLoading}
-                        >
-                          <option value="">
-                            {!memberForm.instrumentAssignment.instrumentCategoryId
-                              ? "Selecione uma categoria primeiro"
-                              : isInstrumentsLoading
-                                ? "Carregando instrumentos..."
-                                : instrumentOptions.length === 0
-                                  ? "Nenhum instrumento ativo disponivel para esta categoria."
-                                  : "Selecione"}
-                          </option>
-                          {instrumentOptions.map((instrument) => (
-                            <option key={instrument.id} value={instrument.id}>
-                              {instrumentLabel(instrument, instrument.id === historicalAssignment?.instrument?.id)}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                    ) : null}
-                    {memberForm.instrumentAssignment?.source === "OWN" ? (
-                      <p className="text-sm font-semibold text-ink-600 md:col-span-2">Será utilizado um instrumento próprio do membro.</p>
-                    ) : null}
-                  </>
-                ) : null}
+                </div>
                 <Field label="Status">
                   <select value={memberForm.status} onChange={(event) => updateForm("status", event.target.value as ScheduleMemberStatus)} className={inputClass}>
                     {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}

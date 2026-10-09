@@ -1,18 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { ScheduleStatus } from "@prisma/client";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ScheduleMemberRole, ScheduleStatus } from "@prisma/client";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import {
+  ScheduleMemberBasicEditor,
+  type ScheduleEligibleInstrumentOption,
+  type ScheduleInstrumentCategoryOption,
+  type ScheduleInstrumentDraft,
+  type ScheduleMemberBasicValue
+} from "@/components/schedules/ScheduleMemberBasicEditor";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleMemberNames } from "@/components/schedules/ScheduleMemberNames";
 import { applicationDateInputValue } from "@/lib/application-time";
+import { getScheduleMemberDisplayRoles, normalizeScheduleMemberRoles } from "@/lib/schedule-member-role";
 import type { ScheduleFormValues, ScheduleListItem, ScheduleListResult, ScheduleSummary } from "@/types";
-import { formatDateForInput } from "@/utils";
+import { formatDateForInput, getMemberOptionLabel } from "@/utils";
 
 type ApiResponse<T> =
   | ({ success: true; data: T } & T)
   | { success: false; error: { code: string; message: string } };
+
+type AvailableScheduleMember = {
+  id: string;
+  name: string;
+  nickname: string | null;
+  displayName: string;
+  status: string;
+};
+
+type InitialTeamDraft = ScheduleMemberBasicValue & {
+  key: string;
+  allowMinistryException: boolean;
+  categoryName?: string;
+  instrumentName?: string;
+};
+
+const emptyInitialMember = (): InitialTeamDraft => ({
+  key: crypto.randomUUID(),
+  memberId: "",
+  roles: [],
+  allowMinistryException: false
+});
 
 const statusOptions = [
   { value: ScheduleStatus.DRAFT, label: "Rascunho" },
@@ -54,7 +84,7 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(value));
 }
 
-function normalizeForm(form: ScheduleFormValues) {
+function normalizeForm(form: ScheduleFormValues, initialMembers?: InitialTeamDraft[]) {
   return {
     title: form.title,
     description: form.description?.trim() || undefined,
@@ -64,7 +94,25 @@ function normalizeForm(form: ScheduleFormValues) {
     startTime: form.startTime?.trim() || undefined,
     endTime: form.endTime?.trim() || undefined,
     location: form.location?.trim() || undefined,
-    observations: form.observations?.trim() || undefined
+    observations: form.observations?.trim() || undefined,
+    ...(initialMembers
+      ? {
+          initialMembers: initialMembers.map(({ memberId, roles, allowMinistryException, instrumentAssignment }) => ({
+            memberId,
+            roles,
+            allowMinistryException,
+            ...(instrumentAssignment
+              ? {
+                  instrumentAssignment: {
+                    instrumentCategoryId: instrumentAssignment.instrumentCategoryId,
+                    source: instrumentAssignment.source,
+                    instrumentId: instrumentAssignment.source === "REGISTERED" ? instrumentAssignment.instrumentId : null
+                  }
+                }
+              : {})
+          }))
+        }
+      : {})
   };
 }
 
@@ -75,8 +123,22 @@ export function ScheduleManager() {
   const [formMessage, setFormMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ScheduleFormValues>(() => createScheduleForm());
+  const [initialMembers, setInitialMembers] = useState<InitialTeamDraft[]>([]);
+  const [isTeamEditorOpen, setIsTeamEditorOpen] = useState(false);
+  const [editingTeamKey, setEditingTeamKey] = useState<string | null>(null);
+  const [teamDraft, setTeamDraft] = useState<InitialTeamDraft>(emptyInitialMember);
+  const [availableMembers, setAvailableMembers] = useState<AvailableScheduleMember[]>([]);
+  const [instrumentCategories, setInstrumentCategories] = useState<ScheduleInstrumentCategoryOption[]>([]);
+  const [eligibleInstruments, setEligibleInstruments] = useState<ScheduleEligibleInstrumentOption[]>([]);
+  const [isMembersLoading, setIsMembersLoading] = useState(false);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
+  const [isInstrumentsLoading, setIsInstrumentsLoading] = useState(false);
+  const membersRequest = useRef(0);
+  const instrumentsRequest = useRef(0);
+  const submitLock = useRef(false);
   const [filters, setFilters] = useState({
     search: "",
     ministryId: "",
@@ -92,6 +154,7 @@ export function ScheduleManager() {
   const permissionCodes = session?.user.permissionCodes ?? [];
   const canCreate = permissionCodes.includes("schedule.create");
   const canUpdate = permissionCodes.includes("schedule.update");
+  const canManageInitialTeam = canCreate && canUpdate;
   const canDelete = permissionCodes.includes("schedule.delete");
   const canPublish = permissionCodes.includes("schedule.publish");
   const canCancel = permissionCodes.includes("schedule.cancel");
@@ -109,6 +172,15 @@ export function ScheduleManager() {
 
     return params.toString();
   }, [filters]);
+
+  const selectableInitialMembers = useMemo(() => {
+    const selectedIds = new Set(
+      initialMembers
+        .filter((member) => member.key !== editingTeamKey)
+        .map((member) => member.memberId)
+    );
+    return availableMembers.filter((member) => !selectedIds.has(member.id));
+  }, [availableMembers, editingTeamKey, initialMembers]);
 
   const loadSchedules = useCallback(async () => {
     setIsLoading(true);
@@ -151,6 +223,9 @@ export function ScheduleManager() {
   function openCreateForm() {
     setEditingId(null);
     setForm(createScheduleForm());
+    setInitialMembers([]);
+    setIsTeamEditorOpen(false);
+    setEditingTeamKey(null);
     setMessage("");
     setFormMessage("");
     setIsFormOpen(true);
@@ -158,6 +233,8 @@ export function ScheduleManager() {
 
   async function openEditForm(schedule: ScheduleListItem) {
     setEditingId(schedule.id);
+    setInitialMembers([]);
+    setIsTeamEditorOpen(false);
     setForm({
       title: schedule.title,
       description: schedule.description ?? "",
@@ -174,15 +251,205 @@ export function ScheduleManager() {
     setIsFormOpen(true);
   }
 
+  function updateMinistry(ministryId: string) {
+    membersRequest.current += 1;
+    instrumentsRequest.current += 1;
+    setAvailableMembers([]);
+    setEligibleInstruments([]);
+    setIsMembersLoading(false);
+    setIsInstrumentsLoading(false);
+    if (ministryId !== form.ministryId && (initialMembers.length > 0 || isTeamEditorOpen)) {
+      setInitialMembers([]);
+      setIsTeamEditorOpen(false);
+      setEditingTeamKey(null);
+      setFormMessage("A equipe inicial foi limpa porque o ministerio da escala foi alterado.");
+    }
+    updateForm("ministryId", ministryId);
+  }
+
+  async function loadInitialMembers(
+    allowMinistryException: boolean,
+    selectedMemberId = "",
+    ministryId = form.ministryId
+  ) {
+    const requestId = ++membersRequest.current;
+    if (!ministryId) return;
+    setIsMembersLoading(true);
+    try {
+      const params = new URLSearchParams({
+        ministryId,
+        allowMinistryException: String(allowMinistryException)
+      });
+      const response = await fetch(`/api/schedules/initial-team/members?${params}`, { cache: "no-store" });
+      const payload = (await response.json()) as ApiResponse<{ members: AvailableScheduleMember[] }>;
+      if (!payload.success) throw new Error(payload.error.message);
+      if (requestId !== membersRequest.current) return;
+      setAvailableMembers(payload.data.members);
+      if (
+        selectedMemberId &&
+        !allowMinistryException &&
+        !payload.data.members.some((member) => member.id === selectedMemberId)
+      ) {
+        setTeamDraft((current) => ({ ...current, memberId: "" }));
+        setFormMessage("O membro selecionado foi removido porque nao pertence ao ministerio da escala.");
+      }
+    } catch (error) {
+      if (requestId === membersRequest.current) {
+        setFormMessage(error instanceof Error ? error.message : "Nao foi possivel carregar os membros disponiveis.");
+      }
+    } finally {
+      if (requestId === membersRequest.current) setIsMembersLoading(false);
+    }
+  }
+
+  async function loadInitialInstrumentCategories() {
+    setIsCategoriesLoading(true);
+    try {
+      const response = await fetch("/api/instrument-categories?isActive=true&pageSize=100", { cache: "no-store" });
+      const payload = (await response.json()) as ApiResponse<{ categories: ScheduleInstrumentCategoryOption[] }>;
+      if (!payload.success) throw new Error(payload.error.message);
+      setInstrumentCategories(payload.data.categories);
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : "Nao foi possivel carregar as categorias musicais.");
+    } finally {
+      setIsCategoriesLoading(false);
+    }
+  }
+
+  async function loadInitialEligibleInstruments(categoryId: string, ministryId = form.ministryId) {
+    const requestId = ++instrumentsRequest.current;
+    if (!categoryId || !ministryId) {
+      setEligibleInstruments([]);
+      setIsInstrumentsLoading(false);
+      return;
+    }
+    setIsInstrumentsLoading(true);
+    try {
+      const params = new URLSearchParams({ ministryId, categoryId });
+      const response = await fetch(`/api/schedules/initial-team/instruments?${params}`, { cache: "no-store" });
+      const payload = (await response.json()) as ApiResponse<{ instruments: ScheduleEligibleInstrumentOption[] }>;
+      if (!payload.success) throw new Error(payload.error.message);
+      if (requestId !== instrumentsRequest.current) return;
+      setEligibleInstruments(payload.data.instruments);
+    } catch (error) {
+      if (requestId === instrumentsRequest.current) {
+        setEligibleInstruments([]);
+        setFormMessage(error instanceof Error ? error.message : "Nao foi possivel carregar os instrumentos elegiveis.");
+      }
+    } finally {
+      if (requestId === instrumentsRequest.current) setIsInstrumentsLoading(false);
+    }
+  }
+
+  function openInitialMemberEditor(member?: InitialTeamDraft) {
+    if (!form.ministryId) {
+      setFormMessage("Selecione o ministerio antes de montar a equipe inicial.");
+      return;
+    }
+    const next = member ? { ...member } : emptyInitialMember();
+    setEditingTeamKey(member?.key ?? null);
+    setTeamDraft(next);
+    setEligibleInstruments([]);
+    setFormMessage("");
+    setIsTeamEditorOpen(true);
+    void loadInitialMembers(next.allowMinistryException, next.memberId);
+    void loadInitialInstrumentCategories();
+    if (next.instrumentAssignment?.source === "REGISTERED") {
+      void loadInitialEligibleInstruments(next.instrumentAssignment.instrumentCategoryId);
+    }
+  }
+
+  function updateInitialRole(role: ScheduleMemberRole, checked: boolean) {
+    setTeamDraft((current) => ({
+      ...current,
+      roles: normalizeScheduleMemberRoles(
+        checked ? [...current.roles, role] : current.roles.filter((item) => item !== role)
+      ),
+      ...(!checked && role === ScheduleMemberRole.INSTRUMENT ? { instrumentAssignment: undefined } : {})
+    }));
+    if (!checked && role === ScheduleMemberRole.INSTRUMENT) setEligibleInstruments([]);
+  }
+
+  function updateInitialCategory(instrumentCategoryId: string) {
+    const source = teamDraft.instrumentAssignment?.source ?? "";
+    setTeamDraft((current) => ({
+      ...current,
+      categoryName: instrumentCategories.find((item) => item.id === instrumentCategoryId)?.name,
+      instrumentName: undefined,
+      instrumentAssignment: { instrumentCategoryId, source, instrumentId: "" }
+    }));
+    setEligibleInstruments([]);
+    if (source === "REGISTERED" && instrumentCategoryId) void loadInitialEligibleInstruments(instrumentCategoryId);
+  }
+
+  function updateInitialInstrumentSource(source: ScheduleInstrumentDraft["source"]) {
+    const instrumentCategoryId = teamDraft.instrumentAssignment?.instrumentCategoryId ?? "";
+    setTeamDraft((current) => ({
+      ...current,
+      instrumentName: undefined,
+      instrumentAssignment: { instrumentCategoryId, source, instrumentId: "" }
+    }));
+    if (source === "REGISTERED" && instrumentCategoryId) {
+      void loadInitialEligibleInstruments(instrumentCategoryId);
+    } else {
+      instrumentsRequest.current += 1;
+      setEligibleInstruments([]);
+      setIsInstrumentsLoading(false);
+    }
+  }
+
+  function saveInitialMemberDraft() {
+    if (!teamDraft.memberId) return setFormMessage("Selecione um membro.");
+    if (!teamDraft.roles.length) return setFormMessage("Informe pelo menos uma funcao.");
+    if (initialMembers.some((member) => member.memberId === teamDraft.memberId && member.key !== editingTeamKey)) {
+      return setFormMessage("Este membro ja foi adicionado a equipe inicial.");
+    }
+    let instrumentAssignment = teamDraft.instrumentAssignment;
+    if (teamDraft.roles.includes(ScheduleMemberRole.INSTRUMENT)) {
+      if (!instrumentAssignment?.instrumentCategoryId) return setFormMessage("Informe a categoria musical.");
+      if (!instrumentAssignment.source) return setFormMessage("Informe a origem do instrumento.");
+      if (instrumentAssignment.source === "REGISTERED" && !instrumentAssignment.instrumentId) {
+        return setFormMessage("Selecione o instrumento da igreja.");
+      }
+    } else {
+      instrumentAssignment = undefined;
+    }
+    const normalized: InitialTeamDraft = {
+      ...teamDraft,
+      roles: normalizeScheduleMemberRoles(teamDraft.roles),
+      instrumentAssignment
+    };
+    setInitialMembers((current) =>
+      editingTeamKey
+        ? current.map((member) => member.key === editingTeamKey ? normalized : member)
+        : [...current, normalized]
+    );
+    setIsTeamEditorOpen(false);
+    setEditingTeamKey(null);
+    setFormMessage("");
+  }
+
+  function removeInitialMember(key: string) {
+    setInitialMembers((current) => current.filter((member) => member.key !== key));
+    if (editingTeamKey === key) {
+      setIsTeamEditorOpen(false);
+      setEditingTeamKey(null);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (submitLock.current) return;
+    submitLock.current = true;
+    setIsSubmitting(true);
     setFormMessage("");
 
     try {
       const response = await fetch(editingId ? `/api/schedules/${editingId}` : "/api/schedules", {
         method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(normalizeForm(form))
+        body: JSON.stringify(normalizeForm(form, editingId ? undefined : initialMembers))
       });
       const payload = (await response.json()) as ApiResponse<ScheduleSummary>;
 
@@ -195,6 +462,9 @@ export function ScheduleManager() {
       await loadSchedules();
     } catch (error) {
       setFormMessage(error instanceof Error ? error.message : "Nao foi possivel salvar a escala.");
+    } finally {
+      submitLock.current = false;
+      setIsSubmitting(false);
     }
   }
 
@@ -365,7 +635,7 @@ export function ScheduleManager() {
       {isFormOpen ? (
         <div className="fixed inset-0 z-40 overflow-y-auto bg-ink-900/45 px-4 py-6">
           <div className="mx-auto max-w-3xl rounded-md bg-white shadow-soft">
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} aria-busy={isSubmitting}>
               <div className="flex items-start justify-between border-b border-hope-100 px-5 py-4">
                 <div>
                   <h2 className="text-lg font-bold text-ink-900">{editingId ? "Editar escala" : "Nova escala"}</h2>
@@ -379,7 +649,7 @@ export function ScheduleManager() {
                 </div>
                 <Field label="Titulo" className="md:col-span-2"><input required value={form.title} onChange={(event) => updateForm("title", event.target.value)} className={inputClass} /></Field>
                 <Field label="Ministerio">
-                  <select required value={form.ministryId} onChange={(event) => updateForm("ministryId", event.target.value)} className={inputClass}>
+                  <select required value={form.ministryId} onChange={(event) => updateMinistry(event.target.value)} className={inputClass}>
                     <option value="">Selecione</option>
                     {data?.filters.ministries.map((ministry) => <option key={ministry.id} value={ministry.id}>{ministry.name}</option>)}
                   </select>
@@ -402,10 +672,113 @@ export function ScheduleManager() {
                 <Field label="Fim"><input type="time" value={form.endTime ?? ""} onChange={(event) => updateForm("endTime", event.target.value)} className={inputClass} /></Field>
                 <Field label="Descricao" className="md:col-span-2"><textarea value={form.description ?? ""} onChange={(event) => updateForm("description", event.target.value)} className={`${inputClass} min-h-20`} /></Field>
                 <Field label="Observacoes" className="md:col-span-2"><textarea value={form.observations ?? ""} onChange={(event) => updateForm("observations", event.target.value)} className={`${inputClass} min-h-20`} /></Field>
+                {!editingId && canManageInitialTeam ? (
+                  <section className="grid min-w-0 gap-4 border-t border-hope-100 pt-4 md:col-span-2" aria-labelledby="initial-team-title">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 id="initial-team-title" className="text-sm font-bold text-ink-900">Equipe da escala</h3>
+                        <p className="text-xs text-ink-500">Opcional. Os participantes serao salvos junto com a escala.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openInitialMemberEditor()}
+                        disabled={isSubmitting || !form.ministryId}
+                        className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        + Adicionar membro
+                      </button>
+                    </div>
+
+                    {initialMembers.length ? (
+                      <ul className="divide-y divide-hope-100 border-y border-hope-100">
+                        {initialMembers.map((member) => {
+                          const option = data?.filters.members.find((item) => item.id === member.memberId);
+                          const roleLabel = getScheduleMemberDisplayRoles(
+                            member,
+                            member.categoryName
+                              ? { instrumentCategory: { name: member.categoryName } }
+                              : null
+                          );
+                          return (
+                            <li key={member.key} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="min-w-0">
+                                <p className="break-words text-sm font-bold text-ink-900">
+                                  {option ? getMemberOptionLabel(option) : "Membro selecionado"}
+                                </p>
+                                <p className="break-words text-xs font-semibold text-ink-600">{roleLabel}</p>
+                                {member.instrumentAssignment?.source === "REGISTERED" && member.instrumentName ? (
+                                  <p className="break-words text-xs text-ink-500">{member.instrumentName}</p>
+                                ) : null}
+                                {member.instrumentAssignment?.source === "OWN" ? (
+                                  <p className="text-xs text-ink-500">Instrumento proprio</p>
+                                ) : null}
+                              </div>
+                              <div className="flex shrink-0 gap-2">
+                                <button type="button" onClick={() => openInitialMemberEditor(member)} className={actionClass}>Editar</button>
+                                <button type="button" onClick={() => removeInitialMember(member.key)} className={`${actionClass} text-red-700`}>Remover</button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-ink-500">Nenhum membro adicionado.</p>
+                    )}
+
+                    {isTeamEditorOpen ? (
+                      <div className="grid min-w-0 gap-4 border-t border-hope-100 pt-4">
+                        <h4 className="text-sm font-bold text-ink-900">{editingTeamKey ? "Editar membro da equipe" : "Adicionar membro a equipe"}</h4>
+                        <ScheduleMemberBasicEditor
+                          value={teamDraft}
+                          members={selectableInitialMembers}
+                          categories={instrumentCategories}
+                          instruments={eligibleInstruments}
+                          onMemberChange={(memberId) => setTeamDraft((current) => ({ ...current, memberId }))}
+                          onRoleChange={updateInitialRole}
+                          onInstrumentCategoryChange={updateInitialCategory}
+                          onInstrumentSourceChange={updateInitialInstrumentSource}
+                          onInstrumentChange={(instrumentId) => setTeamDraft((current) => ({
+                            ...current,
+                            instrumentName: eligibleInstruments.find((item) => item.id === instrumentId)?.name,
+                            instrumentAssignment: {
+                              instrumentCategoryId: current.instrumentAssignment?.instrumentCategoryId ?? "",
+                              source: current.instrumentAssignment?.source ?? "",
+                              instrumentId
+                            }
+                          }))}
+                          memberLoading={isMembersLoading}
+                          categoriesLoading={isCategoriesLoading}
+                          instrumentsLoading={isInstrumentsLoading}
+                          instrumentSourceName={`initial-team-instrument-source-${teamDraft.key}`}
+                          memberHelp={!teamDraft.allowMinistryException && availableMembers.length === 0 ? (
+                            <span className="text-xs font-semibold normal-case tracking-normal text-ink-500">Nao ha membros ativos vinculados a este ministerio.</span>
+                          ) : null}
+                        />
+                        <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+                          <input
+                            type="checkbox"
+                            checked={teamDraft.allowMinistryException}
+                            onChange={(event) => {
+                              const allow = event.target.checked;
+                              const selectedMemberId = teamDraft.memberId;
+                              setTeamDraft((current) => ({ ...current, allowMinistryException: allow }));
+                              void loadInitialMembers(allow, selectedMemberId);
+                            }}
+                          />
+                          Permitir excecao para membro fora do ministerio
+                        </label>
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                          <button type="button" onClick={() => { setIsTeamEditorOpen(false); setEditingTeamKey(null); }} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">Cancelar</button>
+                          <button type="button" onClick={saveInitialMemberDraft} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">{editingTeamKey ? "Atualizar membro" : "Adicionar a equipe"}</button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
               </div>
               <div className="flex justify-end gap-3 border-t border-hope-100 px-5 py-4">
-                <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700">Cancelar</button>
-                <button type="submit" className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white">Salvar escala</button>
+                <button type="button" disabled={isSubmitting} onClick={() => setIsFormOpen(false)} className="rounded-md border border-hope-100 px-4 py-2 text-sm font-bold text-ink-700 disabled:opacity-50">Cancelar</button>
+                <button type="submit" disabled={isSubmitting || isTeamEditorOpen} className="rounded-md bg-hope-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Salvando..." : "Salvar escala"}</button>
               </div>
             </form>
           </div>

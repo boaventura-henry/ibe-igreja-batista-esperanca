@@ -8,6 +8,7 @@ import {
 } from "@/lib/schedule-member-role";
 import type { ScheduleAuthorization } from "@/lib/schedule-authorization";
 import {
+  scheduleInstrumentAssignmentRepository,
   scheduleRepository,
   type ScheduleDatabase,
   type ScheduleListRecord,
@@ -220,8 +221,8 @@ function resolveRequestedRoles(
   return { roles: requested, changed: !current || !sameRoles(currentRoles, requested) };
 }
 
-async function ensureActiveMinistry(ministryId: string) {
-  const ministry = await scheduleRepository.findMinistryById(ministryId);
+async function ensureActiveMinistry(ministryId: string, database?: ScheduleDatabase) {
+  const ministry = await scheduleRepository.findMinistryById(ministryId, database);
 
   if (!ministry) {
     throw new AppError("Ministerio nao encontrado.", 404, "MINISTRY_NOT_FOUND");
@@ -234,13 +235,14 @@ async function ensureActiveMinistry(ministryId: string) {
 
 async function ensureCompatibleEvent(
   eventId: string | null | undefined,
-  ministryId: string
+  ministryId: string,
+  database?: ScheduleDatabase
 ) {
   if (!eventId) {
     return;
   }
 
-  const event = await scheduleRepository.findEventById(eventId);
+  const event = await scheduleRepository.findEventById(eventId, database);
 
   if (!event) {
     throw new AppError("Evento nao encontrado.", 404, "EVENT_NOT_FOUND");
@@ -265,6 +267,16 @@ function ensureAuthorizedMinistry(ministryId: string, authorization: ScheduleAut
       "Voce nao pode gerenciar escalas deste ministerio.",
       403,
       "SCHEDULE_MINISTRY_FORBIDDEN"
+    );
+  }
+}
+
+function ensureInitialTeamPermission(authorization: ScheduleAuthorization) {
+  if (!authorization.user.permissionCodes.includes("schedule.update")) {
+    throw new AppError(
+      "Voce nao possui permissao para montar a equipe inicial.",
+      403,
+      "SCHEDULE_INITIAL_TEAM_FORBIDDEN"
     );
   }
 }
@@ -456,6 +468,45 @@ async function ensureMemberRules(
     );
   }
 }
+
+async function addMemberInTransaction(
+  schedule: ScheduleRecord,
+  data: ScheduleMemberCreateInput,
+  userId: string,
+  database: ScheduleDatabase,
+  notificationIds: string[]
+) {
+  ensureScheduleCanReceiveMembers(schedule);
+  await ensureMemberRules(schedule, data, { database });
+  const roleConfiguration = resolveRequestedRoles(data);
+  let created = await scheduleRepository.addMember(
+    schedule.id,
+    data,
+    roleConfiguration.roles,
+    userId,
+    database
+  );
+  if (data.instrumentAssignment) {
+    await createInitialAssignmentInTransaction(
+      created.id,
+      created,
+      data.instrumentAssignment,
+      userId,
+      database
+    );
+    created = (await scheduleRepository.findScheduleMemberById(created.id, schedule.id, database)) ?? created;
+  }
+  if (schedule.status === ScheduleStatus.PUBLISHED && schedule.publishedAt) {
+    const version = await scheduleRepository.incrementNotificationVersion(schedule.id, database);
+    collectNotificationIds(notificationIds, await scheduleNotificationService.participantAdded(
+      { ...schedule, notificationVersion: version.notificationVersion },
+      created,
+      userId,
+      database
+    ));
+  }
+  return created;
+}
 export const scheduleService = {
   async list(
     filters: ScheduleListQueryInput,
@@ -502,12 +553,36 @@ export const scheduleService = {
 
   async create(data: ScheduleCreateInput, authorization: ScheduleAuthorization) {
     ensureAuthorizedMinistry(data.ministryId, authorization);
-    await Promise.all([
-      ensureActiveMinistry(data.ministryId),
-      ensureCompatibleEvent(data.eventId, data.ministryId)
-    ]);
+    if (data.initialMembers?.length) ensureInitialTeamPermission(authorization);
 
-    return serialize(await scheduleRepository.create(data, authorization.user.id));
+    const schedule = await scheduleRepository.transaction(async (database) => {
+      await Promise.all([
+        ensureActiveMinistry(data.ministryId, database),
+        ensureCompatibleEvent(data.eventId, data.ministryId, database)
+      ]);
+      const created = await scheduleRepository.create(data, authorization.user.id, database);
+      const notificationIds: string[] = [];
+      for (const initialMember of data.initialMembers ?? []) {
+        await addMemberInTransaction(
+          created,
+          {
+            ...initialMember,
+            status: ScheduleMemberStatus.PENDING,
+            allowMinistryException: initialMember.allowMinistryException ?? false
+          },
+          authorization.user.id,
+          database,
+          notificationIds
+        );
+      }
+      return (await scheduleRepository.findByIdWithinScope(
+        created.id,
+        authorization.accessContext,
+        database
+      )) ?? created;
+    }, { maxWait: 5_000, timeout: 15_000 });
+
+    return serialize(schedule);
   },
 
   async update(id: string, data: ScheduleUpdateInput, authorization: ScheduleAuthorization) {
@@ -777,6 +852,40 @@ export const scheduleService = {
     return { members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })) };
   },
 
+  async listAvailableMembersForCreation(
+    ministryId: string,
+    allowMinistryException: boolean,
+    authorization: ScheduleAuthorization
+  ) {
+    ensureInitialTeamPermission(authorization);
+    ensureAuthorizedMinistry(ministryId, authorization);
+    await ensureActiveMinistry(ministryId);
+    const members = await scheduleRepository.listAvailableMembers(ministryId, allowMinistryException);
+    return { members: members.map((member) => ({ ...member, displayName: getMemberDisplayName(member) })) };
+  },
+
+  async listEligibleInstrumentsForCreation(
+    ministryId: string,
+    categoryId: string,
+    authorization: ScheduleAuthorization
+  ) {
+    ensureInitialTeamPermission(authorization);
+    ensureAuthorizedMinistry(ministryId, authorization);
+    await ensureActiveMinistry(ministryId);
+    const category = await scheduleInstrumentAssignmentRepository.findCategoryForNewAssignment(categoryId);
+    if (!category) {
+      throw new AppError(
+        "Categoria de instrumento inexistente ou inativa.",
+        409,
+        "SCHEDULE_INSTRUMENT_CATEGORY_INVALID"
+      );
+    }
+    return {
+      category,
+      instruments: await scheduleInstrumentAssignmentRepository.listEligible(categoryId)
+    };
+  },
+
   async addMember(
     scheduleId: string,
     data: ScheduleMemberCreateInput,
@@ -792,42 +901,13 @@ export const scheduleService = {
       if (!transactionalSchedule) {
         throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
       }
-      ensureScheduleCanReceiveMembers(transactionalSchedule);
-      await ensureMemberRules(transactionalSchedule, data, { database });
-      const roleConfiguration = resolveRequestedRoles(data);
-      let created = await scheduleRepository.addMember(
-        scheduleId,
+      return addMemberInTransaction(
+        transactionalSchedule,
         data,
-        roleConfiguration.roles,
         authorization.user.id,
-        database
+        database,
+        notificationIds
       );
-      if (data.instrumentAssignment) {
-        await createInitialAssignmentInTransaction(
-          created.id,
-          created,
-          data.instrumentAssignment,
-          authorization.user.id,
-          database
-        );
-        created = (await scheduleRepository.findScheduleMemberById(created.id, scheduleId, database)) ?? created;
-      }
-      if (
-        transactionalSchedule.status === ScheduleStatus.PUBLISHED &&
-        transactionalSchedule.publishedAt
-      ) {
-        const version = await scheduleRepository.incrementNotificationVersion(
-          scheduleId,
-          database
-        );
-        collectNotificationIds(notificationIds, await scheduleNotificationService.participantAdded(
-          { ...transactionalSchedule, notificationVersion: version.notificationVersion },
-          created,
-          authorization.user.id,
-          database
-        ));
-      }
-      return created;
     }, { maxWait: 5_000, timeout: 15_000 });
     await notificationPublisher.deliverPush(notificationIds);
     return serializeMember(participant);

@@ -7,7 +7,6 @@ const read = (file: string) => readFileSync(join(root, file), "utf8");
 
 const consumers = [
   ["src/components/financial/FinancialEntryManager.tsx", ["Membro do lançamento"], 1],
-  ["src/components/schedules/ScheduleDetailManager.tsx", ["Membro escalado", "Membro substituto"], 2],
   ["src/components/schedules/ScheduleRepertoireManager.tsx", ["Ministro da musica"], 1],
   ["src/components/member-ministries/MemberMinistryManager.tsx", ["Filtrar por membro", "Membro do vínculo"], 2],
   ["src/components/ministries/MinistryManager.tsx", ["Filtrar por liderança", "Líder do ministério", "Vice-líder do ministério"], 3],
@@ -24,6 +23,14 @@ for (const [file, markers, expectedCount] of consumers) {
 }
 
 const detail = read("src/components/schedules/ScheduleDetailManager.tsx");
+const scheduleMemberEditor = read("src/components/schedules/ScheduleMemberBasicEditor.tsx");
+assert.match(detail, /import \{[\s\S]{0,120}ScheduleMemberBasicEditor/);
+assert.equal((detail.match(/<ScheduleMemberBasicEditor\b/g) ?? []).length, 1);
+assert.equal((detail.match(/<MemberCombobox\b/g) ?? []).length, 1);
+assert.match(detail, /ariaLabel="Membro substituto"/);
+assert.match(scheduleMemberEditor, /import \{ MemberCombobox, type MemberComboboxOption \}/);
+assert.equal((scheduleMemberEditor.match(/<MemberCombobox\b/g) ?? []).length, 1);
+assert.match(scheduleMemberEditor, /ariaLabel="Membro escalado"/);
 assert.match(detail, /members=\{selectableMembers\}/);
 assert.doesNotMatch(detail, /MemberCombobox[\s\S]{0,200}\/api\/schedules/);
 

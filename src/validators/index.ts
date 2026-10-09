@@ -143,6 +143,9 @@ export type {
 } from "./report.validator";
 export {
   scheduleCreateSchema,
+  scheduleInitialMemberSchema,
+  scheduleInitialTeamInstrumentsQuerySchema,
+  scheduleInitialTeamMembersQuerySchema,
   scheduleListQuerySchema,
   scheduleMemberCreateSchema,
   scheduleMemberUpdateSchema,
@@ -151,6 +154,7 @@ export {
 } from "./schedule.validator";
 export type {
   ScheduleCreateInput,
+  ScheduleInitialMemberInput,
   ScheduleListQueryInput,
   ScheduleMemberCreateInput,
   ScheduleMemberUpdateInput,

@@ -2,16 +2,18 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 async function main() {
-  const [manager, categoryRoute, eligibleRoute, assignmentService, assignmentRepository] = await Promise.all([
+  const [managerSource, editor, categoryRoute, eligibleRoute, assignmentService, assignmentRepository] = await Promise.all([
     readFile("src/components/schedules/ScheduleDetailManager.tsx", "utf8"),
+    readFile("src/components/schedules/ScheduleMemberBasicEditor.tsx", "utf8"),
     readFile("src/app/api/instrument-categories/route.ts", "utf8"),
     readFile("src/app/api/schedules/[id]/eligible-instruments/route.ts", "utf8"),
     readFile("src/services/schedule-instrument-assignment.service.ts", "utf8"),
     readFile("src/repositories/schedule-instrument-assignment.repository.ts", "utf8")
   ]);
+  const manager = `${managerSource}\n${editor}`;
 
   const checks: Array<[RegExp, string, string]> = [
-    [/hasInstrumentRole\(\{ roles: memberForm\.roles \}\)/, manager, "1. colecao de roles controla os campos instrumentais"],
+    [/hasInstrumentRole\(\{ roles: value\.roles \}\)/, manager, "1. colecao de roles controla os campos instrumentais"],
     [/Categoria musical/, manager, "2. role INSTRUMENT mostra categoria"],
     [/Origem do instrumento/, manager, "3. role INSTRUMENT mostra origem"],
     [/source === "REGISTERED"/, manager, "4. REGISTERED mostra instrumento"],
@@ -20,8 +22,8 @@ async function main() {
     [/Informe a origem do instrumento\./, manager, "7. origem parcial e rejeitada"],
     [/Selecione o instrumento da igreja\./, manager, "8. REGISTERED exige instrumentId"],
     [/instrumentId: ""/, manager, "9. trocar categoria limpa instrumento"],
-    [/updateInstrumentSource\("OWN"\)/, manager, "10. REGISTERED para OWN limpa instrumento"],
-    [/updateInstrumentSource\("REGISTERED"\)/, manager, "11. OWN para REGISTERED exige nova selecao"],
+    [/onInstrumentSourceChange\("OWN"\)/, manager, "10. REGISTERED para OWN limpa instrumento"],
+    [/onInstrumentSourceChange\("REGISTERED"\)/, manager, "11. OWN para REGISTERED exige nova selecao"],
     [/eligible-instruments\?categoryId=/, manager, "12. consulta elegiveis no servidor"],
     [/InstrumentStatus\.ACTIVE|status: InstrumentStatus\.ACTIVE/, assignmentRepository, "13. somente ACTIVE e retornado"],
     [/deletedAt: null/, assignmentRepository, "14. removidos sao excluidos"],

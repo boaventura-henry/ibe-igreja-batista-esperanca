@@ -9,21 +9,23 @@ import {
 } from "../src/lib/schedule-member-role";
 
 async function main() {
-  const [manager, service, validator, types, documentation, updateRoute] = await Promise.all([
+  const [managerSource, editor, service, validator, types, documentation, updateRoute] = await Promise.all([
     readFile("src/components/schedules/ScheduleDetailManager.tsx", "utf8"),
+    readFile("src/components/schedules/ScheduleMemberBasicEditor.tsx", "utf8"),
     readFile("src/services/schedule.service.ts", "utf8"),
     readFile("src/validators/schedule.validator.ts", "utf8"),
     readFile("src/types/schedule.types.ts", "utf8"),
     readFile("docs/schedule-member-multiple-roles.md", "utf8"),
     readFile("src/app/api/schedules/[id]/members/[memberScheduleId]/route.ts", "utf8")
   ]);
+  const manager = `${managerSource}\n${editor}`;
 
   assert.deepEqual(
     scheduleMemberRoleOptions.map((option) => option.value),
     ["MINISTER", "LEADER", "VOCAL", "BACKING", "INSTRUMENT", "MEDIA", "RECEPTION", "CHILDREN", "SUPPORT", "OTHER"],
     "1: roles usam a ordem central oficial"
   );
-  assert.match(manager, /type="checkbox"[\s\S]*name="schedule-member-roles"/, "2: controle permite multipla selecao");
+  assert.match(manager, /type="checkbox"[\s\S]*name=\{`\$\{instrumentSourceName\}-roles`\}/, "2: controle permite multipla selecao");
   assert.match(manager, /legend[^>]*>Funções</, "3: controle possui label plural acessivel");
   assert.match(manager, /Selecione pelo menos uma função\./, "4: UI informa obrigatoriedade");
   assert.match(manager, /Informe pelo menos uma funcao\./, "5: submit impede colecao vazia");
@@ -41,7 +43,7 @@ async function main() {
   assert.deepEqual(getScheduleMemberRoles({ roles: [] }), [], "15: roles vazia permanece vazia");
   assert.deepEqual(getScheduleMemberRoles({}), [], "16: contrato sem colecao nao possui fallback");
 
-  assert.match(manager, /hasInstrumentRole\(\{ roles: memberForm\.roles \}\)/, "17: INSTRUMENT controla campos pela colecao");
+  assert.match(manager, /hasInstrumentRole\(\{ roles: value\.roles \}\)/, "17: INSTRUMENT controla campos pela colecao");
   assert.equal(hasInstrumentRole({ roles: [ScheduleMemberRole.BACKING, ScheduleMemberRole.INSTRUMENT] }), true, "18: adicionar INSTRUMENT mostra campos");
   assert.equal(hasInstrumentRole({ roles: [ScheduleMemberRole.BACKING] }), false, "19: remover INSTRUMENT oculta campos");
   assert.match(manager, /!checked && role === ScheduleMemberRole\.INSTRUMENT[\s\S]*instrumentAssignment: undefined/, "20: remover INSTRUMENT limpa draft");
@@ -51,7 +53,7 @@ async function main() {
   assert.match(manager, /current\.roles\.filter\(\(currentRole\) => currentRole !== role\)/, "23: remover outra role preserva INSTRUMENT");
 
   assert.match(manager, /source === "REGISTERED"[\s\S]*instrumentId/, "24: REGISTERED exige patrimonio");
-  assert.match(manager, /updateInstrumentSource\("OWN"\)/, "25: OWN permanece disponivel");
+  assert.match(manager, /onInstrumentSourceChange\("OWN"\)/, "25: OWN permanece disponivel");
   assert.match(manager, /instrumentId: assignment\.instrument\?\.id \?\? ""/, "26: edicao carrega assignment atual");
   assert.match(manager, /\(Inativa\)|\(Indisponivel\)/, "27: historico inativo permanece representavel");
   assert.match(manager, /hasInstrumentRole\(selectedScheduleMember\)[\s\S]*!selectedScheduleMember\.instrumentAssignment/, "27b: fallback sem assignment usa a colecao oficial");

@@ -49,11 +49,6 @@ function validateScheduleTimes<T extends { startTime?: string; endTime?: string 
   }
 }
 
-export const scheduleCreateSchema = scheduleBaseSchema
-  .extend({ status: z.literal(ScheduleStatus.DRAFT).default(ScheduleStatus.DRAFT) })
-  .superRefine(validateScheduleTimes);
-export const scheduleUpdateSchema = scheduleBaseSchema.partial().superRefine(validateScheduleTimes);
-
 export const scheduleListQuerySchema = z.object({
   search: optionalText,
   ministryId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
@@ -93,6 +88,44 @@ export const scheduleMemberCreateSchema = scheduleMemberBaseSchema.extend({
   instrumentAssignment: scheduleInstrumentAssignmentSchema.optional()
 });
 
+export const scheduleInitialMemberSchema = scheduleMemberCreateSchema.pick({
+  memberId: true,
+  roles: true,
+  allowMinistryException: true,
+  instrumentAssignment: true
+});
+
+export const scheduleCreateSchema = scheduleBaseSchema
+  .extend({
+    status: z.literal(ScheduleStatus.DRAFT).default(ScheduleStatus.DRAFT),
+    initialMembers: z.array(scheduleInitialMemberSchema).optional()
+  })
+  .superRefine((data, context) => {
+    validateScheduleTimes(data, context);
+    const memberIds = data.initialMembers?.map((member) => member.memberId) ?? [];
+    if (new Set(memberIds).size !== memberIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["initialMembers"],
+        message: "Nao repita o mesmo membro na equipe inicial."
+      });
+    }
+  });
+export const scheduleUpdateSchema = scheduleBaseSchema.partial().superRefine(validateScheduleTimes);
+
+export const scheduleInitialTeamMembersQuerySchema = z.object({
+  ministryId: z.string().cuid("Informe um ministerio valido."),
+  allowMinistryException: z.preprocess(
+    (value) => value === "true" ? true : value === "false" || value === undefined ? false : value,
+    z.boolean().default(false)
+  )
+});
+
+export const scheduleInitialTeamInstrumentsQuerySchema = z.object({
+  ministryId: z.string().cuid("Informe um ministerio valido."),
+  categoryId: z.string().cuid("Informe uma categoria valida.")
+});
+
 export const scheduleMemberUpdateSchema = scheduleMemberBaseSchema.partial();
 
 export function hasLegacyScheduleMemberRoleField(payload: unknown) {
@@ -108,3 +141,4 @@ export type ScheduleUpdateInput = z.infer<typeof scheduleUpdateSchema>;
 export type ScheduleListQueryInput = z.infer<typeof scheduleListQuerySchema>;
 export type ScheduleMemberCreateInput = z.infer<typeof scheduleMemberCreateSchema>;
 export type ScheduleMemberUpdateInput = z.infer<typeof scheduleMemberUpdateSchema>;
+export type ScheduleInitialMemberInput = z.infer<typeof scheduleInitialMemberSchema>;
