@@ -15,7 +15,7 @@ import { FormMessage } from "@/components/ui/FormMessage";
 import { ScheduleMemberNames } from "@/components/schedules/ScheduleMemberNames";
 import { applicationDateInputValue } from "@/lib/application-time";
 import { getScheduleMemberDisplayRoles, normalizeScheduleMemberRoles } from "@/lib/schedule-member-role";
-import type { ScheduleFormValues, ScheduleListItem, ScheduleListResult, ScheduleSummary } from "@/types";
+import type { ScheduleFormValues, ScheduleInstrumentSuggestion, ScheduleListItem, ScheduleListResult, ScheduleSummary } from "@/types";
 import { formatDateForInput, getMemberOptionLabel } from "@/utils";
 
 type ApiResponse<T> =
@@ -35,6 +35,7 @@ type InitialTeamDraft = ScheduleMemberBasicValue & {
   allowMinistryException: boolean;
   categoryName?: string;
   instrumentName?: string;
+  instrumentSuggestionMode?: "AUTO" | "MANUAL";
 };
 
 const emptyInitialMember = (): InitialTeamDraft => ({
@@ -138,6 +139,7 @@ export function ScheduleManager() {
   const [isInstrumentsLoading, setIsInstrumentsLoading] = useState(false);
   const membersRequest = useRef(0);
   const instrumentsRequest = useRef(0);
+  const suggestionRequest = useRef(0);
   const submitLock = useRef(false);
   const [filters, setFilters] = useState({
     search: "",
@@ -217,6 +219,14 @@ export function ScheduleManager() {
   }
 
   function updateForm<K extends keyof ScheduleFormValues>(name: K, value: ScheduleFormValues[K]) {
+    if ((name === "date" || name === "startTime") && isTeamEditorOpen) {
+      suggestionRequest.current += 1;
+      setTeamDraft((current) =>
+        current.instrumentSuggestionMode === "AUTO"
+          ? { ...current, instrumentAssignment: undefined, categoryName: undefined, instrumentName: undefined, instrumentSuggestionMode: undefined }
+          : current
+      );
+    }
     setForm((current) => ({ ...current, [name]: value }));
   }
 
@@ -254,6 +264,7 @@ export function ScheduleManager() {
   function updateMinistry(ministryId: string) {
     membersRequest.current += 1;
     instrumentsRequest.current += 1;
+    suggestionRequest.current += 1;
     setAvailableMembers([]);
     setEligibleInstruments([]);
     setIsMembersLoading(false);
@@ -316,7 +327,7 @@ export function ScheduleManager() {
     }
   }
 
-  async function loadInitialEligibleInstruments(categoryId: string, ministryId = form.ministryId) {
+  const loadInitialEligibleInstruments = useCallback(async (categoryId: string, ministryId = form.ministryId) => {
     const requestId = ++instrumentsRequest.current;
     if (!categoryId || !ministryId) {
       setEligibleInstruments([]);
@@ -339,14 +350,83 @@ export function ScheduleManager() {
     } finally {
       if (requestId === instrumentsRequest.current) setIsInstrumentsLoading(false);
     }
-  }
+  }, [form.ministryId]);
+
+  const loadInitialInstrumentSuggestion = useCallback(async (
+    draftKey: string,
+    memberId: string,
+    ministryId: string,
+    date: string,
+    startTime: string,
+    allowMinistryException: boolean
+  ) => {
+    const requestId = ++suggestionRequest.current;
+    if (!memberId || !ministryId || !date) return;
+
+    try {
+      const params = new URLSearchParams({ memberId, ministryId, date, allowMinistryException: String(allowMinistryException) });
+      if (startTime) params.set("startTime", startTime);
+      const response = await fetch(`/api/schedules/initial-team/instrument-suggestion?${params}`, { cache: "no-store" });
+      const payload = (await response.json()) as ApiResponse<ScheduleInstrumentSuggestion>;
+      if (!payload.success) throw new Error(payload.error.message);
+      if (requestId !== suggestionRequest.current) return;
+
+      const category = payload.data.instrumentCategory;
+      const source = payload.data.source;
+      setTeamDraft((current) => {
+        if (
+          current.key !== draftKey ||
+          current.memberId !== memberId ||
+          !current.roles.includes(ScheduleMemberRole.INSTRUMENT) ||
+          current.instrumentSuggestionMode === "MANUAL" ||
+          requestId !== suggestionRequest.current
+        ) return current;
+        return {
+          ...current,
+          categoryName: category?.name,
+          instrumentName: payload.data.instrument?.name,
+          instrumentSuggestionMode: "AUTO",
+          instrumentAssignment: category && source
+            ? { instrumentCategoryId: category.id, source, instrumentId: source === "REGISTERED" ? payload.data.instrument?.id ?? "" : "" }
+            : undefined
+        };
+      });
+      if (category && source === "REGISTERED") void loadInitialEligibleInstruments(category.id, ministryId);
+    } catch (error) {
+      if (requestId === suggestionRequest.current) {
+        setFormMessage(error instanceof Error ? error.message : "Nao foi possivel consultar a configuracao instrumental anterior.");
+      }
+    }
+  }, [loadInitialEligibleInstruments]);
+
+  useEffect(() => {
+    if (
+      isTeamEditorOpen &&
+      teamDraft.memberId &&
+      teamDraft.roles.includes(ScheduleMemberRole.INSTRUMENT) &&
+      teamDraft.instrumentSuggestionMode !== "AUTO" &&
+      teamDraft.instrumentSuggestionMode !== "MANUAL"
+    ) {
+      void loadInitialInstrumentSuggestion(
+        teamDraft.key,
+        teamDraft.memberId,
+        form.ministryId,
+        form.date,
+        form.startTime ?? "",
+        teamDraft.allowMinistryException
+      );
+    }
+  }, [form.date, form.ministryId, form.startTime, isTeamEditorOpen, loadInitialInstrumentSuggestion, teamDraft]);
 
   function openInitialMemberEditor(member?: InitialTeamDraft) {
     if (!form.ministryId) {
       setFormMessage("Selecione o ministerio antes de montar a equipe inicial.");
       return;
     }
-    const next = member ? { ...member } : emptyInitialMember();
+    suggestionRequest.current += 1;
+    const next: InitialTeamDraft = member
+      ? { ...member, instrumentSuggestionMode: member.instrumentSuggestionMode ?? "MANUAL" }
+      : emptyInitialMember();
     setEditingTeamKey(member?.key ?? null);
     setTeamDraft(next);
     setEligibleInstruments([]);
@@ -360,22 +440,26 @@ export function ScheduleManager() {
   }
 
   function updateInitialRole(role: ScheduleMemberRole, checked: boolean) {
+    suggestionRequest.current += 1;
     setTeamDraft((current) => ({
       ...current,
       roles: normalizeScheduleMemberRoles(
         checked ? [...current.roles, role] : current.roles.filter((item) => item !== role)
       ),
-      ...(!checked && role === ScheduleMemberRole.INSTRUMENT ? { instrumentAssignment: undefined } : {})
+      ...(!checked && role === ScheduleMemberRole.INSTRUMENT ? { instrumentAssignment: undefined, instrumentSuggestionMode: undefined } : {}),
+      ...(checked && role === ScheduleMemberRole.INSTRUMENT ? { instrumentSuggestionMode: undefined } : {})
     }));
     if (!checked && role === ScheduleMemberRole.INSTRUMENT) setEligibleInstruments([]);
   }
 
   function updateInitialCategory(instrumentCategoryId: string) {
+    suggestionRequest.current += 1;
     const source = teamDraft.instrumentAssignment?.source ?? "";
     setTeamDraft((current) => ({
       ...current,
       categoryName: instrumentCategories.find((item) => item.id === instrumentCategoryId)?.name,
       instrumentName: undefined,
+      instrumentSuggestionMode: "MANUAL",
       instrumentAssignment: { instrumentCategoryId, source, instrumentId: "" }
     }));
     setEligibleInstruments([]);
@@ -383,10 +467,12 @@ export function ScheduleManager() {
   }
 
   function updateInitialInstrumentSource(source: ScheduleInstrumentDraft["source"]) {
+    suggestionRequest.current += 1;
     const instrumentCategoryId = teamDraft.instrumentAssignment?.instrumentCategoryId ?? "";
     setTeamDraft((current) => ({
       ...current,
       instrumentName: undefined,
+      instrumentSuggestionMode: "MANUAL",
       instrumentAssignment: { instrumentCategoryId, source, instrumentId: "" }
     }));
     if (source === "REGISTERED" && instrumentCategoryId) {
@@ -396,6 +482,33 @@ export function ScheduleManager() {
       setEligibleInstruments([]);
       setIsInstrumentsLoading(false);
     }
+  }
+
+  function updateInitialMember(memberId: string) {
+    suggestionRequest.current += 1;
+    setEligibleInstruments([]);
+    setTeamDraft((current) => ({
+      ...current,
+      memberId,
+      categoryName: undefined,
+      instrumentName: undefined,
+      instrumentAssignment: undefined,
+      instrumentSuggestionMode: undefined
+    }));
+  }
+
+  function updateInitialInstrument(instrumentId: string) {
+    suggestionRequest.current += 1;
+    setTeamDraft((current) => ({
+      ...current,
+      instrumentName: eligibleInstruments.find((item) => item.id === instrumentId)?.name,
+      instrumentSuggestionMode: "MANUAL",
+      instrumentAssignment: {
+        instrumentCategoryId: current.instrumentAssignment?.instrumentCategoryId ?? "",
+        source: current.instrumentAssignment?.source ?? "",
+        instrumentId
+      }
+    }));
   }
 
   function saveInitialMemberDraft() {
@@ -430,6 +543,7 @@ export function ScheduleManager() {
   }
 
   function removeInitialMember(key: string) {
+    suggestionRequest.current += 1;
     setInitialMembers((current) => current.filter((member) => member.key !== key));
     if (editingTeamKey === key) {
       setIsTeamEditorOpen(false);
@@ -733,19 +847,11 @@ export function ScheduleManager() {
                           members={selectableInitialMembers}
                           categories={instrumentCategories}
                           instruments={eligibleInstruments}
-                          onMemberChange={(memberId) => setTeamDraft((current) => ({ ...current, memberId }))}
+                          onMemberChange={updateInitialMember}
                           onRoleChange={updateInitialRole}
                           onInstrumentCategoryChange={updateInitialCategory}
                           onInstrumentSourceChange={updateInitialInstrumentSource}
-                          onInstrumentChange={(instrumentId) => setTeamDraft((current) => ({
-                            ...current,
-                            instrumentName: eligibleInstruments.find((item) => item.id === instrumentId)?.name,
-                            instrumentAssignment: {
-                              instrumentCategoryId: current.instrumentAssignment?.instrumentCategoryId ?? "",
-                              source: current.instrumentAssignment?.source ?? "",
-                              instrumentId
-                            }
-                          }))}
+                          onInstrumentChange={updateInitialInstrument}
                           memberLoading={isMembersLoading}
                           categoriesLoading={isCategoriesLoading}
                           instrumentsLoading={isInstrumentsLoading}

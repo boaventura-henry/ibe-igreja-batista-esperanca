@@ -6,7 +6,7 @@ if (!isSemanticVersion(packageJson.version)) {
 }
 
 export const APP_VERSION = packageJson.version;
-export const APP_RELEASE_NAME = "Versao 0.2.14";
+export const APP_RELEASE_NAME = "Versao 0.2.15";
 
 export type AppVersionInfo = {
   version: string;

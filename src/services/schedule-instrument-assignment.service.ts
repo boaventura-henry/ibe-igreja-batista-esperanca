@@ -134,16 +134,30 @@ export const scheduleInstrumentAssignmentService = {
     const schedule = await scheduleRepository.findByIdWithinScope(scheduleId, authorization.accessContext);
     if (!schedule) throw new AppError("Escala nao encontrada.", 404, "SCHEDULE_NOT_FOUND");
 
-    const member = await scheduleRepository.findMemberById(memberId);
+    return this.getSuggestionForContext({
+      memberId,
+      scheduleDate: schedule.date,
+      scheduleStartTime: schedule.startTime,
+      excludeScheduleId: schedule.id
+    });
+  },
+
+  async getSuggestionForContext(input: {
+    memberId: string;
+    scheduleDate: Date;
+    scheduleStartTime: string | null;
+    excludeScheduleId?: string;
+  }) {
+    const member = await scheduleRepository.findMemberById(input.memberId);
     if (!member || member.status !== MemberStatus.ACTIVE) {
       throw new AppError("Membro nao encontrado.", 404, "MEMBER_NOT_FOUND");
     }
 
     const history = await scheduleInstrumentAssignmentRepository.findLatestInstrumentSuggestionHistory({
-      memberId,
-      scheduleId,
-      scheduleDate: schedule.date,
-      scheduleStartTime: schedule.startTime
+      memberId: input.memberId,
+      excludeScheduleId: input.excludeScheduleId,
+      scheduleDate: input.scheduleDate,
+      scheduleStartTime: input.scheduleStartTime
     });
     const assignment = history?.instrumentAssignments[0];
 

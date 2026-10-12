@@ -144,6 +144,7 @@ export type {
 export {
   scheduleCreateSchema,
   scheduleInitialMemberSchema,
+  scheduleInitialTeamInstrumentSuggestionQuerySchema,
   scheduleInitialTeamInstrumentsQuerySchema,
   scheduleInitialTeamMembersQuerySchema,
   scheduleListQuerySchema,

@@ -14,12 +14,21 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.15",
+    title: "Sugestao de instrumento na equipe inicial",
+    summary: "Ao adicionar instrumentistas durante a criacao de uma escala, o sistema sugere o instrumento utilizado anteriormente pelo membro.",
+    type: "MINOR",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: ["Sugestao do ultimo instrumento utilizado, com possibilidade de alteracao manual"]
+  },
+  {
     version: "0.2.14",
     title: "Correcao de exibicao das escalas em celulares",
     summary: "Correcao da exibicao da pagina de Escalas em celulares, evitando desalinhamento horizontal apos o carregamento da listagem.",
     type: "PATCH",
-    status: "UNRELEASED",
-    releaseDate: null,
+    status: "PUBLISHED",
+    releaseDate: "2026-10-09",
     highlights: ["Listagem de Escalas preserva o alinhamento horizontal em celulares"]
   },
   {

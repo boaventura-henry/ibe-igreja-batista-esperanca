@@ -10,7 +10,7 @@ import {
 import { AppError } from "../src/lib/errors";
 import type { ScheduleAuthorization } from "../src/lib/schedule-authorization";
 import { scheduleService } from "../src/services/schedule.service";
-import { scheduleCreateSchema } from "../src/validators/schedule.validator";
+import { scheduleCreateSchema, scheduleInitialTeamInstrumentSuggestionQuerySchema } from "../src/validators/schedule.validator";
 
 const id = (digit: string) => `cm${digit.repeat(23)}`;
 const base = {
@@ -37,7 +37,8 @@ async function runFunctionalScenarios() {
   });
   const members = await Promise.all([
     prisma.member.create({ data: { name: key("member_a") } }),
-    prisma.member.create({ data: { name: key("member_b") } })
+    prisma.member.create({ data: { name: key("member_b") } }),
+    prisma.member.create({ data: { name: key("member_without_ministry") } })
   ]);
   const categories = await Promise.all([
     prisma.instrumentCategory.create({ data: { name: key("category_a"), createdById: user.id } }),
@@ -51,7 +52,7 @@ async function runFunctionalScenarios() {
       createdById: user.id
     }
   });
-  await Promise.all(members.map((member) => prisma.memberMinistry.create({
+  await Promise.all(members.slice(0, 2).map((member) => prisma.memberMinistry.create({
     data: { memberId: member.id, ministryId: ministry.id, entryDate: new Date("2099-01-01") }
   })));
 
@@ -159,6 +160,25 @@ async function runFunctionalScenarios() {
       (error: unknown) => error instanceof AppError && error.code === "SCHEDULE_MINISTRY_FORBIDDEN",
       "60: MEMBER_MINISTRIES preserva o scope"
     );
+    await assert.rejects(
+      () => scheduleService.getInitialTeamInstrumentSuggestion({
+        memberId: members[2].id,
+        ministryId: ministry.id,
+        date: "2099-11-06",
+        startTime: "19:00",
+        allowMinistryException: false
+      }, allAuthorization(["schedule.create", "schedule.update"])),
+      (error: unknown) => error instanceof AppError && error.code === "MINISTRY_EXCEPTION_REQUIRED",
+      "61: sugestao inicial nao consulta membro fora do ministerio sem excecao"
+    );
+    const exceptionSuggestion = await scheduleService.getInitialTeamInstrumentSuggestion({
+      memberId: members[2].id,
+      ministryId: ministry.id,
+      date: "2099-11-06",
+      startTime: "19:00",
+      allowMinistryException: true
+    }, allAuthorization(["schedule.create", "schedule.update"]));
+    assert.equal(exceptionSuggestion.hasSuggestion, false, "62: excecao explicita permite consulta sem sugestao artificial");
   } finally {
     const schedules = await prisma.schedule.findMany({
       where: { title: { startsWith: key("") } },
@@ -180,7 +200,7 @@ async function runFunctionalScenarios() {
 }
 
 async function main() {
-  const [manager, editor, service, repository, validator, createRoute, oldMemberRoute, oldAvailableRoute] = await Promise.all([
+  const [manager, editor, service, repository, validator, createRoute, oldMemberRoute, oldAvailableRoute, suggestionRoute] = await Promise.all([
     readFile("src/components/schedules/ScheduleManager.tsx", "utf8"),
     readFile("src/components/schedules/ScheduleMemberBasicEditor.tsx", "utf8"),
     readFile("src/services/schedule.service.ts", "utf8"),
@@ -188,7 +208,8 @@ async function main() {
     readFile("src/validators/schedule.validator.ts", "utf8"),
     readFile("src/app/api/schedules/route.ts", "utf8"),
     readFile("src/app/api/schedules/[id]/members/route.ts", "utf8"),
-    readFile("src/app/api/schedules/[id]/available-members/route.ts", "utf8")
+    readFile("src/app/api/schedules/[id]/available-members/route.ts", "utf8"),
+    readFile("src/app/api/schedules/initial-team/instrument-suggestion/route.ts", "utf8")
   ]);
 
   assert.equal(scheduleCreateSchema.safeParse(base).success, true, "1: criacao sem initialMembers permanece valida");
@@ -247,9 +268,25 @@ async function main() {
   assert.match(createBlock, /return \(await scheduleRepository\.findByIdWithinScope/, "48: retorno e recarregado dentro da mesma transacao");
   assert.match(manager, /requestId !== membersRequest\.current/, "49: resposta antiga de membros nao sobrescreve o ministerio atual");
   assert.match(manager, /requestId !== instrumentsRequest\.current/, "50: resposta antiga de instrumentos nao sobrescreve a categoria atual");
+  assert.match(suggestionRoute, /requireScheduleAccess\("schedule\.create"\)/, "51: sugestao inicial exige schedule.create");
+  assert.doesNotMatch(suggestionRoute, /POST|PUT|PATCH|DELETE/, "51: sugestao inicial e somente leitura");
+  assert.match(service, /getInitialTeamInstrumentSuggestion[\s\S]*ensureInitialTeamPermission[\s\S]*ensureAuthorizedMinistry[\s\S]*ensureActiveMinistry[\s\S]*ensureActiveMember[\s\S]*ensureMemberHasMinistryLinkOrException/, "52: sugestao inicial exige update, escopo e elegibilidade do membro");
+  assert.equal(scheduleInitialTeamInstrumentSuggestionQuerySchema.safeParse({ memberId: id("2"), ministryId: id("1"), date: "2099-11-01", startTime: "19:00", allowMinistryException: false }).success, true, "53: contexto temporal inicial valido");
+  assert.equal(scheduleInitialTeamInstrumentSuggestionQuerySchema.safeParse({ memberId: id("2"), ministryId: id("1"), date: "invalida" }).success, false, "54: contexto temporal invalido e rejeitado");
+  assert.match(manager, /initial-team\/instrument-suggestion/, "55: editor consulta endpoint pre-persistencia");
+  assert.match(manager, /instrumentSuggestionMode === "MANUAL"/, "56: escolha manual impede resposta antiga");
+  assert.match(manager, /function updateInitialMember[\s\S]*suggestionRequest\.current \+= 1/, "57: troca de membro invalida sugestao em voo");
+  assert.match(manager, /function updateInitialCategory[\s\S]*suggestionRequest\.current \+= 1/, "58: categoria manual invalida sugestao em voo");
+  assert.match(manager, /function updateInitialInstrumentSource[\s\S]*suggestionRequest\.current \+= 1/, "59: origem manual invalida sugestao em voo");
+  assert.match(manager, /function updateInitialInstrument\([\s\S]*suggestionRequest\.current \+= 1/, "60: instrumento manual invalida sugestao em voo");
+  assert.match(manager, /name === "date" \|\| name === "startTime"[\s\S]*suggestionRequest\.current \+= 1/, "61: data e horario invalidam contexto automatico");
+  assert.match(manager, /function updateMinistry[\s\S]*suggestionRequest\.current \+= 1/, "62: ministerio invalida sugestao em voo");
+  assert.match(manager, /function updateInitialRole[\s\S]*!checked && role === ScheduleMemberRole\.INSTRUMENT[\s\S]*instrumentAssignment: undefined/, "63: remover INSTRUMENT limpa e invalida a sugestao");
+  assert.match(manager, /initialMembers\.map\(\(\{ memberId, roles, allowMinistryException, instrumentAssignment \}\)/, "64: sugestao aceita usa o payload inicial existente");
+  assert.match(manager, /instrumentSuggestionMode: member\.instrumentSuggestionMode \?\? "MANUAL"/, "65: sugestao automatica preserva recalculo ao reabrir o draft");
 
   await runFunctionalScenarios();
-  console.log("Schedule initial team: 60 scenarios passed.");
+  console.log("Schedule initial team: 77 scenarios passed.");
 }
 
 void main().catch((error) => {

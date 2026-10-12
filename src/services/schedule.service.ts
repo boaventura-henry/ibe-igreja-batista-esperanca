@@ -21,7 +21,7 @@ import {
   type ScheduleRelevantChange
 } from "@/services/schedule-notification.service";
 import { notificationPublisher } from "@/services/notification-publisher.service";
-import { createInitialAssignmentInTransaction, endActiveAssignmentInTransaction, setActiveAssignmentInTransaction } from "@/services/schedule-instrument-assignment.service";
+import { createInitialAssignmentInTransaction, endActiveAssignmentInTransaction, scheduleInstrumentAssignmentService, setActiveAssignmentInTransaction } from "@/services/schedule-instrument-assignment.service";
 import type { ScheduleListItem, ScheduleListResult, ScheduleMemberSummary, ScheduleSummary } from "@/types";
 import type {
   ScheduleCreateInput,
@@ -884,6 +884,26 @@ export const scheduleService = {
       category,
       instruments: await scheduleInstrumentAssignmentRepository.listEligible(categoryId)
     };
+  },
+
+  async getInitialTeamInstrumentSuggestion(
+    input: { memberId: string; ministryId: string; date: string; startTime?: string; allowMinistryException: boolean },
+    authorization: ScheduleAuthorization
+  ) {
+    ensureInitialTeamPermission(authorization);
+    ensureAuthorizedMinistry(input.ministryId, authorization);
+    await ensureActiveMinistry(input.ministryId);
+    await ensureActiveMember(input.memberId);
+    await ensureMemberHasMinistryLinkOrException(
+      input.memberId,
+      input.ministryId,
+      input.allowMinistryException
+    );
+    return scheduleInstrumentAssignmentService.getSuggestionForContext({
+      memberId: input.memberId,
+      scheduleDate: new Date(`${input.date}T00:00:00.000Z`),
+      scheduleStartTime: input.startTime ?? null
+    });
   },
 
   async addMember(

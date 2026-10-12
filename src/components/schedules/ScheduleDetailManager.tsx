@@ -420,6 +420,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   }
 
   function updateInstrumentCategory(instrumentCategoryId: string) {
+    suggestionRequest.current += 1;
     const source = memberForm.instrumentAssignment?.source ?? "";
 
     setMemberForm((form) => ({
@@ -434,6 +435,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   }
 
   function updateInstrumentSource(source: ScheduleInstrumentDraft["source"]) {
+    suggestionRequest.current += 1;
     const instrumentCategoryId = memberForm.instrumentAssignment?.instrumentCategoryId ?? "";
 
     setMemberForm((form) => ({
@@ -451,6 +453,7 @@ export function ScheduleDetailManager({ initialSchedule }: { initialSchedule: Sc
   }
 
   function updateInstrumentId(instrumentId: string) {
+    suggestionRequest.current += 1;
     setMemberForm((form) => ({
       ...form,
       instrumentAssignment: {

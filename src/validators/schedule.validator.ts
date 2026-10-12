@@ -126,6 +126,17 @@ export const scheduleInitialTeamInstrumentsQuerySchema = z.object({
   categoryId: z.string().cuid("Informe uma categoria valida.")
 });
 
+export const scheduleInitialTeamInstrumentSuggestionQuerySchema = z.object({
+  memberId: z.string().cuid("Informe um membro valido."),
+  ministryId: z.string().cuid("Informe um ministerio valido."),
+  date: z.string().date("Informe uma data valida."),
+  startTime: timeSchema,
+  allowMinistryException: z.preprocess(
+    (value) => value === "true" ? true : value === "false" || value === undefined ? false : value,
+    z.boolean().default(false)
+  )
+});
+
 export const scheduleMemberUpdateSchema = scheduleMemberBaseSchema.partial();
 
 export function hasLegacyScheduleMemberRoleField(payload: unknown) {

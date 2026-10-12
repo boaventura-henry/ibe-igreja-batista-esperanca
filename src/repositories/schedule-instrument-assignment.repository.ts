@@ -37,13 +37,13 @@ export type ScheduleInstrumentSuggestionHistoryRecord = Prisma.ScheduleMemberGet
 
 export function buildInstrumentSuggestionHistoryWhere(input: {
   memberId: string;
-  scheduleId: string;
+  excludeScheduleId?: string;
   scheduleDate: Date;
   scheduleStartTime: string | null;
 }): Prisma.ScheduleMemberWhereInput {
   return {
     memberId: input.memberId,
-    scheduleId: { not: input.scheduleId },
+    ...(input.excludeScheduleId ? { scheduleId: { not: input.excludeScheduleId } } : {}),
     status: { not: ScheduleMemberStatus.REPLACED },
     deletedAt: null,
     instrumentAssignments: { some: {} },
@@ -64,7 +64,7 @@ export const scheduleInstrumentAssignmentRepository = {
   findLatestInstrumentSuggestionHistory(
     input: {
       memberId: string;
-      scheduleId: string;
+      excludeScheduleId?: string;
       scheduleDate: Date;
       scheduleStartTime: string | null;
     },

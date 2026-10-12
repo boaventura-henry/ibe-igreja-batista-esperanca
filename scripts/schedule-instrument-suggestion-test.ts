@@ -61,7 +61,7 @@ async function main() {
   await test("assignment comprova historico INSTRUMENT mesmo se a role atual mudou", () => {
     const where = buildInstrumentSuggestionHistoryWhere({
       memberId: "member",
-      scheduleId: "schedule",
+      excludeScheduleId: "schedule",
       scheduleDate: new Date("2099-08-24T00:00:00.000Z"),
       scheduleStartTime: "10:00"
     });
@@ -71,7 +71,7 @@ async function main() {
   await test("participacao substituida e ignorada conservadoramente", () => {
     const where = buildInstrumentSuggestionHistoryWhere({
       memberId: "member",
-      scheduleId: "schedule",
+      excludeScheduleId: "schedule",
       scheduleDate: new Date("2099-08-24T00:00:00.000Z"),
       scheduleStartTime: "10:00"
     });
@@ -83,8 +83,8 @@ async function main() {
   await test("consulta exige assignment conhecido e ignora participacao vazia", () => {
     assert.match(repositorySource, /instrumentAssignments:\s*\{ some: \{\} \}/);
   });
-  await test("consulta exclui escala atual e cancelada", () => {
-    assert.match(repositorySource, /scheduleId: \{ not: input\.scheduleId \}/);
+  await test("consulta exclui escala atual quando o contexto persistido a informa e exclui cancelada", () => {
+    assert.match(repositorySource, /excludeScheduleId \? \{ scheduleId: \{ not: input\.excludeScheduleId \} \}/);
     assert.match(repositorySource, /ScheduleStatus\.CANCELED/);
   });
   await test("cronologia usa date da escala e nao createdAt", () => {
@@ -103,6 +103,11 @@ async function main() {
   });
   await test("troca manual de role invalida request pendente", () => {
     assert.match(managerSource, /function updateRole[\s\S]*suggestionRequest\.current \+= 1/);
+  });
+  await test("detalhe invalida sugestao pendente em alteracoes manuais do instrumento", () => {
+    assert.match(managerSource, /function updateInstrumentCategory[\s\S]*suggestionRequest\.current \+= 1/);
+    assert.match(managerSource, /function updateInstrumentSource[\s\S]*suggestionRequest\.current \+= 1/);
+    assert.match(managerSource, /function updateInstrumentId[\s\S]*suggestionRequest\.current \+= 1/);
   });
   await test("remover a funcao instrumental limpa o estado do instrumento", () => {
     assert.match(managerSource, /!checked && role === ScheduleMemberRole\.INSTRUMENT[\s\S]*instrumentAssignment: undefined/);
@@ -256,6 +261,15 @@ async function main() {
     await test("membro normal sugere REGISTERED final da participacao instrumental anterior", async () => {
       const result = await scheduleInstrumentAssignmentService.getSuggestion(target.id, normal.id, authorization);
       assert.equal(result.role, ScheduleMemberRole.INSTRUMENT);
+      assert.equal(result.source, ScheduleInstrumentSource.REGISTERED);
+      assert.equal(result.instrument?.id, yamaha.id);
+    });
+    await test("contexto pre-persistencia reutiliza a mesma sugestao historica", async () => {
+      const result = await scheduleInstrumentAssignmentService.getSuggestionForContext({
+        memberId: normal.id,
+        scheduleDate: new Date("2099-08-24T00:00:00.000Z"),
+        scheduleStartTime: "10:00"
+      });
       assert.equal(result.source, ScheduleInstrumentSource.REGISTERED);
       assert.equal(result.instrument?.id, yamaha.id);
     });
