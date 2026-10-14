@@ -281,12 +281,31 @@ async function main() {
   assert.match(manager, /function updateInitialInstrument\([\s\S]*suggestionRequest\.current \+= 1/, "60: instrumento manual invalida sugestao em voo");
   assert.match(manager, /name === "date" \|\| name === "startTime"[\s\S]*suggestionRequest\.current \+= 1/, "61: data e horario invalidam contexto automatico");
   assert.match(manager, /function updateMinistry[\s\S]*suggestionRequest\.current \+= 1/, "62: ministerio invalida sugestao em voo");
-  assert.match(manager, /function updateInitialRole[\s\S]*!checked && role === ScheduleMemberRole\.INSTRUMENT[\s\S]*instrumentAssignment: undefined/, "63: remover INSTRUMENT limpa e invalida a sugestao");
-  assert.match(manager, /initialMembers\.map\(\(\{ memberId, roles, allowMinistryException, instrumentAssignment \}\)/, "64: sugestao aceita usa o payload inicial existente");
-  assert.match(manager, /instrumentSuggestionMode: member\.instrumentSuggestionMode \?\? "MANUAL"/, "65: sugestao automatica preserva recalculo ao reabrir o draft");
+  assert.match(manager, /if \(!payload\.data\.hasSuggestion\) return;/, "63: ausencia de historico nao altera o draft");
+  assert.match(manager, /roles: normalizeScheduleMemberRoles\(\[[\s\S]*ScheduleMemberRole\.INSTRUMENT/, "64: suggestion adiciona somente INSTRUMENT pela fonte canonica");
+  assert.match(manager, /current\.key !== draftKey[\s\S]*current\.memberId !== memberId[\s\S]*current\.instrumentSuggestionMode === "MANUAL"[\s\S]*requestId !== suggestionRequest\.current/, "65: resposta valida draft, membro, decisao manual e token");
+  assert.doesNotMatch(manager.match(/const loadInitialInstrumentSuggestion[\s\S]*?\n  \}, \[loadInitialEligibleInstruments\]\);/)?.[0] ?? "", /ScheduleMemberRole\.(?:MINISTER|LEADER|VOCAL|BACKING|MEDIA|RECEPTION|CHILDREN|SUPPORT|OTHER)/, "66: suggestion nao infere outras roles historicas");
+  assert.match(manager, /isTeamEditorOpen[\s\S]*teamDraft\.memberId[\s\S]*form\.ministryId[\s\S]*form\.date[\s\S]*instrumentSuggestionMode !== "AUTO"[\s\S]*instrumentSuggestionMode !== "MANUAL"/, "67: trigger consulta por membro e contexto, sem exigir INSTRUMENT");
+  assert.doesNotMatch(manager.match(/useEffect\(\(\) => \{[\s\S]*?loadInitialInstrumentSuggestion[\s\S]*?\}, \[form\.date/)?.[0] ?? "", /roles\.includes\(ScheduleMemberRole\.INSTRUMENT\)/, "68: role nao e pre-condicao da consulta automatica");
+  assert.match(manager, /function updateInitialRole[\s\S]*!checked && role === ScheduleMemberRole\.INSTRUMENT[\s\S]*instrumentAssignment: undefined, instrumentSuggestionMode: "MANUAL"/, "69: remover INSTRUMENT limpa o assignment e registra supressao manual");
+  assert.match(manager, /checked && role === ScheduleMemberRole\.INSTRUMENT \? \{ instrumentSuggestionMode: undefined \}/, "70: reativacao manual permite o fluxo instrumental novamente");
+  assert.match(manager, /name === "date" \|\| name === "startTime"[\s\S]*instrumentAssignment: undefined[\s\S]*instrumentSuggestionMode: undefined/, "71: data e horario recalculam somente a configuracao automatica");
+  assert.match(manager, /initialMembers\.map\(\(\{ memberId, roles, allowMinistryException, instrumentAssignment \}\)/, "82: sugestao aceita usa o payload inicial existente");
+  assert.match(manager, /instrumentSuggestionMode: member\.instrumentSuggestionMode \?\? "MANUAL"/, "83: sugestao automatica preserva recalculo ao reabrir o draft");
+
+  assert.match(manager, /source === "REGISTERED" \? payload\.data\.instrument\?\.id \?\? "" : ""/, "72: REGISTERED preserva o instrumento elegivel e OWN permanece sem patrimonio");
+  assert.match(manager, /instrumentAssignment: category && source[\s\S]*: undefined/, "73: historico invalido preserva INSTRUMENT sem fabricar assignment invalido");
+  assert.match(manager, /requestId !== suggestionRequest\.current/, "74: troca rapida de membros descarta resposta obsoleta");
+  assert.match(manager, /\.\.\.current\.roles,[\s\S]*ScheduleMemberRole\.INSTRUMENT/, "75: auto-selecao preserva roles manuais existentes");
+  assert.match(manager, /category && source === "REGISTERED"[\s\S]*loadInitialEligibleInstruments\(category\.id, ministryId\)/, "76: REGISTERED carrega os instrumentos elegiveis da categoria sugerida");
+  assert.match(manager, /instrumentSuggestionMode: member\.instrumentSuggestionMode \?\? "MANUAL"/, "77: draft reaberto preserva AUTO e trata legado como MANUAL");
+  assert.match(service, /ensureActiveMember[\s\S]*ensureMemberHasMinistryLinkOrException/, "78: endpoint pre-persistencia preserva membro ativo e escopo ministerial");
+  assert.doesNotMatch(manager.match(/function updateInitialMember[\s\S]*?\n  \}/)?.[0] ?? "", /roles:\s*\[\]/, "79: trocar membro preserva roles selecionadas manualmente");
+  assert.match(manager, /if \(!payload\.data\.hasSuggestion\) return;[\s\S]*const category = payload\.data\.instrumentCategory/, "80: ausencia de historico encerra antes de aplicar categoria ou assignment");
+  assert.match(manager, /instrumentSuggestionMode !== "AUTO"[\s\S]*instrumentSuggestionMode !== "MANUAL"/, "81: modo AUTO e MANUAL impedem nova consulta indevida");
 
   await runFunctionalScenarios();
-  console.log("Schedule initial team: 77 scenarios passed.");
+  console.log("Schedule initial team: 95 scenarios passed.");
 }
 
 void main().catch((error) => {

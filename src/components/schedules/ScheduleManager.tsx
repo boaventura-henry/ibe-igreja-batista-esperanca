@@ -370,6 +370,7 @@ export function ScheduleManager() {
       const payload = (await response.json()) as ApiResponse<ScheduleInstrumentSuggestion>;
       if (!payload.success) throw new Error(payload.error.message);
       if (requestId !== suggestionRequest.current) return;
+      if (!payload.data.hasSuggestion) return;
 
       const category = payload.data.instrumentCategory;
       const source = payload.data.source;
@@ -377,12 +378,15 @@ export function ScheduleManager() {
         if (
           current.key !== draftKey ||
           current.memberId !== memberId ||
-          !current.roles.includes(ScheduleMemberRole.INSTRUMENT) ||
           current.instrumentSuggestionMode === "MANUAL" ||
           requestId !== suggestionRequest.current
         ) return current;
         return {
           ...current,
+          roles: normalizeScheduleMemberRoles([
+            ...current.roles,
+            ScheduleMemberRole.INSTRUMENT
+          ]),
           categoryName: category?.name,
           instrumentName: payload.data.instrument?.name,
           instrumentSuggestionMode: "AUTO",
@@ -403,7 +407,8 @@ export function ScheduleManager() {
     if (
       isTeamEditorOpen &&
       teamDraft.memberId &&
-      teamDraft.roles.includes(ScheduleMemberRole.INSTRUMENT) &&
+      form.ministryId &&
+      form.date &&
       teamDraft.instrumentSuggestionMode !== "AUTO" &&
       teamDraft.instrumentSuggestionMode !== "MANUAL"
     ) {
@@ -446,7 +451,7 @@ export function ScheduleManager() {
       roles: normalizeScheduleMemberRoles(
         checked ? [...current.roles, role] : current.roles.filter((item) => item !== role)
       ),
-      ...(!checked && role === ScheduleMemberRole.INSTRUMENT ? { instrumentAssignment: undefined, instrumentSuggestionMode: undefined } : {}),
+      ...(!checked && role === ScheduleMemberRole.INSTRUMENT ? { instrumentAssignment: undefined, instrumentSuggestionMode: "MANUAL" } : {}),
       ...(checked && role === ScheduleMemberRole.INSTRUMENT ? { instrumentSuggestionMode: undefined } : {})
     }));
     if (!checked && role === ScheduleMemberRole.INSTRUMENT) setEligibleInstruments([]);
