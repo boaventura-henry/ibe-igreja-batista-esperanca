@@ -1,3 +1,3 @@
 export const EXPECTED_DATABASE_SCHEMA = {
-  latestMigration: "20260914120000_add_ministry_financial_access"
+  latestMigration: "20261019120000_add_visitors_core"
 } as const;

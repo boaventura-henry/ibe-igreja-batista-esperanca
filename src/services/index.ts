@@ -38,6 +38,7 @@ export { songService } from "./song.service";
 export { songUsageHistoryService } from "./song-usage-history.service";
 export { scheduleSongService } from "./schedule-song.service";
 export { userService } from "./user.service";
+export { visitorService } from "./visitor.service";
 export { systemDiagnosticsService } from "./system-diagnostics.service";
 export { pushNotificationService } from "./push-notification.service";
 export { pushNotificationLogService } from "./push-notification-log.service";

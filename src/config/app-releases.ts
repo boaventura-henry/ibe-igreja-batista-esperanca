@@ -14,6 +14,15 @@ export type AppRelease = {
 
 export const appReleases: readonly AppRelease[] = [
   {
+    version: "0.2.16",
+    title: "Visitantes e acolhimento",
+    summary: "Fundacao do modulo de visitantes e acolhimento da igreja.",
+    type: "MINOR",
+    status: "UNRELEASED",
+    releaseDate: null,
+    highlights: ["Estrutura inicial para registrar visitantes e suas visitas"]
+  },
+  {
     version: "0.2.15",
     title: "Sugestao de instrumento na equipe inicial",
     summary: "Ao adicionar instrumentistas durante a criacao de uma escala, o sistema sugere o instrumento utilizado anteriormente pelo membro.",

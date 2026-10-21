@@ -7,10 +7,12 @@ import { syncAdministratorPermissions, syncPermissions } from "../prisma/seed-pe
 
 const prisma = new PrismaClient();
 const instrumentCodes = availablePermissions.filter((permission) => permission.code.startsWith("instrument.")).map((permission) => permission.code);
+const visitorCodes = availablePermissions.filter((permission) => permission.code.startsWith("visitor.")).map((permission) => permission.code);
 const ministryFinanceCodes = availablePermissions.filter((permission) => permission.code.startsWith("ministryFinance.") || permission.code === "dashboard.finance.ministryBalances").map((permission) => permission.code);
 
 async function main() {
   assert.equal(instrumentCodes.length, 8, "O catalogo deve conter as oito permissions de Instrumentos.");
+  assert.deepEqual(visitorCodes, ["visitor.view", "visitor.create", "visitor.update", "visitor.delete"], "O catalogo deve conter as quatro permissions de Visitantes.");
   assert.equal(ministryFinanceCodes.length, 8, "O catalogo deve conter as sete permissions ministeriais e a permission do Dashboard.");
   assert.throws(() => seedAdminSchema.parse({}), "O bootstrap administrativo deve continuar exigindo ADMIN_*.");
 
@@ -23,10 +25,12 @@ async function main() {
   await syncPermissions();
   const firstRun = await prisma.permission.count({ where: { code: { in: instrumentCodes } } });
   assert.equal(firstRun, instrumentCodes.length, "A sincronizacao deve criar todas as permissions de Instrumentos.");
+  assert.equal(await prisma.permission.count({ where: { code: { in: visitorCodes } } }), visitorCodes.length, "A sincronizacao deve criar todas as permissions de Visitantes.");
 
   await syncPermissions();
   const secondRun = await prisma.permission.count({ where: { code: { in: instrumentCodes } } });
   assert.equal(secondRun, firstRun, "A sincronizacao repetida nao pode duplicar permissions.");
+  assert.equal(await prisma.permission.count({ where: { code: { in: visitorCodes } } }), visitorCodes.length, "A sincronizacao repetida nao pode duplicar permissions de Visitantes.");
   assert.equal(await prisma.permission.count({ where: { code: { in: ministryFinanceCodes } } }), ministryFinanceCodes.length, "Permissions financeiras ministeriais devem ser provisionadas sem duplicidade.");
 
   assert.equal(await syncAdministratorPermissions(), true, "O perfil Administrador deve ser sincronizado quando existir.");
@@ -35,6 +39,7 @@ async function main() {
     select: { permissions: { select: { code: true } } }
   });
   for (const code of instrumentCodes) assert.ok(administrator.permissions.some((permission) => permission.code === code), `Administrador deve receber ${code}.`);
+  for (const code of visitorCodes) assert.ok(administrator.permissions.some((permission) => permission.code === code), `Administrador deve receber ${code}.`);
   for (const code of ministryFinanceCodes) assert.ok(administrator.permissions.some((permission) => permission.code === code), `Administrador deve receber ${code}.`);
 
   const nonAdminAfter = await prisma.accessRole.findMany({
@@ -46,6 +51,7 @@ async function main() {
 
   const seedSource = readFileSync("prisma/seed.ts", "utf8");
   assert.ok(seedSource.indexOf("seedAdminSchema.parse") < seedSource.indexOf("syncPermissions()"), "O seed completo deve validar ADMIN_* antes do bootstrap.");
+  assert.ok(!seedSource.includes('"visitor.'), "Os perfis nao administrativos nao recebem grants Visitor no seed padrao.");
   console.log("Permission synchronization tests passed: 11 scenarios.");
 }
 

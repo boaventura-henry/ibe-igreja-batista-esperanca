@@ -84,6 +84,16 @@ enum MemberStatus {
   DECEASED
 }
 
+enum VisitorStatus {
+  ACTIVE
+  INACTIVE
+  CONVERTED
+}
+
+enum VisitorPrivacyChannel {
+  PUBLIC_VISIT_FORM
+}
+
 enum DonationType {
   TITHE
   OFFERING
@@ -373,6 +383,8 @@ model User {
   updatedInstrumentHistories           InstrumentHistory[]                  @relation("InstrumentHistoryUpdatedBy")
   createdScheduleInstrumentAssignments ScheduleMemberInstrumentAssignment[] @relation("ScheduleInstrumentAssignmentCreatedBy")
   updatedScheduleInstrumentAssignments ScheduleMemberInstrumentAssignment[] @relation("ScheduleInstrumentAssignmentUpdatedBy")
+  createdVisitors                       Visitor[]                            @relation("VisitorCreatedBy")
+  updatedVisitors                       Visitor[]                            @relation("VisitorUpdatedBy")
   ministryFinancialAccesses            MinistryFinancialAccess[]            @relation("MinistryFinancialAccessUser")
   createdMinistryFinancialAccesses     MinistryFinancialAccess[]            @relation("MinistryFinancialAccessCreatedBy")
   createdAt                            DateTime                             @default(now())
@@ -707,6 +719,59 @@ model Member {
   @@index([city])
   @@index([status])
   @@index([deletedAt])
+}
+
+model Visitor {
+  id             String               @id @default(cuid())
+  name           String
+  phone          String
+  birthDate      DateTime
+  street         String?
+  number         String?
+  complement     String?
+  district       String?
+  city           String?
+  state          String?
+  status         VisitorStatus        @default(ACTIVE)
+  deletedAt      DateTime?
+  createdById    String?
+  updatedById    String?
+  visits         VisitorVisit[]
+  privacyRecords VisitorPrivacyRecord[]
+  createdBy      User?                @relation("VisitorCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?                @relation("VisitorUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([phone, birthDate])
+  @@index([name])
+  @@index([birthDate])
+  @@index([status, deletedAt])
+}
+
+model VisitorVisit {
+  id        String   @id @default(cuid())
+  visitorId String
+  visitDate DateTime
+  visitor   Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([visitorId, visitDate])
+  @@index([visitDate])
+}
+
+model VisitorPrivacyRecord {
+  id              String                @id @default(cuid())
+  visitorId       String
+  noticeVersion   String
+  acknowledgedAt  DateTime
+  channel         VisitorPrivacyChannel
+  visitor         Visitor               @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  createdAt       DateTime              @default(now())
+
+  @@unique([visitorId, noticeVersion, channel])
+  @@index([visitorId, acknowledgedAt])
+  @@index([noticeVersion])
 }
 
 model Ministry {
