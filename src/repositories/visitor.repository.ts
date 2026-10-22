@@ -1,4 +1,4 @@
-import { Prisma, VisitorPrivacyChannel, VisitorStatus } from "@prisma/client";
+import { Prisma, PrismaClient, VisitorPrivacyChannel, VisitorStatus } from "@prisma/client";
 import { visitorCivilDate } from "@/lib/visitor-civil-date";
 import { prisma } from "@/prisma/client";
 import type { VisitorCreateInput, VisitorUpdateInput } from "@/validators";
@@ -32,8 +32,8 @@ function visitorUpdateData(data: VisitorUpdateInput, userId?: string): Prisma.Vi
 }
 
 export const visitorRepository = {
-  transaction<T>(callback: (database: Prisma.TransactionClient) => Promise<T>) {
-    return prisma.$transaction(callback, {
+  transaction<T>(callback: (database: Prisma.TransactionClient) => Promise<T>, client: PrismaClient = prisma) {
+    return client.$transaction(callback, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       maxWait: 5_000,
       timeout: 30_000

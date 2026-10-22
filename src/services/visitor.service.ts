@@ -1,4 +1,4 @@
-import { Prisma, VisitorStatus } from "@prisma/client";
+import { Prisma, PrismaClient, VisitorStatus } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { visitorRepository, type VisitorRecord } from "@/repositories";
 import type { VisitorCreateInput, VisitorPrivacyRecordInput } from "@/validators";
@@ -35,7 +35,19 @@ async function runVisitorTransaction<T>(operation: () => Promise<T>) {
 }
 
 export const visitorService = {
-  async checkIn(input: VisitorCheckInInput): Promise<VisitorCheckInResult> {
+  async checkInExisting(input: { phone: string; birthDate: Date; privacy: VisitorPrivacyRecordInput; visitDate: Date }, client?: PrismaClient): Promise<boolean> {
+    return runVisitorTransaction(() => visitorRepository.transaction(async (database) => {
+      const current = await visitorRepository.findByIdentity(input.phone, input.birthDate, database);
+      if (!current) return false;
+      const visitor = current.status === VisitorStatus.INACTIVE
+        ? await visitorRepository.reactivate(current.id, database)
+        : current;
+      await visitorRepository.upsertPrivacyRecord(visitor.id, input.privacy.noticeVersion, input.privacy.channel, database);
+      await visitorRepository.upsertVisit(visitor.id, input.visitDate, database);
+      return true;
+    }, client));
+  },
+  async checkIn(input: VisitorCheckInInput, client?: PrismaClient): Promise<VisitorCheckInResult> {
     if (input.visitor.status === VisitorStatus.CONVERTED) {
       throw new AppError("O status convertido nao esta disponivel para check-in.", 400, "VISITOR_STATUS_UNAVAILABLE");
     }
@@ -54,7 +66,7 @@ export const visitorService = {
         await visitorRepository.upsertPrivacyRecord(visitor.id, input.privacy.noticeVersion, input.privacy.channel, database);
         await visitorRepository.upsertVisit(visitor.id, input.visitDate, database);
         return { visitor, created: true, reactivated: false };
-      }));
+      }, client));
     } catch (error) {
       if (transactionCode(error) === "P2002") {
         throw new AppError("A identidade do visitante esta indisponivel para um novo cadastro.", 409, "VISITOR_IDENTITY_UNAVAILABLE");
