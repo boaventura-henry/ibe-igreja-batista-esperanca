@@ -74,18 +74,20 @@ export async function POST(request: Request) {
   try {
     const birthDate = identity.data.birthDate.toISOString().slice(0, 10);
     const digest = visitorPublicSecurity.visitorIdentityDigest(identity.data.phone, birthDate);
-    const limit = await visitorPublicSecurity.limitVisitorIdentity(digest);
-    if (!limit.success) return fail(429, "RATE_LIMITED", { "Retry-After": String(limit.retryAfter) });
     const privacy = { noticeVersion: visitorPrivacyNotice.version, channel: VisitorPrivacyChannel.PUBLIC_VISIT_FORM };
     const visitDate = parseVisitorCivilDate(applicationDateInputValue())!;
     if (input.data.action === "IDENTIFY") {
       const verification = await visitorPublicSecurity.verifyVisitorTurnstile(input.data.turnstileToken);
       if (verification === "unavailable") return fail(503, "SERVICE_UNAVAILABLE");
       if (verification !== "valid") return fail(400, "HUMAN_VERIFICATION_FAILED");
+      const limit = await visitorPublicSecurity.limitVisitorIdentity(digest);
+      if (!limit.success) return fail(429, "RATE_LIMITED", { "Retry-After": String(limit.retryAfter) });
       const existing = await visitorService.checkInExisting({ ...identity.data, privacy, visitDate }, visitorPublicPrisma);
       if (!existing) return reply(200, { success: true, data: { state: "PROFILE_REQUIRED", continuationToken: visitorPublicSecurity.createVisitorFlowToken(digest, privacy.noticeVersion) } });
     } else {
       if (!visitorPublicSecurity.verifyVisitorFlowToken(input.data.continuationToken, digest, privacy.noticeVersion)) return fail(400, "FLOW_EXPIRED");
+      const limit = await visitorPublicSecurity.limitVisitorIdentity(digest);
+      if (!limit.success) return fail(429, "RATE_LIMITED", { "Retry-After": String(limit.retryAfter) });
       const visitor = visitorCreateSchema.safeParse({ ...input.data.address, ...identity.data, birthDate, name: input.data.name });
       if (!visitor.success) return fail(400, "INVALID_REQUEST");
       await visitorService.checkIn({ visitor: visitor.data, privacy, visitDate, reactivateInactive: true }, visitorPublicPrisma);
