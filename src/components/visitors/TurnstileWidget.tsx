@@ -20,24 +20,28 @@ export function TurnstileWidget({
   resetKey,
   onToken,
   onExpired,
-  onError
+  onError,
+  onScriptError
 }: {
   siteKey: string;
   resetKey: number;
   onToken: (token: string) => void;
   onExpired: () => void;
   onError: () => void;
+  onScriptError: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const tokenCallbackRef = useRef(onToken);
   const expiredCallbackRef = useRef(onExpired);
   const errorCallbackRef = useRef(onError);
+  const scriptErrorCallbackRef = useRef(onScriptError);
   const [ready, setReady] = useState(false);
 
   useEffect(() => { tokenCallbackRef.current = onToken; }, [onToken]);
   useEffect(() => { expiredCallbackRef.current = onExpired; }, [onExpired]);
   useEffect(() => { errorCallbackRef.current = onError; }, [onError]);
+  useEffect(() => { scriptErrorCallbackRef.current = onScriptError; }, [onScriptError]);
 
   useEffect(() => {
     if (!ready || !siteKey || !containerRef.current || !window.turnstile || widgetIdRef.current) return;
@@ -45,7 +49,8 @@ export function TurnstileWidget({
       sitekey: siteKey,
       callback: (token: unknown) => { if (typeof token === "string" && token) tokenCallbackRef.current(token); },
       "expired-callback": () => expiredCallbackRef.current(),
-      "error-callback": () => errorCallbackRef.current()
+      "error-callback": () => errorCallbackRef.current(),
+      size: "flexible"
     });
     return () => {
       if (widgetIdRef.current && window.turnstile) window.turnstile.remove(widgetIdRef.current);
@@ -62,9 +67,21 @@ export function TurnstileWidget({
   }
 
   return (
-    <div className="max-w-full overflow-hidden">
-      <Script id="visitor-turnstile" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onLoad={() => setReady(true)} />
-      <div ref={containerRef} className="max-w-full" aria-label="Verificacao de seguranca" />
+    <div className="w-full">
+      <Script
+        id="visitor-turnstile"
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        strategy="afterInteractive"
+        onReady={() => {
+          if (window.turnstile) setReady(true);
+          else scriptErrorCallbackRef.current();
+        }}
+        onError={() => {
+          setReady(false);
+          scriptErrorCallbackRef.current();
+        }}
+      />
+      <div ref={containerRef} className="w-full" aria-label="Verificacao de seguranca" />
     </div>
   );
 }

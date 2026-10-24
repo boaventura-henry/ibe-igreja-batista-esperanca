@@ -23,10 +23,16 @@ export function optionalAddress(address: VisitorAddressForm) {
   return Object.values(result).some(Boolean) ? result : undefined;
 }
 
+export function parseRetryAfterSeconds(retryAfter?: string | null) {
+  if (!retryAfter || !/^[0-9]+$/.test(retryAfter)) return null;
+  const seconds = Number(retryAfter);
+  return Number.isSafeInteger(seconds) && seconds > 0 && seconds <= 86_400 ? seconds : null;
+}
+
 export function visitorRequestError(status: number, code?: string, retryAfter?: string | null) {
   if (status === 429) {
-    const seconds = Number(retryAfter);
-    return Number.isSafeInteger(seconds) && seconds > 0
+    const seconds = parseRetryAfterSeconds(retryAfter);
+    return seconds !== null
       ? `Muitas tentativas. Aguarde cerca de ${seconds} segundos antes de tentar novamente.`
       : "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.";
   }

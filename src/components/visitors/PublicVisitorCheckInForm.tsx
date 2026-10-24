@@ -14,6 +14,7 @@ import {
 
 type Phase = "INITIAL" | "IDENTIFY_SUBMITTING" | "PROFILE_REQUIRED" | "COMPLETE_SUBMITTING" | "COMPLETED" | "ERROR_RECOVERABLE" | "SERVICE_UNAVAILABLE" | "RATE_LIMITED" | "TURNSTILE_ERROR" | "TURNSTILE_EXPIRED";
 type Message = { text: string; tone: "error" | "success" | "warning" | "info" } | null;
+type InvalidField = "phone" | "birthDate" | "privacy" | "name" | null;
 type ApiFailure = { success: false; error?: { code?: string } };
 type ApiSuccess = { success: true; data?: { state?: "COMPLETED" | "PROFILE_REQUIRED"; continuationToken?: string } };
 
@@ -34,15 +35,21 @@ export function PublicVisitorCheckInForm({ notice }: { notice: VisitorPrivacyNot
   const [name, setName] = useState("");
   const [address, setAddress] = useState<VisitorAddressForm>(emptyAddress);
   const [message, setMessage] = useState<Message>(null);
+  const [invalidField, setInvalidField] = useState<InvalidField>(null);
   const [resetKey, setResetKey] = useState(0);
   const profileHeadingRef = useRef<HTMLHeadingElement>(null);
   const completedHeadingRef = useRef<HTMLHeadingElement>(null);
+  const focusInitialFieldRef = useRef(false);
   const publicRegistrationAvailable = isPublicVisitorRegistrationAvailable(notice);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
   useEffect(() => {
     if (phase === "PROFILE_REQUIRED") profileHeadingRef.current?.focus();
     if (phase === "COMPLETED") completedHeadingRef.current?.focus();
+    if (phase === "INITIAL" && focusInitialFieldRef.current) {
+      focusInitialFieldRef.current = false;
+      focusField("visitor-phone");
+    }
   }, [phase]);
 
   function resetTurnstile() {
@@ -59,6 +66,7 @@ export function PublicVisitorCheckInForm({ notice }: { notice: VisitorPrivacyNot
     setName("");
     setAddress(emptyAddress);
     resetTurnstile();
+    setInvalidField(null);
     setMessage(messageToShow ?? null);
   }
 
@@ -70,21 +78,25 @@ export function PublicVisitorCheckInForm({ notice }: { notice: VisitorPrivacyNot
     event.preventDefault();
     if (phase === "IDENTIFY_SUBMITTING" || !publicRegistrationAvailable) return;
     setMessage(null);
+    setInvalidField(null);
     const digits = onlyDigits(phone);
     if (digits.length !== 10 && digits.length !== 11) {
       setPhase("ERROR_RECOVERABLE");
+      setInvalidField("phone");
       setMessage({ tone: "error", text: "Informe um telefone brasileiro com 10 ou 11 digitos." });
       focusField("visitor-phone");
       return;
     }
     if (!birthDate) {
       setPhase("ERROR_RECOVERABLE");
+      setInvalidField("birthDate");
       setMessage({ tone: "error", text: "Informe sua data de nascimento." });
       focusField("visitor-birth-date");
       return;
     }
     if (!acknowledged) {
       setPhase("ERROR_RECOVERABLE");
+      setInvalidField("privacy");
       setMessage({ tone: "error", text: "Confirme sua ciencia do aviso de privacidade para continuar." });
       focusField("visitor-privacy");
       return;
@@ -115,7 +127,7 @@ export function PublicVisitorCheckInForm({ notice }: { notice: VisitorPrivacyNot
         return;
       }
       const code = !payload.success ? payload.error?.code : undefined;
-      if (code === "FLOW_EXPIRED") { resetFlow({ tone: "warning", text: visitorRequestError(response.status, code) }); return; }
+      if (code === "FLOW_EXPIRED") { focusInitialFieldRef.current = true; resetFlow({ tone: "warning", text: visitorRequestError(response.status, code) }); return; }
       const nextPhase: Phase = response.status === 429 ? "RATE_LIMITED" : response.status === 503 ? "SERVICE_UNAVAILABLE" : "ERROR_RECOVERABLE";
       setPhase(nextPhase);
       setMessage({ tone: response.status === 429 ? "warning" : "error", text: visitorRequestError(response.status, code, response.headers.get("Retry-After")) });
@@ -131,8 +143,10 @@ export function PublicVisitorCheckInForm({ notice }: { notice: VisitorPrivacyNot
     event.preventDefault();
     if (phase === "COMPLETE_SUBMITTING" || !continuationToken) return;
     setMessage(null);
+    setInvalidField(null);
     if (name.trim().length < 3) {
       setPhase("ERROR_RECOVERABLE");
+      setInvalidField("name");
       setMessage({ tone: "error", text: "Informe seu nome." });
       focusField("visitor-name");
       return;
@@ -152,7 +166,7 @@ export function PublicVisitorCheckInForm({ notice }: { notice: VisitorPrivacyNot
         return;
       }
       const code = !payload.success ? payload.error?.code : undefined;
-      if (code === "FLOW_EXPIRED") { resetFlow({ tone: "warning", text: visitorRequestError(response.status, code) }); return; }
+      if (code === "FLOW_EXPIRED") { focusInitialFieldRef.current = true; resetFlow({ tone: "warning", text: visitorRequestError(response.status, code) }); return; }
       const nextPhase: Phase = response.status === 429 ? "RATE_LIMITED" : response.status === 503 ? "SERVICE_UNAVAILABLE" : "ERROR_RECOVERABLE";
       setPhase(nextPhase);
       setMessage({ tone: response.status === 429 ? "warning" : "error", text: visitorRequestError(response.status, code, response.headers.get("Retry-After")) });
@@ -196,7 +210,7 @@ export function PublicVisitorCheckInForm({ notice }: { notice: VisitorPrivacyNot
         <form onSubmit={submitComplete} className="grid gap-4 p-5 sm:p-6" noValidate>
           <h3 ref={profileHeadingRef} tabIndex={-1} className="sr-only">Dados complementares</h3>
           <Field label="Nome" htmlFor="visitor-name" required>
-            <input id="visitor-name" required value={name} onChange={(event) => setName(event.target.value)} maxLength={160} aria-invalid={Boolean(message)} aria-describedby={message ? errorId : undefined} className={inputClass} autoComplete="name" />
+            <input id="visitor-name" required value={name} onChange={(event) => { setName(event.target.value); if (invalidField === "name") setInvalidField(null); }} maxLength={160} aria-invalid={invalidField === "name"} aria-describedby={invalidField === "name" ? errorId : undefined} className={inputClass} autoComplete="name" />
           </Field>
           <fieldset className="grid gap-4 rounded-md border border-hope-100 p-4">
             <legend className="px-1 text-sm font-bold text-ink-700">Endereco opcional</legend>
@@ -219,17 +233,17 @@ export function PublicVisitorCheckInForm({ notice }: { notice: VisitorPrivacyNot
       ) : (
         <form onSubmit={submitIdentify} className="grid gap-4 p-5 sm:p-6" noValidate>
           <Field label="Telefone / WhatsApp" htmlFor="visitor-phone" required>
-            <input id="visitor-phone" required value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} inputMode="tel" autoComplete="tel" maxLength={16} aria-invalid={Boolean(message)} aria-describedby={message ? errorId : undefined} className={inputClass} placeholder="(00) 00000-0000" />
+            <input id="visitor-phone" required value={phone} onChange={(event) => { setPhone(formatPhone(event.target.value)); if (invalidField === "phone") setInvalidField(null); }} inputMode="tel" autoComplete="tel" maxLength={16} aria-invalid={invalidField === "phone"} aria-describedby={invalidField === "phone" ? errorId : undefined} className={inputClass} placeholder="(00) 00000-0000" />
           </Field>
           <Field label="Data de nascimento" htmlFor="visitor-birth-date" required>
-            <input id="visitor-birth-date" required type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} autoComplete="bday" aria-invalid={Boolean(message)} aria-describedby={message ? errorId : undefined} className={inputClass} />
+            <input id="visitor-birth-date" required type="date" value={birthDate} onChange={(event) => { setBirthDate(event.target.value); if (invalidField === "birthDate") setInvalidField(null); }} autoComplete="bday" aria-invalid={invalidField === "birthDate"} aria-describedby={invalidField === "birthDate" ? errorId : undefined} className={inputClass} />
           </Field>
           <div className="rounded-md border border-hope-100 bg-hope-50 p-4 text-sm leading-6 text-ink-700 whitespace-pre-wrap">{notice.text}</div>
           <label className="flex items-start gap-3 text-sm font-semibold text-ink-700" htmlFor="visitor-privacy">
-            <input id="visitor-privacy" type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} className="mt-1 h-4 w-4 rounded border-hope-100 text-hope-600 focus:ring-hope-600" />
+            <input id="visitor-privacy" type="checkbox" checked={acknowledged} onChange={(event) => { setAcknowledged(event.target.checked); if (invalidField === "privacy") setInvalidField(null); }} aria-invalid={invalidField === "privacy"} aria-describedby={invalidField === "privacy" ? errorId : undefined} className="mt-1 h-4 w-4 rounded border-hope-100 text-hope-600 focus:ring-hope-600" />
             Estou ciente do aviso de privacidade, versao {notice.version}.
           </label>
-          <TurnstileWidget siteKey={siteKey} resetKey={resetKey} onToken={(token) => { setTurnstileToken(token); setMessage(null); }} onExpired={() => { setTurnstileToken(""); setPhase("TURNSTILE_EXPIRED"); setMessage({ tone: "warning", text: "A verificacao expirou. Conclua uma nova verificacao para continuar." }); }} onError={() => { setTurnstileToken(""); setPhase("TURNSTILE_ERROR"); setMessage({ tone: "error", text: "Nao foi possivel concluir a verificacao. Tente novamente." }); }} />
+          <TurnstileWidget siteKey={siteKey} resetKey={resetKey} onToken={(token) => { setTurnstileToken(token); setMessage(null); }} onExpired={() => { setTurnstileToken(""); setPhase("TURNSTILE_EXPIRED"); setMessage({ tone: "warning", text: "A verificacao expirou. Conclua uma nova verificacao para continuar." }); }} onError={() => { setTurnstileToken(""); setPhase("TURNSTILE_ERROR"); setMessage({ tone: "error", text: "Nao foi possivel concluir a verificacao. Tente novamente." }); }} onScriptError={() => { setTurnstileToken(""); setPhase("TURNSTILE_ERROR"); setMessage({ tone: "error", text: "A verificacao de seguranca nao esta disponivel agora. Recarregue a pagina e tente novamente." }); }} />
           <button type="submit" disabled={submitting || !turnstileToken} className="h-11 w-full rounded-md bg-hope-600 px-4 text-sm font-bold text-white transition hover:bg-hope-700 disabled:cursor-not-allowed disabled:opacity-70">{submitting ? "Verificando..." : "Continuar"}</button>
         </form>
       )}
