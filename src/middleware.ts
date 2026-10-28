@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 const protectedRoutes = [
   "/dashboard",
   "/membros",
+  "/visitantes",
   "/perfis-acesso",
   "/usuarios",
   "/notificacoes",
@@ -57,6 +58,10 @@ export default withAuth(
     }
 
     if (pathname.startsWith("/perfis-acesso") && !request.nextauth.token?.permissionCodes?.includes("accessRole.view")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (pathname.startsWith("/visitantes") && !request.nextauth.token?.permissionCodes?.includes("visitor.view")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
@@ -207,6 +212,7 @@ export const config = {
     "/login",
     "/dashboard/:path*",
     "/membros/:path*",
+    "/visitantes/:path*",
     "/perfis-acesso/:path*",
     "/usuarios/:path*",
     "/notificacoes/:path*",

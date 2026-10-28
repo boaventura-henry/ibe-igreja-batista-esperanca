@@ -11,6 +11,7 @@ export const navigationItems: readonly NavigationItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "Inicio", permission: "dashboard.admin.view" },
   { href: "/portal", label: "Portal do Membro", icon: "Inicio", permission: "memberPortal.view", administrative: false },
   { href: "/membros", label: "Membros", icon: "Pessoas", permission: "member.view" },
+  { href: "/visitantes", label: "Visitantes", icon: "Pessoas", permission: "visitor.view" },
   { href: "/perfis-acesso", label: "Perfis de Acesso", icon: "Chaves", permission: "accessRole.view" },
   { href: "/usuarios", label: "Usuários", icon: "Usuarios", permission: "user.view" },
   { href: "/ministerios", label: "Ministérios", icon: "Servir", permission: "ministry.view" },

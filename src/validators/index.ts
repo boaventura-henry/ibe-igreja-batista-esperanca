@@ -74,16 +74,20 @@ export type {
   MemberUpdateInput
 } from "./member.validator";
 export {
+  visitorAdminUpdateSchema,
   visitorBirthDateSchema,
   visitorCreateSchema,
   visitorIdentitySchema,
+  visitorListQuerySchema,
   visitorPhoneSchema,
   visitorPrivacyRecordSchema,
   visitorUpdateSchema
 } from "./visitor.validator";
 export type {
+  VisitorAdminUpdateInput,
   VisitorCreateInput,
   VisitorIdentityInput,
+  VisitorListQueryInput,
   VisitorPrivacyRecordInput,
   VisitorUpdateInput
 } from "./visitor.validator";

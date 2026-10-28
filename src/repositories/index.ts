@@ -87,7 +87,7 @@ export { scheduleSongRepository } from "./schedule-song.repository";
 export type { ScheduleSongRecord } from "./schedule-song.repository";
 export { userRepository } from "./user.repository";
 export { visitorRepository } from "./visitor.repository";
-export type { VisitorDatabase, VisitorRecord } from "./visitor.repository";
+export type { VisitorDatabase, VisitorDetailRecord, VisitorRecord } from "./visitor.repository";
 export { systemDiagnosticsRepository, MigrationsTableUnavailableError } from "./system-diagnostics.repository";
 export type { SafeUser, UserWithPassword } from "./user.repository";
 export { pushSubscriptionRepository } from "./push-subscription.repository";

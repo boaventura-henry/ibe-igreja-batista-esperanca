@@ -10,6 +10,10 @@ const emptyToUndefined = (value: unknown) => {
 };
 
 const optionalText = (max: number) => z.preprocess(emptyToUndefined, z.string().trim().max(max).optional());
+const optionalAdminText = (max: number) => z
+  .union([z.string().trim().max(max), z.null()])
+  .optional()
+  .transform((value) => value === "" ? null : value);
 
 export const visitorPhoneSchema = z
   .string()
@@ -48,6 +52,39 @@ export const visitorUpdateSchema = visitorCreateSchema.partial().extend({
   status: z.enum(VisitorStatus).optional()
 });
 
+const visitorAdminFields = {
+  name: z.string().trim().min(3, "Informe o nome do visitante.").max(160),
+  phone: visitorPhoneSchema,
+  birthDate: visitorBirthDateSchema,
+  street: optionalAdminText(160),
+  number: optionalAdminText(40),
+  complement: optionalAdminText(120),
+  district: optionalAdminText(120),
+  city: optionalAdminText(120),
+  state: z
+    .union([z.string().trim().length(2).transform((value) => value.toUpperCase()), z.literal(""), z.null()])
+    .optional()
+    .transform((value) => value === "" ? null : value),
+  status: z.enum([VisitorStatus.ACTIVE, VisitorStatus.INACTIVE])
+};
+
+export const visitorAdminUpdateSchema = z
+  .object(visitorAdminFields)
+  .partial()
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, "Informe ao menos um campo para atualizar.");
+
+export const visitorListQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(5).max(100).default(20),
+    search: z.preprocess(emptyToUndefined, z.string().trim().max(160).optional()),
+    status: z.enum(VisitorStatus).optional(),
+    sortBy: z.enum(["name", "createdAt", "updatedAt"]).default("name"),
+    sortOrder: z.enum(["asc", "desc"]).default("asc")
+  })
+  .strict();
+
 export const visitorPrivacyRecordSchema = z.object({
   noticeVersion: z.string().trim().min(1).max(64),
   channel: z.enum(VisitorPrivacyChannel)
@@ -55,5 +92,7 @@ export const visitorPrivacyRecordSchema = z.object({
 
 export type VisitorCreateInput = z.infer<typeof visitorCreateSchema>;
 export type VisitorUpdateInput = z.infer<typeof visitorUpdateSchema>;
+export type VisitorAdminUpdateInput = z.infer<typeof visitorAdminUpdateSchema>;
 export type VisitorIdentityInput = z.infer<typeof visitorIdentitySchema>;
 export type VisitorPrivacyRecordInput = z.infer<typeof visitorPrivacyRecordSchema>;
+export type VisitorListQueryInput = z.infer<typeof visitorListQuerySchema>;
