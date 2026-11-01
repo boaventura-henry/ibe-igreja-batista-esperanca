@@ -31,6 +31,7 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
     "prisma:sync-permissions": "tsx prisma/sync-permissions.ts",
+    "prisma:verify-visitor-permissions": "tsx prisma/verify-visitor-permissions.ts",
     "test:instruments": "tsx scripts/instrument-domain-test.ts",
     "test:schedule-instruments": "tsx scripts/schedule-instrument-assignment-test.ts",
     "test:schedule-instrument-selection": "tsx scripts/schedule-instrument-selection-ui-test.ts",

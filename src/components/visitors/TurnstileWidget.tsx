@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
+import { VISITOR_TURNSTILE_IDENTIFY_ACTION } from "@/lib/visitor-turnstile";
 
 type TurnstileApi = {
   render: (container: HTMLElement, options: Record<string, unknown>) => string;
@@ -47,6 +48,7 @@ export function TurnstileWidget({
     if (!ready || !siteKey || !containerRef.current || !window.turnstile || widgetIdRef.current) return;
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: siteKey,
+      action: VISITOR_TURNSTILE_IDENTIFY_ACTION,
       callback: (token: unknown) => { if (typeof token === "string" && token) tokenCallbackRef.current(token); },
       "expired-callback": () => expiredCallbackRef.current(),
       "error-callback": () => errorCallbackRef.current(),

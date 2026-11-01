@@ -13,6 +13,7 @@ Este runbook orienta a publicacao operacional da versao 0.2.0 do IBE. Ele nao su
 - [ ] `DIRECT_URL` configurada.
 - [ ] `NEXTAUTH_SECRET` configurada.
 - [ ] `NEXTAUTH_URL` configurada para a URL oficial.
+- [ ] Confirmar inequivocamente que `DATABASE_URL` aponta para Production antes de qualquer comando que escreva no banco.
 - [ ] `BLOB_READ_WRITE_TOKEN` configurada quando uploads forem exigidos.
 - [ ] `NEXT_PUBLIC_VAPID_PUBLIC_KEY` configurada.
 - [ ] `VAPID_PRIVATE_KEY` configurada.
@@ -29,6 +30,10 @@ Este runbook orienta a publicacao operacional da versao 0.2.0 do IBE. Ele nao su
 - [ ] Confirmar estado do Git: `git status`.
 - [ ] Confirmar commit/tag alvo.
 - [ ] Executar `npx prisma migrate deploy`.
+- [ ] Confirmar que o status da migration de Production esta correto.
+- [ ] Executar `npm run prisma:sync-permissions` de forma controlada e fora do build da Vercel. O comando e idempotente, usa `DATABASE_URL` e deve interromper o rollout se falhar.
+- [ ] Executar `npm run prisma:verify-visitor-permissions`. Esta verificacao e somente leitura e exige `visitor.view`, `visitor.create`, `visitor.update` e `visitor.delete`, incluindo os grants do perfil `Administrador`.
+- [ ] Se migration, sync ou verificacao falhar, parar: sucesso de migration nao implica sucesso de permission sync. Nao realizar deploy ate a falha ser resolvida e a verificacao passar.
 - [ ] Executar `npx prisma generate`.
 - [ ] Executar seed idempotente somente quando autorizado: `npm run prisma:seed`.
 - [ ] Realizar deploy na Vercel pela branch/tag oficial.

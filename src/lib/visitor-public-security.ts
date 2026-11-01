@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
+import { VISITOR_TURNSTILE_IDENTIFY_ACTION } from "@/lib/visitor-turnstile";
 
 const TTL_SECONDS = 15 * 60;
 const PURPOSE = "visitor-check-in";
@@ -86,7 +87,7 @@ export async function verifyVisitorTurnstile(token: string): Promise<"valid" | "
       if (!result || typeof result !== "object" || typeof (result as { success?: unknown }).success !== "boolean") return "unavailable";
       const data = result as { success: boolean; hostname?: unknown; action?: unknown; "error-codes"?: unknown };
       if (!data.success && Array.isArray(data["error-codes"]) && data["error-codes"].some((code: unknown) => ["internal-error", "missing-input-secret", "invalid-input-secret", "bad-request"].includes(String(code)))) return "unavailable";
-      return data.success && typeof data.hostname === "string" && hosts.includes(data.hostname.toLowerCase()) && data.action === "visitor_identify" ? "valid" : "invalid";
+      return data.success && typeof data.hostname === "string" && hosts.includes(data.hostname.toLowerCase()) && data.action === VISITOR_TURNSTILE_IDENTIFY_ACTION ? "valid" : "invalid";
     } catch { return "unavailable"; }
   }
   return "unavailable";

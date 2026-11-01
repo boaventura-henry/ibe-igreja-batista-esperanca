@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { formatPhone } from "@/utils";
 import { isPublicVisitorRegistrationAvailable, optionalAddress, parseRetryAfterSeconds, visitorRequestError } from "@/components/visitors/public-visitor-check-in";
+import { VISITOR_TURNSTILE_IDENTIFY_ACTION } from "@/lib/visitor-turnstile";
 
 const page = readFileSync("src/app/visite-nos/page.tsx", "utf8");
 const form = readFileSync("src/components/visitors/PublicVisitorCheckInForm.tsx", "utf8");
 const widget = readFileSync("src/components/visitors/TurnstileWidget.tsx", "utf8");
+const security = readFileSync("src/lib/visitor-public-security.ts", "utf8");
 const middleware = readFileSync("src/middleware.ts", "utf8");
 
 assert.match(page, /Igreja Batista Esperança/);
@@ -71,6 +73,9 @@ assert.match(form, /verificacao de seguranca nao esta disponivel agora/);
 assert.match(widget, /expired-callback/);
 assert.match(widget, /error-callback/);
 assert.match(widget, /size: "flexible"/);
+assert.equal(VISITOR_TURNSTILE_IDENTIFY_ACTION, "visitor_identify");
+assert.match(widget, /action: VISITOR_TURNSTILE_IDENTIFY_ACTION/);
+assert.match(security, /data\.action === VISITOR_TURNSTILE_IDENTIFY_ACTION/);
 assert.ok(!widget.includes("overflow-hidden"));
 assert.match(widget, /turnstile\.reset/);
 assert.match(widget, /turnstile\.remove/);
