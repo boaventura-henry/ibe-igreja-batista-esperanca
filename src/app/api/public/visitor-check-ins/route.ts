@@ -38,6 +38,10 @@ function allowedOrigin(request: Request) {
   } catch { return false; }
 }
 
+function approvedPrivacyNoticeAvailable() {
+  return visitorPrivacyNotice.status === "APPROVED" && Boolean(visitorPrivacyNotice.text?.trim());
+}
+
 async function readJson(request: Request): Promise<{ value?: unknown; status?: number }> {
   const length = request.headers.get("content-length");
   if (length !== null && (!/^\d+$/.test(length) || Number(length) > MAX_BYTES)) return { status: 413 };
@@ -69,7 +73,7 @@ export async function POST(request: Request) {
   if (!input.success) return fail(400, "INVALID_REQUEST");
   const identity = visitorIdentitySchema.safeParse(input.data);
   if (!identity.success) return fail(400, "INVALID_REQUEST");
-  if (process.env.NODE_ENV === "production" && visitorPrivacyNotice.status !== "APPROVED") return fail(503, "SERVICE_UNAVAILABLE");
+  if (process.env.NODE_ENV === "production" && !approvedPrivacyNoticeAvailable()) return fail(503, "SERVICE_UNAVAILABLE");
   if (input.data.action === "IDENTIFY" && input.data.privacy.noticeVersion !== visitorPrivacyNotice.version) return fail(400, "INVALID_REQUEST");
   try {
     const birthDate = identity.data.birthDate.toISOString().slice(0, 10);

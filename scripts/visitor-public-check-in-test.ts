@@ -26,6 +26,8 @@ let verification: "valid" | "invalid" | "unavailable" = "valid";
 const initialSecurity = { ...visitorPublicSecurity };
 const initialService = { ...visitorService };
 const originalFetch = globalThis.fetch;
+const originalNotice = { ...visitorPrivacyNotice };
+const mutableNotice = visitorPrivacyNotice as unknown as { status: "DRAFT" | "APPROVED"; text: string | null };
 
 visitorPublicSecurity.limitVisitorIdentity = async (key) => {
   if (unavailable) throw new Error("sensitive Redis error");
@@ -165,10 +167,18 @@ async function main() {
   Object.assign(process.env, { NODE_ENV: "production" });
   assert.equal((await POST(request(identify))).status, 403); // HTTP localhost is not accepted in production.
   process.env.VISITOR_ALLOWED_ORIGINS = "https://example.test";
-  const productionRequest = new Request("https://example.test/api/public/visitor-check-ins", {
+  const productionRequest = () => new Request("https://example.test/api/public/visitor-check-ins", {
     method: "POST", headers: { origin: "https://example.test", host: "example.test", "content-type": "application/json" }, body: JSON.stringify(identify)
   });
-  assert.equal((await POST(productionRequest)).status, 503);
+  mutableNotice.status = "DRAFT";
+  mutableNotice.text = originalNotice.text;
+  assert.equal((await POST(productionRequest())).status, 503);
+  mutableNotice.status = "APPROVED";
+  mutableNotice.text = null;
+  assert.equal((await POST(productionRequest())).status, 503);
+  mutableNotice.text = "   ";
+  assert.equal((await POST(productionRequest())).status, 503);
+  mutableNotice.text = originalNotice.text;
   Object.assign(process.env, { NODE_ENV: "test" });
   process.env.VISITOR_ALLOWED_ORIGINS = origin;
   globalThis.fetch = async () => Response.json({ success: true, hostname: "localhost", action: "visitor_identify" });
@@ -233,4 +243,5 @@ main().finally(() => {
   Object.assign(visitorPublicSecurity, initialSecurity);
   Object.assign(visitorService, initialService);
   globalThis.fetch = originalFetch;
+  Object.assign(mutableNotice, originalNotice);
 }).catch((error: unknown) => { console.error(error); process.exitCode = 1; });

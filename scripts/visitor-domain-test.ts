@@ -35,8 +35,12 @@ async function main() {
   assert.equal(institution.presentation, null);
   assert.equal(institution.logoPath, "/ibe-logo.png");
   assert.equal(publicSiteConfiguration.fallbackUrl, "https://ibe-igreja-batista-esperanca.vercel.app");
-  assert.equal(visitorPrivacyNotice.status, "DRAFT");
-  assert.equal(visitorPrivacyNotice.text, null);
+  assert.equal(visitorPrivacyNotice.status, "APPROVED");
+  assert.equal(visitorPrivacyNotice.version, "visitor-privacy-1.0");
+  assert.ok(visitorPrivacyNotice.text?.trim());
+  assert.match(visitorPrivacyNotice.text ?? "", /Controlador: Igreja Batista Esperança/);
+  assert.match(visitorPrivacyNotice.text ?? "", /Av\. Ibirapuera, 733, Jardim Planalto, Araçatuba\/SP/);
+  assert.match(visitorPrivacyNotice.text ?? "", /WhatsApp \(18\) 99744-8397/);
 
   assert.equal(visitorPhoneSchema.parse("(11) 99876-5432"), "11998765432");
   assert.equal(visitorPhoneSchema.parse("1134567890"), "1134567890");
